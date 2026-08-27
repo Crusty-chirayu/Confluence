@@ -6,6 +6,30 @@ Legend: **✅ done** · **🟡 partial** · **⛔ pending** · **➖ out of scop
 
 ---
 
+## GitHub status (verified, not assumed)
+
+| Item | Status | Evidence |
+|---|---|---|
+| PR #1 — "AI Chat Platform v2.0 — full build + spec reconciliation" | ✅ **MERGED** | merge commit `3ac6d66`, `main` now at `99ebad0`+ |
+| GitHub Actions | ✅ **ACTIVE** | `ci.yml` + `release.yml` live in `.github/workflows/` since `99ebad0` |
+| CI workflow | ✅ **GREEN on GitHub** | run `33117956383` on `9230ff1` — all 3 jobs succeeded: typecheck/lint/build, **Verify Edge Functions (deno check + fail-closed integration)**, gitleaks |
+| Deno typecheck fix | ✅ | root `deno.json` + committed `deno.lock` + `npm:` import map — details below; first run `99ebad0` failed resolving `npm:@supabase/realtime-js@2.112.4` |
+| Release workflow | 🔴 **RED — blocked on secrets** | run `33115211404` on `99ebad0` failed: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` (and Vercel secrets) unset; to be configured by the repo owner, then re-verified |
+
+**Deno fix summary (commit `9230ff1`):** CI runs `deno` from the repo root, where Deno
+(a) discovers no `supabase/functions/deno.json` and (b) routes *every* npm package
+through the root `package.json`/node_modules (byonm) — so the functions' former
+`jsr:@supabase/supabase-js@2` imports and their hard-pinned npm deps could not resolve
+in a fresh checkout. Fix: shared modules import the bare specifier, mapped to
+`npm:@supabase/supabase-js@2.112.4` (exact frontend lockfile version) in a new root
+`deno.json` with `nodeModulesDir: "auto"` and a committed `deno.lock` — `deno check`
+provisions the pinned versions itself, no workflow change and no verification
+suppression (a latent `string | null` in `ai-orchestrator` surfaced and was fixed
+fail-closed). The typecheck also surfaced and fixed the first genuine Edge Function
+bug this checklist has caught in CI.
+
+---
+
 ## §17 deliverables
 
 | # | Deliverable | Status | Notes |
@@ -14,10 +38,10 @@ Legend: **✅ done** · **🟡 partial** · **⛔ pending** · **➖ out of scop
 | 2 | Architecture diagram, Realtime as platform of record | ✅ | `README.md` — no Redis/Gateway |
 | 3 | Tokens implementing every §2 value, both themes | ✅ | `src/app/globals.css` |
 | 4 | Route tree for every §3 screen, a11y from first draft | 🟡 | see §3 table |
-| 5 | Edge Functions, key only via `Deno.env.get` | ✅ | verified: single read, never logged |
+| 5 | Edge Functions, key only via `Deno.env.get` | ✅ | verified: single read, never logged; **typechecked green in CI** since `9230ff1` |
 | 6 | Component tree using semantic tokens + §2.7 motion | ✅ | shared `src/lib/motion.ts` |
-| 7 | One sample of each test type | 🟡 | unit + integration done (12 passing); E2E/k6 pending |
-| 8 | `ci.yml` and `release-major.yml` in full | 🟡 | both written; see CI note |
+| 7 | One sample of each test type | 🟡 | unit + integration done (12 vitest + 6 Deno, all green in CI); E2E/k6 pending |
+| 8 | `ci.yml` and `release-major.yml` in full | 🟡 | both live & running; CI **green**, Release blocked on secrets (see GitHub status) |
 | 9 | Acceptance checklist | ✅ | this file |
 
 ---
@@ -103,8 +127,8 @@ Legend: **✅ done** · **🟡 partial** · **⛔ pending** · **➖ out of scop
 | E2E Playwright, 3 journeys | ⛔ | browser download blocked in this sandbox |
 | k6 50-member broadcast storm | ⛔ | |
 | gitleaks | ✅ | wired into CI |
-| `ci.yml` | ✅ | lint, typecheck, unit, deno check, fail-closed, gitleaks |
-| `release-major.yml` | 🟡 | present as `ci/release.yml`; not yet tag-triggered on `v[0-9]+.0.0` |
+| `ci.yml` | ✅ | lint, typecheck, unit, deno check, fail-closed, gitleaks — **green on GitHub** (run `33117956383`) |
+| `release-major.yml` | 🟡 | live as `.github/workflows/release.yml` (push to `main` + dispatch); **red — blocked on repo secrets**, not on code; not tag-triggered on `v[0-9]+.0.0` |
 
 ---
 
@@ -163,9 +187,13 @@ regardless of opt-in state.
 
 These are environmental/scope limitations rather than design decisions.
 
-1. **CI workflow location.** Both pipelines live in `ci/` rather than
-   `.github/workflows/` because the GitHub App pushing this branch lacks the
-   `workflows` permission. One `git mv` activates them — see `ci/README.md`.
+1. **Workflow-file edits require the owner's credentials.** The push credential
+   used by the agent (a GitHub App) lacks the `workflows` permission, so it
+   cannot create commits touching `.github/workflows/*` — the original reason
+   the pipelines shipped under `ci/`. Activation was applied by the owner
+   (`99ebad0`), and the Deno CI fix (`9230ff1`) was deliberately designed to
+   need **zero** workflow changes. Any future workflow edit must be pushed by
+   the owner; `ci/README.md` documents the pipelines.
 
 2. **Fonts.** Inter and JetBrains Mono are declared but resolve to system
    fallbacks; Google Fonts is unreachable from the build sandbox. Self-host via
