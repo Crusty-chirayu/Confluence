@@ -61,13 +61,28 @@ export function AiAvatar({
     <span
       className={cn(
         "inline-flex shrink-0 items-center justify-center rounded-full",
-        "bg-gradient-to-br from-[--ai-accent] to-[--accent] text-white shadow-[--e1]",
+        // §2.5: ai-teal-500 2px avatar ring
+        "bg-[--ai-teal-900] text-[--ai-teal-500] ring-2 ring-[--bubble-ai-ring]",
         sizes[size],
         className,
       )}
       aria-hidden
     >
       <Sparkles className="h-1/2 w-1/2" strokeWidth={2.25} />
+    </span>
+  );
+}
+
+/** §2.5 "AI" pill label — accompanies every AI message. */
+export function AiPill({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "rounded-[--r-pill] bg-[--bubble-ai-ring] px-1.5 py-px text-[10px] font-semibold uppercase leading-[14px] tracking-wide text-white",
+        className,
+      )}
+    >
+      AI
     </span>
   );
 }

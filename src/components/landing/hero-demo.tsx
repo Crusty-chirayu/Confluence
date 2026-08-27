@@ -4,7 +4,7 @@ import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Hash, Send } from "lucide-react";
 import { Avatar, AiAvatar } from "@/components/ui/avatar";
-import { messageIn } from "@/lib/motion";
+import { messageIn, tExit } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 interface Beat {
@@ -109,7 +109,7 @@ export function HeroDemo() {
                   variants={messageIn}
                   initial="hidden"
                   animate="show"
-                  exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                  exit={{ opacity: 0, transition: tExit() }}
                   className="flex items-center gap-3"
                 >
                   <AiAvatar size="sm" />

@@ -7,7 +7,7 @@ import { Avatar, AiAvatar } from "@/components/ui/avatar";
 import { classifyLocal, MAX_MESSAGE_LENGTH } from "@/lib/data/moderation-local";
 import type { ConversationMember } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { popover, SPRING, tEnter } from "@/lib/motion";
+import { popover, SPRING, tEnter, tExit } from "@/lib/motion";
 
 interface MentionOption {
   id: string;
@@ -145,7 +145,7 @@ export function Composer({
           <motion.div
             initial={{ opacity: 0, y: 6, height: 0 }}
             animate={{ opacity: 1, y: 0, height: "auto" }}
-            exit={{ opacity: 0, height: 0, transition: { duration: 0.12 } }}
+            exit={{ opacity: 0, height: 0, transition: tExit() }}
             transition={tEnter()}
             className="mb-2 overflow-hidden"
           >

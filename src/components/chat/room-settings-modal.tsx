@@ -19,7 +19,7 @@ import {
 } from "@/lib/data/api";
 import type { AiMode, Conversation, ConversationMember, Invite, MemberRole } from "@/lib/types";
 import { cn, relativeTime } from "@/lib/utils";
-import { SPRING, tEnter } from "@/lib/motion";
+import { SPRING, tEnter, tExit } from "@/lib/motion";
 
 const AI_MODES: Array<{ v: AiMode; label: string; body: string }> = [
   { v: "off", label: "Off", body: "Humans only. The assistant never posts here." },
@@ -185,7 +185,7 @@ export function RoomSettingsModal({
             key={tab}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, transition: { duration: 0.1 } }}
+            exit={{ opacity: 0, transition: tExit() }}
             transition={tEnter(0.2)}
             className="min-h-[16rem]"
           >

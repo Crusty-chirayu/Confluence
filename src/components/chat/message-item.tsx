@@ -13,7 +13,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { Avatar, AiAvatar } from "@/components/ui/avatar";
+import { Avatar, AiAvatar, AiPill } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Markdown } from "./markdown";
@@ -135,9 +135,7 @@ export const MessageItem = React.memo(function MessageItem({
               {name}
             </span>
             {isAi && (
-              <span className="rounded bg-[--accent-subtle] px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-[--accent]">
-                AI
-              </span>
+              <AiPill />
             )}
             {isGroup && !isAi && isOwn && (
               <span className="text-[10.5px] text-[--fg-subtle]">you</span>
@@ -189,7 +187,19 @@ export const MessageItem = React.memo(function MessageItem({
             <span>{message.content || "The assistant couldn't respond."}</span>
           </div>
         ) : (
-          <div className={cn("text-[14px] text-[--fg]", message.status === "superseded" && "opacity-45")}>
+          /* §2.2/§2.5: real bubbles — a background container carries the
+             sender identity. AI = teal, own = brand accent, others = neutral. */
+          <div
+            className={cn(
+              "inline-block max-w-full rounded-[--r-lg] px-3 py-2 text-[14px] leading-5",
+              message.status === "superseded" && "opacity-45",
+              isAi
+                ? "bg-[--bubble-ai-bg] text-[--bubble-ai-fg]"
+                : isOwn
+                  ? "bg-[--bubble-user-bg] text-[--bubble-user-fg]"
+                  : "bg-[--bubble-other-bg] text-[--bubble-other-fg]",
+            )}
+          >
             <Markdown content={message.content} />
             {/* streaming caret — the reveal IS the animation; no per-token effects */}
             {streaming && message.content.length === 0 ? (
@@ -197,7 +207,7 @@ export const MessageItem = React.memo(function MessageItem({
                 {[0, 1, 2].map((d) => (
                   <span
                     key={d}
-                    className="typing-dot h-1.5 w-1.5 rounded-full bg-[--fg-subtle]"
+                    className="typing-dot h-1.5 w-1.5 rounded-full"
                     style={{ animationDelay: `${d * 140}ms` }}
                   />
                 ))}

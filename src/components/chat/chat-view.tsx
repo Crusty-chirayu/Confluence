@@ -30,7 +30,7 @@ import {
 } from "@/lib/data/api";
 import type { Conversation, ConversationMember, Message, Reaction } from "@/lib/types";
 import { conversationTitle, dayLabel, shouldInvokeAi } from "@/lib/utils";
-import { tEnter } from "@/lib/motion";
+import { tEnter, tExit } from "@/lib/motion";
 
 export function ChatView({ conversation: initial }: { conversation: Conversation }) {
   const router = useRouter();
@@ -388,7 +388,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
                   <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                    exit={{ opacity: 0, transition: tExit() }}
                     transition={tEnter(0.2)}
                     className="flex items-center gap-2 px-2 py-3"
                   >
@@ -421,7 +421,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
             <motion.button
               initial={{ opacity: 0, y: 8, scale: 0.94 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.94, transition: { duration: 0.12 } }}
+              exit={{ opacity: 0, y: 8, scale: 0.94, transition: tExit() }}
               transition={tEnter(0.2)}
               onClick={() => {
                 setAtBottom(true);

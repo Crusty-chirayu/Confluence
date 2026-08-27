@@ -227,27 +227,40 @@ function ConversationRow({
   );
 }
 
+/**
+ * §2.5 ai_mode badge:
+ *   OFF           → neutral-500 dot
+ *   MENTION_ONLY  → ai-teal-500 OUTLINE pill
+ *   AUTO          → ai-teal-500 FILLED pill
+ */
 export function AiModeBadge({ mode }: { mode: string }) {
-  const map: Record<string, { label: string; className: string }> = {
-    off: { label: "AI off", className: "bg-[--bg-active] text-[--fg-muted]" },
-    mention_only: {
-      label: "@ai only",
-      className: "bg-[--accent-subtle] text-[--accent]",
-    },
-    auto: { label: "AI auto", className: "bg-[--accent] text-[--accent-fg]" },
-  };
-  const cfg = map[mode] ?? map.auto;
+  if (mode === "off") {
+    return (
+      <motion.span
+        layout
+        transition={tEnter(0.2)}
+        className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[--neutral-500]"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-[--neutral-500]" aria-hidden />
+        AI off
+      </motion.span>
+    );
+  }
+
+  const filled = mode === "auto";
   return (
     <motion.span
       layout
       transition={tEnter(0.2)}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
-        cfg.className,
+        "inline-flex items-center gap-1 rounded-[--r-pill] px-2 py-0.5 text-[11px] font-semibold",
+        filled
+          ? "bg-[--ai-teal-500] text-white"
+          : "border border-[--ai-teal-500] text-[--ai-teal-500]",
       )}
     >
       <Sparkles className="h-3 w-3" />
-      {cfg.label}
+      {filled ? "AI auto" : "@ai only"}
     </motion.span>
   );
 }
