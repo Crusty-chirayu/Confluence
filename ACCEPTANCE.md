@@ -59,7 +59,7 @@ bug this checklist has caught in CI.
 | §2.5 AI ring + "AI" pill + teal typing dots | ✅ | |
 | §2.5 `ai_mode` badge (dot/outline/filled) | ✅ | **corrected** |
 | §2.6 focus ring, `prefers-reduced-motion` | ✅ | instant cut, not slower |
-| §2.6 contrast audit at 4.5:1 | ⛔ | needs axe-core run |
+| §2.6 contrast audit at 4.5:1 | 🟡 | axe-core runs in CI (structural rules); color-contrast requires rendered CSS → Playwright/Chromium phase |
 | §2.7 motion tokens, all surfaces | ✅ | 5 one-offs replaced with `tExit()` |
 | §2.7 60fps under 4x CPU throttle | ⛔ | not measured |
 
@@ -121,7 +121,7 @@ bug this checklist has caught in CI.
 |---|---|---|
 | Keyboard reachability, focus trap, ARIA | 🟡 | dialogs labelled, message list is `role="log"`; not audited |
 | `aria-live="polite"` batched for streaming | ✅ | **added** — 1s batching + completion flush, tested |
-| axe-core in CI, merge-blocking | ⛔ | |
+| axe-core in CI, merge-blocking | ✅ | **added** — `tests/a11y/` (10 tests) runs inside `npm test`, so the existing CI gate enforces it; jsdom covers structural rules (roles/labels/landmarks/ARIA); color-contrast needs a real browser → Playwright phase |
 | Unit test sample | ✅ | `tests/utils.test.ts` + `stream-announcer.test.tsx`, 12 passing |
 | Integration test (fail-closed) | ✅ | `tests/moderation-fail-closed.test.ts` |
 | E2E Playwright, 3 journeys | ⛔ | browser download blocked in this sandbox |

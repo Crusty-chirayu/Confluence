@@ -177,4 +177,7 @@ npm run build    # production build
 npm run start    # serve the build
 npm run lint     # eslint
 npx tsc --noEmit # typecheck
+npm test         # unit + component + a11y (axe-core) suites
+npm run test:a11y  # axe-core accessibility suite only
+npm run test:edge  # Deno moderation fail-closed integration test
 ```
