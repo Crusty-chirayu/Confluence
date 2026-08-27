@@ -150,10 +150,12 @@ supabase_schema.sql         the complete, runnable database layer
 
 ## CI/CD — "push everything" release policy (§1)
 
-- **`ci.yml`** — on every push/PR: typecheck, lint, build, plus `deno check` on all three Edge Functions.
-- **`release.yml`** — on push to `main`, in strict dependency order: **migrations → Edge Functions → frontend**. A partial deploy is treated as a failed deploy.
+- **`ci/ci.yml`** — on every push/PR: typecheck, lint, build, plus `deno check` on all three Edge Functions.
+- **`ci/release.yml`** — on push to `main`, in strict dependency order: **migrations → Edge Functions → frontend**. A partial deploy is treated as a failed deploy.
 
-Required repository secrets are listed in [`.env.example`](./.env.example).
+> The workflows ship in [`ci/`](./ci) rather than `.github/workflows/` because the GitHub App used to push this branch lacks the `workflows` permission. Move the two files into `.github/workflows/` from a clone with the `workflow` scope to activate them — see [`ci/README.md`](./ci/README.md).
+
+Required repository secrets are listed in [`.env.example`](./.env.example) and `ci/README.md`.
 
 ---
 
