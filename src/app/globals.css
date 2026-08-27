@@ -1,0 +1,509 @@
+@import "tailwindcss";
+
+/* =====================================================================
+   AI Chat Platform — Design System (v2.0)
+   Implements §2.2 primitives + semantic tokens, §2.4 spacing/radius/
+   elevation, §2.6 accessibility tokens, §2.7 motion tokens.
+
+   NOTE: the legacy token names used throughout the component tree
+   (--fg, --accent, --ai-accent, …) are kept as ALIASES that resolve to
+   the §2.2 spec values below, so every component renders spec colors
+   without a mass rename. The §2.2 names are canonical.
+   ===================================================================== */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* ---------------- §2.2 PRIMITIVES ---------------- */
+  --neutral-0: #ffffff;
+  --neutral-50: #f7f8fa;
+  --neutral-100: #eef0f3;
+  --neutral-200: #e2e5ea;
+  --neutral-300: #c7ccd4;
+  --neutral-500: #8b93a1;
+  --neutral-700: #4a5160;
+  --neutral-750: #2c313e;
+  --neutral-800: #232733;
+  --neutral-850: #191d26;
+  --neutral-900: #1b1e27;
+  --neutral-950: #101319;
+
+  --accent-500: #5b5bf6;
+  --accent-600: #4747dc;
+  --accent-100: #e7e7fe;
+  --accent-900: #22206b;
+
+  --ai-teal-500: #0fb8a6;
+  --ai-teal-100: #d8f6f1;
+  --ai-teal-900: #0b3733;
+
+  --success-500: #1fa86a;
+  --warning-500: #e5a83b;
+  --danger-500: #e4514f;
+  --danger-100: #fce6e5;
+  --danger-900: #3e1917;
+
+  /* ---------------- §2.2 SEMANTIC TOKENS (light) ---------------- */
+  --bg-app: var(--neutral-50);
+  --bg-surface: var(--neutral-0);
+  --bg-surface-raised: var(--neutral-0);
+  --bg-hover: var(--neutral-100);
+  --border-default: var(--neutral-200);
+  --text-primary: var(--neutral-900);
+  --text-secondary: var(--neutral-500);
+  --brand: var(--accent-500);
+  --brand-hover: var(--accent-600);
+
+  --bubble-user-bg: var(--accent-500);
+  --bubble-user-fg: #ffffff;
+  --bubble-other-bg: var(--neutral-100);
+  --bubble-other-fg: var(--neutral-900);
+  --bubble-ai-bg: var(--ai-teal-100);
+  --bubble-ai-fg: var(--neutral-900);
+  --bubble-ai-ring: var(--ai-teal-500);
+
+  --danger: var(--danger-500);
+  --success: var(--success-500);
+  --warning: var(--warning-500);
+
+  /* ---------------- LEGACY ALIASES → spec values ---------------- */
+  --bg: var(--bg-app);
+  --bg-subtle: var(--neutral-100);
+  --bg-active: var(--neutral-200);
+  --surface: var(--bg-surface);
+  --surface-raised: var(--bg-surface-raised);
+  --border: var(--border-default);
+  --border-strong: var(--neutral-300);
+
+  --fg: var(--text-primary);
+  --fg-muted: var(--neutral-700); /* body-safe muted (AA at 14px) */
+  --fg-subtle: var(--text-secondary); /* §2.6: UI/large text only */
+  --fg-inverse: var(--neutral-0);
+
+  --accent: var(--brand);
+  --accent-hover: var(--brand-hover);
+  --accent-active: var(--accent-600);
+  --accent-subtle: var(--accent-100);
+  --accent-border: #c5c5fb;
+  --accent-fg: #ffffff;
+
+  --success-subtle: #e3f6ec;
+  --warning-subtle: #fdf3e3;
+  --danger-subtle: var(--danger-100);
+  --danger-hover: #c93f3d;
+
+  /* AI identity (§2.5) — teal, never gray, never brand-purple */
+  --ai-accent: var(--bubble-ai-ring);
+  --ai-bubble: var(--bubble-ai-bg);
+
+  /* ---------------- §2.4 RADIUS ---------------- */
+  --r-sm: 6px; /* inputs / buttons */
+  --r-md: 6px; /* inputs / buttons */
+  --r-lg: 12px; /* cards / bubbles */
+  --r-xl: 20px; /* modals */
+  --r-pill: 999px; /* avatars / pills */
+
+  /* ---------------- §2.4 ELEVATION ---------------- */
+  --e1: 0 1px 2px 0 rgb(16 19 25 / 0.06), 0 1px 3px 0 rgb(16 19 25 / 0.07);
+  --e2: 0 2px 4px -1px rgb(16 19 25 / 0.07), 0 4px 12px -2px rgb(16 19 25 / 0.09);
+  --e3: 0 8px 24px -4px rgb(16 19 25 / 0.14), 0 2px 8px -2px rgb(16 19 25 / 0.07);
+  --e4: 0 24px 48px -12px rgb(16 19 25 / 0.2);
+
+  /* ---------------- §2.7 MOTION TOKENS ---------------- */
+  --d-micro: 120ms;
+  --d-standard: 200ms;
+  --d-emphasis: 320ms;
+  --d-hero: 480ms;
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+.dark {
+  /* ---------------- §2.2 SEMANTIC TOKENS (dark) ---------------- */
+  --bg-app: var(--neutral-950);
+  --bg-surface: var(--neutral-850);
+  --bg-surface-raised: var(--neutral-800);
+  --bg-hover: var(--neutral-800);
+  --border-default: var(--neutral-750);
+  --text-primary: var(--neutral-0);
+  --text-secondary: #a7aebb;
+  --brand: var(--accent-500);
+  --brand-hover: #6d6df8;
+
+  --bubble-user-bg: var(--accent-500);
+  --bubble-user-fg: #ffffff;
+  --bubble-other-bg: var(--neutral-800);
+  --bubble-other-fg: var(--neutral-0);
+  --bubble-ai-bg: var(--ai-teal-900);
+  --bubble-ai-fg: var(--neutral-0);
+  --bubble-ai-ring: var(--ai-teal-500);
+
+  --danger: #f0726f;
+  --success: #34c77e;
+  --warning: #f0b94e;
+
+  /* ---------------- LEGACY ALIASES → spec values ---------------- */
+  --bg: var(--bg-app);
+  --bg-subtle: var(--neutral-850);
+  --bg-active: var(--neutral-750);
+  --surface: var(--bg-surface);
+  --surface-raised: var(--bg-surface-raised);
+  --border: var(--border-default);
+  --border-strong: #3a4050;
+
+  --fg: var(--text-primary);
+  --fg-muted: #a7aebb;
+  --fg-subtle: var(--neutral-500);
+  --fg-inverse: var(--neutral-950);
+
+  --accent: var(--brand);
+  --accent-hover: var(--brand-hover);
+  --accent-active: #8383fa;
+  --accent-subtle: var(--accent-900);
+  --accent-border: #33338a;
+  --accent-fg: #ffffff;
+
+  --success-subtle: #0c2e1e;
+  --warning-subtle: #33260e;
+  --danger-subtle: var(--danger-900);
+  --danger-hover: #f58e8b;
+
+  --ai-accent: var(--bubble-ai-ring);
+  --ai-bubble: var(--bubble-ai-bg);
+
+  --e1: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --e2: 0 2px 8px -2px rgb(0 0 0 / 0.5);
+  --e3: 0 8px 24px -4px rgb(0 0 0 / 0.6);
+  --e4: 0 24px 48px -12px rgb(0 0 0 / 0.7);
+}
+
+@theme inline {
+  /* spec-named utilities */
+  --color-bg-app: var(--bg-app);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-surface-raised: var(--bg-surface-raised);
+  --color-border-default: var(--border-default);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-bubble-user: var(--bubble-user-bg);
+  --color-bubble-other: var(--bubble-other-bg);
+  --color-bubble-ai: var(--bubble-ai-bg);
+  --color-bubble-ai-ring: var(--bubble-ai-ring);
+
+  /* legacy aliases */
+  --color-bg: var(--bg);
+  --color-bg-subtle: var(--bg-subtle);
+  --color-bg-hover: var(--bg-hover);
+  --color-bg-active: var(--bg-active);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-inverse: var(--fg-inverse);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-active: var(--accent-active);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-border: var(--accent-border);
+  --color-accent-fg: var(--accent-fg);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-ai-bubble: var(--ai-bubble);
+  --color-ai-accent: var(--ai-accent);
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+
+  --shadow-e1: var(--e1);
+  --shadow-e2: var(--e2);
+  --shadow-e3: var(--e3);
+  --shadow-e4: var(--e4);
+
+  /* §2.3 typography */
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+}
+
+* {
+  border-color: var(--border-default);
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px; /* §2.3 body-sm default */
+  line-height: 20px;
+  -webkit-font-smoothing: antialiased;
+  /* §2.7: 200ms surface crossfade — theme switch never hard-flashes */
+  transition: background-color var(--d-standard) var(--ease-enter),
+    color var(--d-standard) var(--ease-enter);
+}
+
+::selection {
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+}
+
+/* §2.6 focus ring: 2px accent-500, 2px offset, identical everywhere */
+:focus-visible {
+  outline: 2px solid var(--accent-500);
+  outline-offset: 2px;
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--r-pill);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* --- Skeleton shimmer (~1.5s sweep) --- */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-hover);
+  border-radius: var(--r-lg);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--text-primary) 7%, transparent),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+/* --- §2.5 typing indicator: staggered scale pulse, ai-teal-500 --- */
+@keyframes dotPulse {
+  0%,
+  60%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0.45;
+  }
+  30% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.typing-dot {
+  background: var(--ai-teal-500);
+  animation: dotPulse 1.2s infinite var(--ease-enter);
+}
+
+/* --- Destructive confirm shake (visual tell for debounce) --- */
+@keyframes shake {
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-4px);
+  }
+  40%,
+  60% {
+    transform: translateX(4px);
+  }
+}
+.shake {
+  animation: shake 400ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* --- Toast auto-dismiss progress bar --- */
+@keyframes toastProgress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* --- Landing hero aurora --- */
+@keyframes auroraFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2%, -3%, 0) scale(1.08);
+  }
+}
+.aurora {
+  animation: auroraFloat 14s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* --- Streaming caret (§2.5: teal, no layout shift) --- */
+@keyframes caretBlink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.stream-caret {
+  display: inline-block;
+  width: 0.5ch;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: var(--ai-teal-500);
+  border-radius: 1px;
+  animation: caretBlink 1s steps(1) infinite;
+}
+
+/* --- Prose (markdown rendering) --- */
+.prose-chat {
+  line-height: 1.6;
+  word-break: break-word;
+}
+.prose-chat > * + * {
+  margin-top: 0.7em;
+}
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 1.2em;
+}
+.prose-chat h1 {
+  font-size: 1.25em;
+}
+.prose-chat h2 {
+  font-size: 1.15em;
+}
+.prose-chat h3 {
+  font-size: 1.05em;
+}
+.prose-chat ul,
+.prose-chat ol {
+  padding-left: 1.35em;
+}
+.prose-chat ul {
+  list-style: disc;
+}
+.prose-chat ol {
+  list-style: decimal;
+}
+.prose-chat li + li {
+  margin-top: 0.25em;
+}
+.prose-chat a {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-chat code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: color-mix(in oklab, var(--text-primary) 8%, transparent);
+  padding: 0.15em 0.38em;
+  border-radius: var(--r-sm);
+}
+.prose-chat pre {
+  background: color-mix(in oklab, var(--text-primary) 7%, transparent);
+  border: 1px solid color-mix(in oklab, var(--text-primary) 10%, transparent);
+  border-radius: var(--r-lg);
+  padding: 0.85em 1em;
+  overflow-x: auto;
+}
+.prose-chat pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.85em;
+}
+.prose-chat blockquote {
+  border-left: 3px solid color-mix(in oklab, var(--text-primary) 18%, transparent);
+  padding-left: 0.9em;
+  opacity: 0.85;
+}
+.prose-chat table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+.prose-chat th,
+.prose-chat td {
+  border: 1px solid color-mix(in oklab, var(--text-primary) 14%, transparent);
+  padding: 0.4em 0.6em;
+  text-align: left;
+}
+.prose-chat hr {
+  border-top: 1px solid color-mix(in oklab, var(--text-primary) 14%, transparent);
+}
+
+/* =====================================================================
+   §2.7 REDUCED MOTION — every animation degrades to an INSTANT CUT,
+   not a slower version.
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton::after {
+    display: none;
+  }
+}
