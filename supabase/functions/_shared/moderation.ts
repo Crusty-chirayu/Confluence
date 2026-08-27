@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type Verdict = "pass" | "blocked" | "error_failed_closed";
 

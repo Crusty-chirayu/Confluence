@@ -199,8 +199,14 @@ Deno.serve(async (req) => {
       })
       .select("id")
       .single();
-    if (phErr || !placeholder) throw new HttpError(500, "placeholder_failed", phErr?.message);
-    aiMessageId = placeholder.id;
+    const placeholderId: unknown = placeholder?.id;
+    if (phErr || typeof placeholderId !== "string" || placeholderId.length === 0) {
+      // Fail closed: never proceed without a real message id from the DB.
+      // (Also pins the type — the untyped client returns `id: any`, which
+      // would otherwise leak `string | null` into the streaming closure.)
+      throw new HttpError(500, "placeholder_failed", phErr?.message);
+    }
+    aiMessageId = placeholderId;
 
     if (body.supersedes_id) {
       await admin.from("messages").update({ status: "superseded" }).eq("id", body.supersedes_id);
