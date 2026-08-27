@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run tests/utils.test.ts",
+    "test:edge": "deno test --allow-env --allow-net tests/moderation-fail-closed.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
@@ -32,6 +34,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }

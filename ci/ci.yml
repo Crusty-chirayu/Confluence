@@ -31,6 +31,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Unit tests
+        run: npm test
+
       - name: Build
         run: npm run build
         env:
@@ -54,3 +57,19 @@ jobs:
             deno check "supabase/functions/$fn/index.ts"
             echo "::endgroup::"
           done
+
+      # §9/§11: the fail-closed moderation path is the single most
+      # important non-negotiable behavior in the spec.
+      - name: Integration — moderation fails closed
+        run: deno test --allow-env --allow-net tests/moderation-fail-closed.test.ts
+
+  secrets-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
