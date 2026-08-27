@@ -150,12 +150,22 @@ supabase_schema.sql         the complete, runnable database layer
 
 ## CI/CD — "push everything" release policy (§1)
 
-- **`ci/ci.yml`** — on every push/PR: typecheck, lint, build, plus `deno check` on all three Edge Functions.
-- **`ci/release.yml`** — on push to `main`, in strict dependency order: **migrations → Edge Functions → frontend**. A partial deploy is treated as a failed deploy.
+- **[`.github/workflows/ci.yml`](./.github/workflows/ci.yml)** — live; on every push/PR: typecheck, lint, unit tests, build, plus `deno check` on all three Edge Functions, the moderation fail-closed integration test, and a gitleaks secret scan.
+- **[`.github/workflows/release.yml`](./.github/workflows/release.yml)** — live; on push to `main`, in strict dependency order: **migrations → Edge Functions → frontend**. A partial deploy is treated as a failed deploy.
 
-> The workflows ship in [`ci/`](./ci) rather than `.github/workflows/` because the GitHub App used to push this branch lacks the `workflows` permission. Move the two files into `.github/workflows/` from a clone with the `workflow` scope to activate them — see [`ci/README.md`](./ci/README.md).
+> Both workflows were initially shipped under [`ci/`](./ci) (the original push credential
+> lacked the `workflows` permission) and were activated into `.github/workflows/` once
+> that was resolved. They now live **only** there — [`ci/README.md`](./ci/README.md) is
+> the documentation for them (jobs, Deno configuration contract, required secrets).
 
-Required repository secrets are listed in [`.env.example`](./.env.example) and `ci/README.md`.
+Edge Function type-checking uses two synchronized Deno configs — the root
+[`deno.json`](./deno.json) (applied when CI runs `deno` from the repo root; provisions
+npm deps from the committed [`deno.lock`](./deno.lock)) and
+[`supabase/functions/deno.json`](./supabase/functions/deno.json) (applied when the
+Supabase CLI bundles functions for deploy). Their `imports` must stay identical; see
+the contract note in each file and in [`ci/README.md`](./ci/README.md).
+
+Required repository secrets are listed in [`.env.example`](./.env.example) and [`ci/README.md`](./ci/README.md).
 
 ---
 
