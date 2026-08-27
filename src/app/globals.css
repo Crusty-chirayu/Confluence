@@ -1,0 +1,423 @@
+@import "tailwindcss";
+
+/* =====================================================================
+   AI Chat Platform — Design System (v2.0)
+   Neutral base + single accent. Light + dark. WCAG 2.1 AA targets.
+   ===================================================================== */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* --- Neutral ramp (light) --- */
+  --bg: #ffffff;
+  --bg-subtle: #f7f7f8;
+  --bg-hover: #f0f0f2;
+  --bg-active: #e7e7ea;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --border: #e4e4e7;
+  --border-strong: #d0d0d6;
+
+  --fg: #17171a;
+  --fg-muted: #5f5f6b;
+  --fg-subtle: #8b8b96;
+  --fg-inverse: #ffffff;
+
+  /* --- Accent (single) --- */
+  --accent: #5b5bd6;
+  --accent-hover: #4f4fc4;
+  --accent-active: #4444ad;
+  --accent-subtle: #eeeefc;
+  --accent-border: #c9c9f5;
+  --accent-fg: #ffffff;
+
+  /* --- Semantic --- */
+  --success: #17803d;
+  --success-subtle: #e8f6ed;
+  --warning: #a35a00;
+  --warning-subtle: #fdf1e0;
+  --danger: #c02626;
+  --danger-hover: #a51f1f;
+  --danger-subtle: #fdeaea;
+
+  /* --- AI surface --- */
+  --ai-bubble: #f7f7f8;
+  --ai-accent: #7c5cd6;
+
+  /* --- Elevation --- */
+  --e1: 0 1px 2px 0 rgb(0 0 0 / 0.05), 0 1px 3px 0 rgb(0 0 0 / 0.06);
+  --e2: 0 2px 4px -1px rgb(0 0 0 / 0.06), 0 4px 12px -2px rgb(0 0 0 / 0.08);
+  --e3: 0 8px 24px -4px rgb(0 0 0 / 0.12), 0 2px 8px -2px rgb(0 0 0 / 0.06);
+  --e4: 0 24px 48px -12px rgb(0 0 0 / 0.18);
+
+  /* --- Radii --- */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  /* --- Motion tokens (§2.7) --- */
+  --d-micro: 120ms;
+  --d-standard: 200ms;
+  --d-emphasis: 320ms;
+  --d-hero: 480ms;
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+.dark {
+  --bg: #0b0b0e;
+  --bg-subtle: #141418;
+  --bg-hover: #1c1c22;
+  --bg-active: #26262e;
+  --surface: #121216;
+  --surface-raised: #17171d;
+  --border: #26262e;
+  --border-strong: #36363f;
+
+  --fg: #f2f2f5;
+  --fg-muted: #a1a1ae;
+  --fg-subtle: #74747f;
+  --fg-inverse: #0b0b0e;
+
+  --accent: #8b8bf0;
+  --accent-hover: #9c9cf5;
+  --accent-active: #adadf8;
+  --accent-subtle: #1c1c33;
+  --accent-border: #33335c;
+  --accent-fg: #0b0b0e;
+
+  --success: #4ade80;
+  --success-subtle: #10241a;
+  --warning: #fbbf24;
+  --warning-subtle: #2a1f0a;
+  --danger: #f87171;
+  --danger-hover: #fca5a5;
+  --danger-subtle: #2a1113;
+
+  --ai-bubble: #17171d;
+  --ai-accent: #a78bfa;
+
+  --e1: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --e2: 0 2px 8px -2px rgb(0 0 0 / 0.5);
+  --e3: 0 8px 24px -4px rgb(0 0 0 / 0.6);
+  --e4: 0 24px 48px -12px rgb(0 0 0 / 0.7);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-subtle: var(--bg-subtle);
+  --color-bg-hover: var(--bg-hover);
+  --color-bg-active: var(--bg-active);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-inverse: var(--fg-inverse);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-active: var(--accent-active);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-border: var(--accent-border);
+  --color-accent-fg: var(--accent-fg);
+
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-subtle: var(--danger-subtle);
+
+  --color-ai-bubble: var(--ai-bubble);
+  --color-ai-accent: var(--ai-accent);
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+
+  --shadow-e1: var(--e1);
+  --shadow-e2: var(--e2);
+  --shadow-e3: var(--e3);
+  --shadow-e4: var(--e4);
+
+  --font-sans: var(--font-geist-sans, ""), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono: var(--font-geist-mono, ""), ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: light;
+}
+.dark html,
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  /* theme crossfade — never a hard flash */
+  transition: background-color var(--d-standard) var(--ease-enter),
+    color var(--d-standard) var(--ease-enter);
+}
+
+::selection {
+  background: var(--accent-subtle);
+  color: var(--fg);
+}
+
+/* Focus ring — visible, animated, AA contrast */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  transition: outline-offset var(--d-micro) var(--ease-enter);
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* --- Skeleton shimmer (~1.5s sweep) --- */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-hover);
+  border-radius: var(--r-md);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--fg) 7%, transparent),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+/* --- Typing indicator: staggered scale pulse --- */
+@keyframes dotPulse {
+  0%,
+  60%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0.45;
+  }
+  30% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.typing-dot {
+  animation: dotPulse 1.2s infinite var(--ease-enter);
+}
+
+/* --- Destructive confirm shake (visual tell for debounce) --- */
+@keyframes shake {
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-4px);
+  }
+  40%,
+  60% {
+    transform: translateX(4px);
+  }
+}
+.shake {
+  animation: shake 400ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* --- Toast auto-dismiss progress bar --- */
+@keyframes toastProgress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* --- Landing hero aurora --- */
+@keyframes auroraFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2%, -3%, 0) scale(1.08);
+  }
+}
+.aurora {
+  animation: auroraFloat 14s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* --- Streaming caret --- */
+@keyframes caretBlink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.stream-caret {
+  display: inline-block;
+  width: 0.5ch;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: var(--ai-accent);
+  border-radius: 1px;
+  animation: caretBlink 1s steps(1) infinite;
+}
+
+/* --- Prose (markdown rendering) --- */
+.prose-chat {
+  line-height: 1.65;
+  word-break: break-word;
+}
+.prose-chat > * + * {
+  margin-top: 0.75em;
+}
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3 {
+  font-weight: 650;
+  line-height: 1.3;
+  margin-top: 1.2em;
+}
+.prose-chat h1 {
+  font-size: 1.25em;
+}
+.prose-chat h2 {
+  font-size: 1.15em;
+}
+.prose-chat h3 {
+  font-size: 1.05em;
+}
+.prose-chat ul,
+.prose-chat ol {
+  padding-left: 1.35em;
+}
+.prose-chat ul {
+  list-style: disc;
+}
+.prose-chat ol {
+  list-style: decimal;
+}
+.prose-chat li + li {
+  margin-top: 0.25em;
+}
+.prose-chat a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-chat code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--bg-active);
+  padding: 0.15em 0.38em;
+  border-radius: 5px;
+}
+.prose-chat pre {
+  background: var(--bg-active);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 0.85em 1em;
+  overflow-x: auto;
+}
+.prose-chat pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.85em;
+}
+.prose-chat blockquote {
+  border-left: 3px solid var(--accent-border);
+  padding-left: 0.9em;
+  color: var(--fg-muted);
+}
+.prose-chat table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+.prose-chat th,
+.prose-chat td {
+  border: 1px solid var(--border);
+  padding: 0.4em 0.6em;
+  text-align: left;
+}
+.prose-chat hr {
+  border-top: 1px solid var(--border);
+}
+
+/* =====================================================================
+   REDUCED MOTION — every animation degrades to an instant cut,
+   not a slower version. (§2.7 global requirement)
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton::after {
+    display: none;
+  }
+}
