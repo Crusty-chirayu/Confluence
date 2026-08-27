@@ -15,6 +15,7 @@ const LINKS = [
   { href: "#how", label: "How it works" },
   { href: "#security", label: "Security" },
   { href: "#pricing", label: "Pricing" },
+  { href: "/changelog", label: "Changelog" },
 ];
 
 export function LandingNav() {

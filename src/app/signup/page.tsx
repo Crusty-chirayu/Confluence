@@ -13,6 +13,7 @@ import { Field, Input } from "@/components/ui/input";
 import { DEMO_MODE } from "@/lib/env";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { demo } from "@/lib/data/demo-store";
+import { updateProfile } from "@/lib/data/api";
 import { tEnter } from "@/lib/motion";
 
 const schema = z.object({
@@ -40,6 +41,8 @@ export default function SignupPage() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // §8 hard requirement: training opt-in defaults OFF, never pre-checked.
+  const [trainingOptIn, setTrainingOptIn] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -60,6 +63,7 @@ export default function SignupPage() {
 
     if (DEMO_MODE) {
       demo.signIn(displayName);
+      void updateProfile({ training_opt_in: trainingOptIn });
       router.push("/onboarding");
       return;
     }
@@ -69,7 +73,7 @@ export default function SignupPage() {
       email,
       password,
       options: {
-        data: { display_name: displayName },
+        data: { display_name: displayName, training_opt_in: trainingOptIn },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
       },
     });
@@ -203,13 +207,32 @@ export default function SignupPage() {
                 )}
               </Field>
 
+              {/* §3 + §8: training-data opt-in, NEVER pre-checked. */}
+              <label className="flex cursor-pointer items-start gap-3 rounded-[--r-lg] border border-[--border-default] p-3.5 transition-colors hover:bg-[--bg-hover]">
+                <input
+                  type="checkbox"
+                  checked={trainingOptIn}
+                  onChange={(e) => setTrainingOptIn(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-[--brand]"
+                />
+                <span className="text-[13px] leading-relaxed">
+                  <span className="font-medium text-[--text-primary]">
+                    Help improve the assistant
+                  </span>
+                  <br />
+                  <span className="text-[--fg-muted]">
+                    Allow my conversations to be used for training. Off by default — you can change
+                    this any time in Settings.
+                  </span>
+                </span>
+              </label>
+
               <Button type="submit" className="w-full" loading={loading}>
                 Create account
               </Button>
 
               <p className="text-center text-[12px] leading-relaxed text-[--fg-subtle]">
-                By continuing you agree to our Terms and Privacy Policy. Training on your
-                conversations is off by default.
+                By continuing you agree to our Terms and Privacy Policy.
               </p>
             </form>
           </motion.div>

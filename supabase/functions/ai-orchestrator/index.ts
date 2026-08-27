@@ -27,6 +27,32 @@ const API_KEY = Deno.env.get("AI_PROVIDER_API_KEY")!;
 const BLOCKED_TEXT =
   "_This response was withheld by the safety filter._";
 
+/**
+ * §8 training-pipeline hook. Only ever invoked when EVERY participant in
+ * the conversation has `training_opt_in = true`; the caller computes that
+ * and defaults to false. No-op unless TRAINING_PIPELINE_URL is configured,
+ * so the default deployment never routes anything.
+ */
+async function routeToTrainingPipeline(payload: {
+  conversation_id: string;
+  message_id: string;
+}): Promise<void> {
+  const url = Deno.env.get("TRAINING_PIPELINE_URL");
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Deno.env.get("TRAINING_PIPELINE_TOKEN") ?? ""}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // Never fail a user-facing response because the training sink is down.
+  }
+}
+
 interface Body {
   conversation_id: string;
   /** id of the human message that triggered this invocation */
@@ -94,6 +120,26 @@ Deno.serve(async (req) => {
 
     // --- 2. rate limit -------------------------------------------------------
     await enforceRateLimit(admin, user.id, "ai_invocations_per_min");
+
+    // --- 2b. §8: training-pipeline gate --------------------------------------
+    // Default OFF is a hard requirement. Routing to any training pipeline
+    // requires EVERY participant to have opted in — one hold-out disables it
+    // for the whole conversation. A missing/failed read is treated as opted OUT.
+    const { data: memberIds } = await admin
+      .from("conversation_members")
+      .select("user_id")
+      .eq("conversation_id", conversationId);
+
+    const { data: optInRows } = await admin
+      .from("profiles")
+      .select("id, training_opt_in")
+      .in("id", (memberIds ?? []).map((m) => m.user_id));
+
+    const participantCount = (memberIds ?? []).length;
+    const trainingAllowed =
+      participantCount > 0 &&
+      (optInRows ?? []).length === participantCount &&
+      (optInRows ?? []).every((p) => p.training_opt_in === true);
 
     // --- 3. history ----------------------------------------------------------
     const { data: history } = await admin
@@ -302,6 +348,15 @@ Deno.serve(async (req) => {
             output_tokens: outTok,
             latency_ms: Date.now() - started,
           });
+
+          // §8: training-pipeline routing is gated on unanimous opt-in.
+          // `trainingAllowed` is false unless every member set it true.
+          if (trainingAllowed) {
+            await routeToTrainingPipeline({
+              conversation_id: conversationId,
+              message_id: msgId,
+            });
+          }
         } catch (err) {
           await admin
             .from("messages")

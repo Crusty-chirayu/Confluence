@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Command,
   Hash,
   LogOut,
   MessagesSquare,
@@ -31,6 +32,7 @@ export function Sidebar({
   onNew,
   onJoin,
   onSearch,
+  onPalette,
   onNavigate,
 }: {
   conversations: ConversationSummary[];
@@ -38,6 +40,7 @@ export function Sidebar({
   onNew: () => void;
   onJoin: () => void;
   onSearch: () => void;
+  onPalette: () => void;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -70,12 +73,20 @@ export function Sidebar({
           New conversation
         </Button>
         <div className="flex gap-1.5">
-          <Button variant="secondary" size="sm" className="flex-1 justify-start" onClick={onSearch}>
-            <Search className="h-3.5 w-3.5" />
-            Search
+          <Button
+            variant="secondary"
+            size="sm"
+            className="flex-1 justify-start"
+            onClick={onPalette}
+          >
+            <Command className="h-3.5 w-3.5" />
+            Commands
             <kbd className="ml-auto hidden rounded border border-[--border] bg-[--bg-subtle] px-1.5 py-0.5 font-mono text-[10px] text-[--fg-subtle] sm:inline">
               ⌘K
             </kbd>
+          </Button>
+          <Button variant="secondary" size="sm" onClick={onSearch} aria-label="Search messages">
+            <Search className="h-3.5 w-3.5" />
           </Button>
           <Button variant="secondary" size="sm" onClick={onJoin} aria-label="Join with invite code">
             <UserPlus className="h-3.5 w-3.5" />

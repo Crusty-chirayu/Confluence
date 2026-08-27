@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { NewConversationModal } from "@/components/layout/new-conversation-modal";
 import { JoinModal } from "@/components/layout/join-modal";
 import { SearchModal } from "@/components/layout/search-modal";
+import { CommandPalette } from "@/components/layout/command-palette";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { useSession } from "@/components/session-provider";
@@ -31,6 +32,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [newOpen, setNewOpen] = React.useState(false);
   const [joinOpen, setJoinOpen] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const refresh = React.useCallback(async () => {
@@ -68,10 +70,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
   }, [profile, refresh]);
 
-  // ⌘K / Ctrl-K
+  // §3: ⌘K opens the command palette (navigate / create / theme).
+  // ⌘/ opens message full-text search.
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === "k") {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      } else if (k === "/") {
         e.preventDefault();
         setSearchOpen((o) => !o);
       }
@@ -104,6 +112,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       onNew={() => setNewOpen(true)}
       onJoin={() => setJoinOpen(true)}
       onSearch={() => setSearchOpen(true)}
+      onPalette={() => setPaletteOpen(true)}
       onNavigate={() => setDrawerOpen(false)}
     />
   );
@@ -163,6 +172,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <NewConversationModal open={newOpen} onClose={() => setNewOpen(false)} onCreated={refresh} />
       <JoinModal open={joinOpen} onClose={() => setJoinOpen(false)} onJoined={refresh} />
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        conversations={conversations}
+        onNewConversation={() => setNewOpen(true)}
+        onJoin={() => setJoinOpen(true)}
+        onSearch={() => setSearchOpen(true)}
+      />
     </AppDataContext.Provider>
   );
 }

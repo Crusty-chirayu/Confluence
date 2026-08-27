@@ -64,11 +64,13 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, display_name, avatar_url)
+  insert into public.profiles (id, display_name, avatar_url, training_opt_in)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
-    new.raw_user_meta_data->>'avatar_url'
+    new.raw_user_meta_data->>'avatar_url',
+    -- §8: defaults OFF. Only an explicit true at signup opts in.
+    coalesce((new.raw_user_meta_data->>'training_opt_in')::boolean, false)
   )
   on conflict (id) do nothing;
   return new;

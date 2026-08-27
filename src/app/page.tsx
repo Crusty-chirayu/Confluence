@@ -409,6 +409,7 @@ export default function LandingPage() {
             <a href="#features" className="hover:text-[--fg]">Features</a>
             <a href="#security" className="hover:text-[--fg]">Security</a>
             <a href="#pricing" className="hover:text-[--fg]">Pricing</a>
+            <Link href="/changelog" className="hover:text-[--fg]">Changelog</Link>
             <Link href="/login" className="hover:text-[--fg]">Sign in</Link>
           </nav>
         </div>
