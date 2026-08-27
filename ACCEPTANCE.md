@@ -16,7 +16,7 @@ Legend: **✅ done** · **🟡 partial** · **⛔ pending** · **➖ out of scop
 | 4 | Route tree for every §3 screen, a11y from first draft | 🟡 | see §3 table |
 | 5 | Edge Functions, key only via `Deno.env.get` | ✅ | verified: single read, never logged |
 | 6 | Component tree using semantic tokens + §2.7 motion | ✅ | shared `src/lib/motion.ts` |
-| 7 | One sample of each test type | 🟡 | unit + integration done; E2E/k6 pending |
+| 7 | One sample of each test type | 🟡 | unit + integration done (12 passing); E2E/k6 pending |
 | 8 | `ci.yml` and `release-major.yml` in full | 🟡 | both written; see CI note |
 | 9 | Acceptance checklist | ✅ | this file |
 
@@ -79,13 +79,13 @@ Legend: **✅ done** · **🟡 partial** · **⛔ pending** · **➖ out of scop
 | Key only via `Deno.env.get("AI_PROVIDER_API_KEY")` | ✅ | one read, never logged, never in a response |
 | **Moderation fails closed, both stages** | ✅ | try/catch → `error_failed_closed`; tested |
 | Orchestrator flow (§7 steps 1–7) | ✅ | incl. `superseded` on regenerate |
-| Streaming delivery | 🟡 | **deviation**: SSE + row updates, not `ai_delta` broadcast (see below) |
+| Streaming delivery | ✅ | intentional deviation from §6, ratified — see Interpretation calls |
 | RLS enabled + explicit policies, every table | ✅ | 10/10 tables |
 | Default-deny, membership-scoped | ✅ | audit tables: RLS on, zero policies |
 | Storage policies mirror membership | ✅ | SECURITY DEFINER helper |
 | Signed URLs for attachments | 🟡 | bucket private; no upload UI yet |
 | `training_opt_in` default false | ✅ | DB + trigger + signup + settings |
-| **Orchestrator checks flag before training** | ✅ | **added** — unanimous opt-in required |
+| **Orchestrator checks flag before training** | ✅ | unanimous opt-in — ratified, see Interpretation calls |
 | Rate limits: messages, AI, invites | ✅ | |
 | Rate limits: auth attempts per IP | ⛔ | relies on Supabase Auth defaults |
 
@@ -95,10 +95,10 @@ Legend: **✅ done** · **🟡 partial** · **⛔ pending** · **➖ out of scop
 
 | Item | Status | Notes |
 |---|---|---|
-| Keyboard reachability, focus trap, ARIA | 🟡 | dialogs labelled; not audited |
-| `aria-live="polite"` batched for streaming | ⛔ | **not implemented** |
+| Keyboard reachability, focus trap, ARIA | 🟡 | dialogs labelled, message list is `role="log"`; not audited |
+| `aria-live="polite"` batched for streaming | ✅ | **added** — 1s batching + completion flush, tested |
 | axe-core in CI, merge-blocking | ⛔ | |
-| Unit test sample | ✅ | `tests/utils.test.ts`, 7 passing |
+| Unit test sample | ✅ | `tests/utils.test.ts` + `stream-announcer.test.tsx`, 12 passing |
 | Integration test (fail-closed) | ✅ | `tests/moderation-fail-closed.test.ts` |
 | E2E Playwright, 3 journeys | ⛔ | browser download blocked in this sandbox |
 | k6 50-member broadcast storm | ⛔ | |
@@ -108,23 +108,67 @@ Legend: **✅ done** · **🟡 partial** · **⛔ pending** · **➖ out of scop
 
 ---
 
+## Interpretation calls (ratified)
+
+These are points where the spec was silent or where we knowingly diverged.
+Each has been reviewed and **locked in** — they are not open questions.
+
+### 1. Streaming transport — intentional deviation from §6 ✅ ratified
+
+§4/§6 specify `ai_delta`/`ai_done` broadcasts on the `room:{conversation_id}`
+Realtime channel. We instead stream **SSE directly to the invoking client**
+while progressively updating a single `messages` row (`status: 'streaming'`),
+which every other member observes through `postgres_changes`.
+
+**Reasoning for keeping it:**
+
+- **The partial answer survives a refresh.** The row *is* the state, so a
+  reload mid-stream resumes from the real content. With pure broadcast, the
+  deltas are ephemeral — a client that reloads or joins late has missed them.
+- **Identical UX for the sender**, who reads from the SSE stream directly.
+- **One fewer moving part** — no separate broadcast fan-out to keep in sync
+  with the persisted row, and no reconciliation step where the two disagree.
+
+**Accepted trade-off:** other members receive coarser updates (~400ms row
+flushes) rather than token-level deltas, and **any external client written
+against the literal §6 broadcast contract will not find `ai_delta`/`ai_done`
+events.** If a third-party consumer ever needs that contract, the broadcast
+can be layered on top of the existing flow without replacing it.
+
+### 2. `training_opt_in` in group rooms — unanimous consent ✅ ratified
+
+§8 mandates `training_opt_in` defaults false and that the orchestrator checks
+it before any training routing, but **does not define the group case** — what
+happens when a room's members disagree.
+
+**Ruling: training routing requires unanimous opt-in.** A conversation is
+eligible only when *every* current member has `training_opt_in = true`. Any
+single hold-out disables routing for the entire room. A missing profile row, a
+member count mismatch, or a failed read all evaluate to **not eligible**.
+
+**Reasoning:** it is the privacy-protective default, and it's the only reading
+that doesn't let one member's choice export another member's messages — in a
+group room, a single conversation contains everyone's words, so consent has to
+be collective to be meaningful. Consistent with §8's framing of default-OFF as
+a hard requirement rather than a soft preference.
+
+Implemented in `supabase/functions/ai-orchestrator/index.ts` (step 2b);
+`routeToTrainingPipeline()` is additionally a no-op unless
+`TRAINING_PIPELINE_URL` is configured, so default deployments route nothing
+regardless of opt-in state.
+
+---
+
 ## Known deviations from spec
 
-1. **Streaming transport.** §4/§6 specify `ai_delta`/`ai_done` broadcast on the
-   `room:{id}` Realtime channel. I stream **SSE directly to the caller** while
-   progressively updating one `messages` row, which other members observe via
-   `postgres_changes`. Same UX, one fewer moving part, and the partial answer
-   survives a refresh — but it is **not** the specified transport, and it means
-   non-invoking members see slightly coarser updates (~400ms flushes) than the
-   token-level `ai_delta` the spec implies. Worth aligning if the broadcast
-   contract matters to other clients.
+These are environmental/scope limitations rather than design decisions.
 
-2. **CI workflow location.** Both pipelines live in `ci/` rather than
+1. **CI workflow location.** Both pipelines live in `ci/` rather than
    `.github/workflows/` because the GitHub App pushing this branch lacks the
    `workflows` permission. One `git mv` activates them — see `ci/README.md`.
 
-3. **Fonts.** Inter and JetBrains Mono are declared but resolve to system
+2. **Fonts.** Inter and JetBrains Mono are declared but resolve to system
    fallbacks; Google Fonts is unreachable from the build sandbox. Self-host via
    `next/font/local` for production fidelity.
 
-4. **Pricing is a landing section**, not the standalone P1 route.
+3. **Pricing is a landing section**, not the standalone P1 route.

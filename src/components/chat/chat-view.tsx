@@ -7,6 +7,7 @@ import { ArrowDown, Hash, Settings2, Sparkles, Users } from "lucide-react";
 import { Composer } from "./composer";
 import { MessageItem } from "./message-item";
 import { RoomSettingsModal } from "./room-settings-modal";
+import { StreamAnnouncer } from "./stream-announcer";
 import { AiModeBadge } from "@/components/layout/sidebar";
 import { AiAvatar, Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -324,7 +325,11 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
           ) : visible.length === 0 ? (
             <EmptyState isGroup={isGroup} aiMode={conversation.ai_mode} />
           ) : (
-            <div className="mx-auto max-w-3xl">
+            <div
+              className="mx-auto max-w-3xl"
+              role="log"
+              aria-label={isGroup ? `Messages in ${title}` : "Conversation with the assistant"}
+            >
               {visible.map((m, i) => {
                 const prev = visible[i - 1];
                 const newDay =
@@ -435,6 +440,9 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
           )}
         </AnimatePresence>
       </div>
+
+      {/* §10: batched aria-live announcements for streamed tokens */}
+      <StreamAnnouncer text={streamText} active={Boolean(streamingId)} />
 
       {/* ---------- composer ---------- */}
       <Composer
