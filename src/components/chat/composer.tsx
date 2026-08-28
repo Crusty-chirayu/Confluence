@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUp, ShieldAlert, Sparkles, Square } from "lucide-react";
+import { ArrowUp, Paperclip, ShieldAlert, Sparkles, Square, X } from "lucide-react";
 import { Avatar, AiAvatar } from "@/components/ui/avatar";
 import { classifyLocal, MAX_MESSAGE_LENGTH } from "@/lib/data/moderation-local";
 import type { ConversationMember } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { formatFileSize, validateAttachmentFile } from "@/lib/attachments";
 import { popover, SPRING, tEnter, tExit } from "@/lib/motion";
 
 interface MentionOption {
@@ -32,18 +33,25 @@ export function Composer({
   aiMode: string;
   streaming: boolean;
   disabled?: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string, files: File[]) => void;
   onStop: () => void;
   onTyping?: () => void;
 }) {
   const [value, setValue] = React.useState("");
   const [mentionQuery, setMentionQuery] = React.useState<string | null>(null);
   const [cursor, setCursor] = React.useState(0);
+  const [files, setFiles] = React.useState<File[]>([]);
+  const [fileError, setFileError] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const ref = React.useRef<HTMLTextAreaElement>(null);
 
   const verdict = React.useMemo(() => classifyLocal(value), [value]);
   const tooLong = value.length > MAX_MESSAGE_LENGTH;
-  const canSend = value.trim().length > 0 && verdict.verdict === "pass" && !disabled;
+  const canSend =
+    value.trim().length > 0 &&
+    verdict.verdict === "pass" &&
+    !disabled &&
+    fileError === null;
 
   const options = React.useMemo<MentionOption[]>(() => {
     const base: MentionOption[] = [];
@@ -99,10 +107,25 @@ export function Composer({
     });
   };
 
+  const addFiles = (list: FileList | null) => {
+    if (!list) return;
+    setFileError(null);
+    for (const file of Array.from(list)) {
+      const v = validateAttachmentFile(file);
+      if (!v.ok) {
+        setFileError(v.error);
+        continue;
+      }
+      setFiles((prev) => (prev.some((f) => f.name + f.size === file.name + file.size) ? prev : [...prev, file]));
+    }
+  };
+
   const send = () => {
     if (!canSend) return;
-    onSend(value.trim());
+    onSend(value.trim(), files);
     setValue("");
+    setFiles([]);
+    setFileError(null);
     setMentionQuery(null);
   };
 
@@ -194,6 +217,42 @@ export function Composer({
         )}
       </AnimatePresence>
 
+      {/* pending attachments */}
+      <AnimatePresence>
+        {files.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0, transition: tExit() }}
+            transition={tEnter(0.16)}
+            className="mb-2 flex flex-wrap gap-1.5 overflow-hidden"
+          >
+            {files.map((f, i) => (
+              <span
+                key={`${f.name}-${f.size}-${i}`}
+                className="flex max-w-[15rem] items-center gap-1.5 rounded-full border border-[--border] bg-[--surface] py-1 pl-2.5 pr-1 text-[12px] font-medium text-[--fg]"
+              >
+                <Paperclip className="h-3 w-3 text-[--fg-muted]" />
+                <span className="truncate">{f.name}</span>
+                <span className="shrink-0 text-[10.5px] text-[--fg-subtle]">{formatFileSize(f.size)}</span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${f.name}`}
+                  onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                  className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[--fg-subtle] transition-colors hover:bg-[--bg-active] hover:text-[--fg]"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {fileError && (
+        <p className="mb-2 text-[12px] font-medium text-[--danger]">{fileError}</p>
+      )}
+
       <div
         className={cn(
           "flex items-end gap-2 rounded-[--r-lg] border bg-[--surface] px-3 py-2 shadow-[--e1]",
@@ -226,6 +285,28 @@ export function Composer({
           }
           className="max-h-[200px] min-h-[24px] flex-1 resize-none bg-transparent py-1 text-[14px] leading-relaxed text-[--fg] outline-none placeholder:text-[--fg-subtle] disabled:opacity-60"
         />
+
+        {/* attach a file (private, member-scoped) */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          hidden
+          data-testid="attachment-input"
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={disabled}
+          aria-label="Attach a file"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] text-[--fg-muted] transition-colors hover:bg-[--bg-active] hover:text-[--fg] disabled:opacity-60"
+        >
+          <Paperclip className="h-4 w-4" />
+        </button>
 
         <AnimatePresence mode="wait" initial={false}>
           {streaming ? (

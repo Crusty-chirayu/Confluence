@@ -17,6 +17,7 @@ import { Avatar, AiAvatar, AiPill } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Markdown } from "./markdown";
+import { AttachmentChip } from "./attachment-chip";
 import type { Message, Profile, Reaction } from "@/lib/types";
 import type { ReadReceipt } from "@/lib/read-receipts";
 import { readReceiptLabel } from "@/lib/read-receipts";
@@ -219,6 +220,15 @@ export const MessageItem = React.memo(function MessageItem({
             ) : streaming ? (
               <span className="stream-caret" />
             ) : null}
+          </div>
+        )}
+
+        {/* attachments — private, member-scoped (§19/§35) */}
+        {message.attachments && message.attachments.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {message.attachments.map((a) => (
+              <AttachmentChip key={a.id} attachment={a} />
+            ))}
           </div>
         )}
 

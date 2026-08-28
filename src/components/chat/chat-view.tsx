@@ -28,6 +28,7 @@ import {
   markRead,
   sendMessage,
   toggleReaction,
+  uploadAttachment,
   type AiHandle,
 } from "@/lib/data/api";
 import type { Conversation, ConversationMember, Message, Reaction } from "@/lib/types";
@@ -91,7 +92,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
     if (!supa || !profile) return;
 
     const channel = supa
-      .channel(`conv:${conversation.id}`, { config: { presence: { key: profile.id } } })
+      .channel(`conv:${conversation.id}`, { config: { presence: { key: uid } } })
       .on(
         "postgres_changes",
         {
@@ -207,7 +208,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
     [conversation.id, conversation.name, isGroup, load, toast],
   );
 
-  const handleSend = async (text: string) => {
+  const handleSend = async (text: string, files: File[]) => {
     setAtBottom(true);
     // In real (Supabase) mode we must not pretend a message reached the server
     // while the connection is down. Demo mode is localStorage-backed, so a
@@ -223,6 +224,19 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
     try {
       const msg = await sendMessage(conversation.id, text);
       setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+      // Upload any attached files now that the message row exists.
+      for (const file of files) {
+        try {
+          await uploadAttachment(conversation.id, msg.id, file);
+        } catch (e) {
+          toast.push({
+            kind: "error",
+            title: "Couldn't upload attachment",
+            description: String(e),
+          });
+        }
+      }
+      if (files.length > 0) void load();
       if (shouldInvokeAi(text, conversation.ai_mode)) {
         await runAi(text, msg.id);
       }
