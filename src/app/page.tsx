@@ -120,6 +120,9 @@ export default function LandingPage() {
     <div className="min-h-dvh bg-[--bg]">
       <LandingNav />
 
+      {/* Every page needs one <main>: it is the landmark a screen-reader
+          user jumps to in order to skip the nav (§4 / WCAG 2.4.1). */}
+      <main>
       {/* ---------------- HERO ---------------- */}
       <section ref={heroRef} className="relative overflow-hidden px-5 pb-20 pt-32 sm:pt-40">
         {/* aurora backdrop */}
@@ -369,6 +372,8 @@ export default function LandingPage() {
           </RevealItem>
         </Reveal>
       </section>
+
+      </main>
 
       {/* ---------------- FOOTER ---------------- */}
       <footer className="border-t border-[--border] px-5 py-12">
