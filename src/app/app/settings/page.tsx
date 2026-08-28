@@ -3,7 +3,15 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Database, LogOut, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Database,
+  Download,
+  LogOut,
+  RotateCcw,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/avatar";
@@ -15,6 +23,7 @@ import { signOut, updateProfile } from "@/lib/data/api";
 import { DEMO_MODE } from "@/lib/env";
 import { demo } from "@/lib/data/demo-store";
 import { riseIn, staggerParent } from "@/lib/motion";
+import { buildDataExport, downloadJson, exportFilename } from "@/lib/data-export";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -25,6 +34,7 @@ export default function SettingsPage() {
   const [training, setTraining] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [confirmReset, setConfirmReset] = React.useState(false);
+  const [exporting, setExporting] = React.useState(false);
 
   React.useEffect(() => {
     if (profile) {
@@ -50,6 +60,25 @@ export default function SettingsPage() {
       toast.push({ kind: "error", title: "Couldn't save", description: String(e) });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const exportData = async () => {
+    setExporting(true);
+    try {
+      const data = await buildDataExport();
+      downloadJson(exportFilename(), data);
+      toast.push({
+        kind: "success",
+        title: "Export ready",
+        description: `${data.conversations.length} conversation${
+          data.conversations.length === 1 ? "" : "s"
+        } written to JSON.`,
+      });
+    } catch (e) {
+      toast.push({ kind: "error", title: "Couldn't export", description: String(e) });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -115,6 +144,29 @@ export default function SettingsPage() {
           </label>
 
           <div className="mt-3 space-y-2">
+            <button
+              type="button"
+              onClick={() => void exportData()}
+              disabled={exporting}
+              className="flex w-full items-center gap-3 rounded-[--r-md] border border-[--border] px-4 py-3 text-left transition-colors hover:bg-[--bg-hover] disabled:opacity-60"
+            >
+              <Download className="h-4 w-4 shrink-0 text-[--fg-muted]" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13.5px] font-medium">
+                  {exporting ? "Preparing export…" : "Export my data"}
+                </span>
+                <span className="block text-[12px] text-[--fg-muted]">
+                  Every conversation you can read, as JSON. Generated in your browser — nothing
+                  is uploaded.
+                </span>
+              </span>
+            </button>
+
+            <p className="px-1 text-[12px] leading-relaxed text-[--fg-subtle]">
+              Group rooms include messages written by other members, because that is what your
+              account can see. Attachment files are not inlined — only their metadata.
+            </p>
+
             <InfoRow
               icon={ShieldCheck}
               title="Moderation runs on both edges"
