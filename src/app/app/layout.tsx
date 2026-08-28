@@ -9,6 +9,7 @@ import { NewConversationModal } from "@/components/layout/new-conversation-modal
 import { JoinModal } from "@/components/layout/join-modal";
 import { SearchModal } from "@/components/layout/search-modal";
 import { CommandPalette } from "@/components/layout/command-palette";
+import { OfflineBanner } from "@/components/offline-banner";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { useSession } from "@/components/session-provider";
@@ -151,6 +152,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
 
         <div className="flex min-w-0 flex-1 flex-col">
+          <OfflineBanner />
+
           {/* mobile top bar */}
           <div className="flex h-14 shrink-0 items-center gap-2 border-b border-[--border] px-3 lg:hidden">
             <Button
