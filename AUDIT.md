@@ -127,9 +127,12 @@ run of the `e2e` job.
 These are blocked on owner-held credentials or a `workflows`-permission push
 (see `SECURITY.md`):
 1. **Push `.github/workflows/ci.yml`** (Playwright `e2e` job + token-contrast
-   step) and **bump** `actions/checkout@v4→v5` and `gitleaks/gitleaks-action@v2→v3`
-   (the Node-20→24 merge causes intermittent gitleaks action crashes). One-time
-   patch: `ci/patches/ci-playwright-and-contrast.patch`.
+   step) and **bump** `actions/checkout@v4→v5` and `gitleaks/gitleaks-action@v2→v3`.
+   The gitleaks job **fails on every `pull_request` run while passing on the
+   `push` run of the identical tree** (verified 2026-08-28 on head `8032f07`,
+   and on PR #11 before it) — a Node-20-on-24 action defect, not a secret
+   finding; see `SECURITY.md` item 2 for the full evidence. One-time patch:
+   `ci/patches/ci-playwright-and-contrast.patch`.
 2. **Release secrets**: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`,
    `SUPABASE_DB_PASSWORD`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
    `VERCEL_PROJECT_ID` (see `ci/README.md`).

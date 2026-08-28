@@ -105,13 +105,28 @@ workflow-permitted push. The first two were re-verified on 2026-08-28.
    Chromium cannot be installed in the agent sandbox, the 31 Playwright tests
    in `e2e/` have never been executed. They are committed, type-checked and
    collected — nothing more.
-2. **gitleaks on Node 24.** `actions/checkout@v4` and `gitleaks/gitleaks-action@v2`
-   target Node 20, which GitHub deprecated (2025-09-19) and now forces onto
-   Node 24 — causing intermittent gitleaks job failures with **no secret
-   finding**. The bump to `actions/checkout@v5` / `setup-node@v5` /
+2. **gitleaks fails on `pull_request` runs — this is not a secret finding.**
+   `actions/checkout@v4` and `gitleaks/gitleaks-action@v2` target Node 20,
+   which GitHub deprecated (2025-09-19) and now forces onto Node 24.
+
+   **Evidence (2026-08-28, this branch):** for head `8032f07` the
+   `pull_request` run's `Secret scan (gitleaks)` job *fails* while the
+   `push` run's identical job on the **same tree** *succeeds* — the same
+   content cannot both contain and not contain a secret. Corroborated by
+   three independent sources: GitGuardian ("11 commits were scanned
+   without uncovering any secrets"), a local entropy scan of every added
+   line (no high-entropy token that is not a branch name or an identifier),
+   and the identical outcome on PR #11 (run `33175850610` failed, its push
+   sibling `33175833909` passed).
+
+   The job fails in ~8 s, i.e. before a scan could complete, and the
+   workflow emits the `Node.js 20 is deprecated … forced to run on Node.js
+   24` annotation. Treat any red gitleaks **PR** job as this defect until
+   the patch lands; treat a red gitleaks **push** job as a real finding.
+
+   The bump to `actions/checkout@v5` / `setup-node@v5` /
    `gitleaks/gitleaks-action@v3` is included in
-   `ci/patches/ci-playwright-and-contrast.patch` (owner push, see item 1);
-   it takes effect when the patch reaches `main`.
+   `ci/patches/ci-playwright-and-contrast.patch` (owner push, see item 1).
 3. **Release secrets.** `release.yml` fails until the owner sets
    `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`,
    `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` (see `ci/README.md`).
