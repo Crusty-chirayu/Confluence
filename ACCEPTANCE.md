@@ -110,7 +110,7 @@ all pass locally; the Playwright run happens in GitHub Actions.
 | 1:1 AI chat (stream/stop/regenerate/edit, md+copy) | ✅ | |
 | Group room (members, presence, @ai, badge, invites) | ✅ | |
 | Typing indicators / reactions (P1) | ✅ | |
-| Read receipts (P1) | ⛔ | `last_read_at` stored, not surfaced |
+| Read receipts (P1) | ✅ | `last_read_at` surfaced as a "Seen by …" indicator on the sender's own messages in a room; `computeReadReceipt` helper + `conversation_members` realtime subscription; unit-tested |
 | Room settings + danger zone | ✅ | |
 | Global search (P1) | 🟡 | full-text works; no sender/date filters |
 | **Command palette (⌘K)** | ✅ | **added** — navigate/create/theme; search moved to ⌘/ |
