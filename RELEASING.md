@@ -6,19 +6,32 @@ for this branch cannot write workflow files and cannot start a release against
 a Supabase/Vercel project you haven't wired up. Everything is listed in order
 so the release can be executed against a real deployment.
 
-## 0. Current state
+## 0. Current state (verified 2026-08-28, session `arena/01a04990-group-chatbot`)
 
-- `main` contains: MU2 (Playwright E2E + browser axe + §6 AA tokens), MU-C (k6
-  harness), MU-D (attachments), MU-E (read receipts), MU-F (offline), MU-G
-  (security/perf/a11y audit). All CI jobs on `main` are green.
-- The Playwright CI **job is not active on `main` yet** — the CI-activation
-  change is held **out of** `arena/01a047d7-group-chatbot` (the session's
-  GitHub App credential cannot push workflow files; GitHub rejects it
-  server-side) and ships in the branch as
-  `ci/patches/ci-playwright-and-contrast.patch`, awaiting the one-time owner
-  action described in §3. The tests themselves (22 tests) are committed and
-  collected.
-- The **Release** workflow currently fails at "Push migrations" because the
+- `main` (`c2cb9eb`) contains: the v2.0 app, MU2 (Playwright E2E + browser axe
+  + §6 AA tokens), MU-C (k6 harness), MU-D (attachments), MU-E (read
+  receipts), MU-F (offline), MU-G (security/perf/a11y audit). All three CI
+  jobs on `main` are green.
+- **Code-complete checkpoint.** The final pass on this branch added: RLS
+  hardening (membership bypass, self role escalation, profile enumeration,
+  reaction scoping), database-enforced `messages_per_min` / `invites_per_hour`
+  limits, an open-redirect guard, opaque Edge Function errors, pinned
+  conversations, the standalone `/pricing` route, client-side data export,
+  self-hosted fonts, dialog focus management, and combobox semantics for the
+  @mention popup. Gates: `tsc` clean · lint 0 errors · **83 vitest tests** ·
+  **54/54 contrast pairs** · `next build` clean · **31 Playwright tests
+  collected** (not executed — see below).
+- The Playwright CI **job is still not active on `main`.** The change is held
+  **out of** `arena/01a04990-group-chatbot` because the session's GitHub App
+  credential cannot push workflow files — re-confirmed 2026-08-28 by an actual
+  rejected push (`refusing to allow a GitHub App to create or update workflow
+  … without 'workflows' permission`). It ships in the branch as
+  `ci/patches/ci-playwright-and-contrast.patch` (verified to apply cleanly to
+  `c2cb9eb`), awaiting the one-time owner action in §3. The 31 E2E tests are
+  committed and collected; **none of them has ever been executed**, because
+  Chromium cannot be installed in the sandbox (`cdn.playwright.dev` is
+  unreachable).
+- The **Release** workflow still fails at "Push migrations" because the
   Supabase release secrets are not set (expected until you run §4).
 
 ## 1. Secrets — server-side (Edge Functions)
@@ -46,15 +59,13 @@ key and the provider key must stay server-side.
 
 ## 3. Activate CI (one-time owner push)
 
-**State as of 2026-08-28 (after credential reconnect):** the session's
-GitHub credential was restored, but a push of any commit touching
-`.github/workflows/ci.yml` is **rejected server-side by GitHub**:
-"refusing to allow a GitHub App to create or update workflow
-`.github/workflows/ci.yml` without `workflows` permission" — the session
-credential is a GitHub App without that permission. The CI-activation commit
-is therefore **not in `arena/01a047d7-group-chatbot`** (the branch carries
-the a11y fixes, the spec alignment and these docs, and pushes/PRs/merges
-normally); the byte-identical change ships in the branch as
+**State as of 2026-08-28 (two independent sessions, same result):** the
+session's GitHub credential works for code, PRs and merges, but a push of any
+commit touching `.github/workflows/ci.yml` is **rejected server-side by
+GitHub**: "refusing to allow a GitHub App to create or update workflow
+`.github/workflows/ci.yml` without `workflows` permission". The
+CI-activation commit is therefore **not in `arena/01a04990-group-chatbot`**;
+the byte-identical change ships in the branch as
 `ci/patches/ci-playwright-and-contrast.patch` and lands on `main` with the
 merge.
 
@@ -84,6 +95,12 @@ secret finding — documented in `SECURITY.md`).
 Once the job is live it needs **no secrets**: the suite runs the app in demo
 mode (the `webServer` env forces empty Supabase vars).
 
+Its first run is also the first time the E2E suite executes at all, so expect
+to iterate: `e2e/perf.spec.ts` in particular reports frame timings that have
+never been observed before. The perf spec enforces only a jank ceiling
+(p95 ≤ 50 ms, no frame > 250 ms); the §2.7 60 fps bar is reported, not
+asserted, until there is a baseline to set it against.
+
 ## 4. Release workflow secrets (owner)
 
 `release.yml` runs `db push`, `functions deploy`, and a Vercel deploy. It needs
@@ -98,20 +115,39 @@ Set them, then re-run the Release workflow (or push to `main`).
 
 ## 5. Apply the database schema + functions (once, against live)
 
-The migration already contains the tables, RLS policies, storage buckets, and
-policies. Apply and deploy:
+`supabase/migrations/` is the versioned history and `supabase db push` applies
+it in order; `supabase_schema.sql` is the equivalent one-shot snapshot if you
+prefer the SQL Editor. Current migrations:
+
+| Migration | What it does |
+|---|---|
+| `20260101000000_init.sql` | tables, RLS, storage buckets/policies, RPCs, realtime publication, analytics views |
+| `20260828000000_rls_hardening.sql` | closes the membership bypass / self role escalation / assistant-impersonation holes, narrows `profiles` SELECT, scopes `reactions` INSERT, adds the `messages_rate_limit` and `invites_rate_limit` triggers |
+| `20260828000001_pinned_conversations.sql` | `conversation_members.pinned_at` |
+
+Apply and deploy:
 
 ```bash
 supabase link --project-ref <ref>
 supabase db push
 supabase functions deploy ai-orchestrator moderation-check invite-consume
-supabase functions deploy --no-verify-jwt 2>/dev/null || true   # if needed
 ```
+
+## 5b. Optional environment variables
+
+| Variable | Where | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_GITHUB_REPO` | frontend build | repo whose Releases feed `/changelog` (defaults to `Crusty-chirayu/Group-Chatbot`) |
+| `GITHUB_TOKEN` | frontend build, **server only** | raises the GitHub API rate limit for `/changelog`. The page falls back to a static entry if it is unset |
+| `ALLOWED_ORIGINS` | Supabase Edge Function secret | comma-separated allowlist for the functions' CORS. Defaults to `*` — set it to your real origins before launch |
 
 ## 6. Verify production
 
 - Run the Playwright suite against the deployed build:
   `npx playwright test` (the `e2e` job does this in CI once §3 is done).
+  Note the suite is written for demo mode; pointing `baseURL` at a production
+  deployment means supplying real credentials, and the specs that assert on
+  seeded demo data will not apply.
 - Run the live load test and record real numbers in `load/k6/README.md`
   (see `load/k6/` for the harness + acceptance thresholds).
 - Confirm the signed-URL attachment flow against the real bucket (the policies
