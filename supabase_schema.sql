@@ -105,6 +105,10 @@ create table if not exists public.conversation_members (
   primary key (conversation_id, user_id)
 );
 
+-- §3 pinned conversations: the pin is a per-member preference, so it lives
+-- on the membership row, not on the conversation. NULL = not pinned.
+alter table public.conversation_members add column if not exists pinned_at timestamptz;
+
 create index if not exists idx_conv_members_user on public.conversation_members(user_id);
 create index if not exists idx_conv_members_conv on public.conversation_members(conversation_id);
 
@@ -260,11 +264,27 @@ alter table public.moderation_events     enable row level security;
 alter table public.rate_limit_events     enable row level security;
 alter table public.ai_usage_log          enable row level security;
 
--- PROFILES: readable by anyone authenticated (needed to render other members' names/avatars);
--- writable only by the owner.
+-- PROFILES: you, plus the people you share a conversation with (that is the
+-- only place another member's name/avatar is ever rendered). Deliberately
+-- narrower than "any authenticated user reads every profile" — with the
+-- latter, enumerating `profiles` leaks the whole user base.
 drop policy if exists "profiles_select_authenticated" on public.profiles;
-create policy "profiles_select_authenticated" on public.profiles
-  for select using (auth.role() = 'authenticated');
+drop policy if exists "profiles_select_own_or_member" on public.profiles;
+create policy "profiles_select_own_or_member" on public.profiles
+  for select using (
+    id = auth.uid()
+    or exists (
+      select 1
+      from public.conversation_members mine
+      where mine.user_id = auth.uid()
+        and exists (
+          select 1
+          from public.conversation_members theirs
+          where theirs.conversation_id = mine.conversation_id
+            and theirs.user_id = profiles.id
+        )
+    )
+  );
 drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own" on public.profiles
   for update using (id = auth.uid());
@@ -290,26 +310,53 @@ create policy "conversations_delete_admin" on public.conversations
   for delete using (public.is_conversation_admin(id, auth.uid()));
 
 -- CONVERSATION_MEMBERS: visible to other members of the same conversation;
--- a user may insert their own membership row (join via invite) or an admin may add others;
 -- a user may delete their own membership (leave) or an admin may remove others.
 drop policy if exists "members_select_same_conversation" on public.conversation_members;
 create policy "members_select_same_conversation" on public.conversation_members
   for select using (public.is_conversation_member(conversation_id, auth.uid()));
+
+-- INSERT is admin-only on purpose.
+-- Membership is the single authorization primitive in this schema, so a
+-- client that can insert its own membership row can join any conversation
+-- whose id it knows — which would make every other policy here decorative.
+-- Membership rows are minted by create_conversation() (SECURITY DEFINER,
+-- adds the owner) and by the invite-consume Edge Function (service_role,
+-- after the code is validated). Never by the client.
 drop policy if exists "members_insert_self_or_admin" on public.conversation_members;
-create policy "members_insert_self_or_admin" on public.conversation_members
-  for insert with check (
-    user_id = auth.uid() or public.is_conversation_admin(conversation_id, auth.uid())
-  );
+drop policy if exists "members_insert_admin" on public.conversation_members;
+create policy "members_insert_admin" on public.conversation_members
+  for insert with check (public.is_conversation_admin(conversation_id, auth.uid()));
+
 drop policy if exists "members_delete_self_or_admin" on public.conversation_members;
 create policy "members_delete_self_or_admin" on public.conversation_members
   for delete using (
     user_id = auth.uid() or public.is_conversation_admin(conversation_id, auth.uid())
   );
+
+-- UPDATE is split in two. A member must be able to write their own row
+-- (last_read_at via mark_read(), pinned_at for pinned conversations), but a
+-- single permissive `using (user_id = auth.uid() or is_conversation_admin(...))`
+-- with no WITH CHECK lets Postgres reuse USING as the check — i.e. any member
+-- could set their own role to 'owner'. The self policy therefore pins `role`
+-- to its pre-update value; role changes require the admin policy.
 drop policy if exists "members_update_admin" on public.conversation_members;
-create policy "members_update_admin" on public.conversation_members
-  for update using (
-    user_id = auth.uid() or public.is_conversation_admin(conversation_id, auth.uid())
+create policy "members_update_self" on public.conversation_members
+  for update
+  using (user_id = auth.uid())
+  with check (
+    user_id = auth.uid()
+    and role = (
+      select m.role
+      from public.conversation_members m
+      where m.conversation_id = public.conversation_members.conversation_id
+        and m.user_id = auth.uid()
+    )
   );
+
+create policy "members_update_admin" on public.conversation_members
+  for update
+  using (public.is_conversation_admin(conversation_id, auth.uid()))
+  with check (public.is_conversation_admin(conversation_id, auth.uid()));
 
 -- MESSAGES: visible to conversation members; insertable by a member as themselves
 -- (human) — AI-authored rows are inserted by the ai-orchestrator Edge Function using
@@ -324,9 +371,15 @@ create policy "messages_insert_member" on public.messages
     and sender_id = auth.uid()
     and public.is_conversation_member(conversation_id, auth.uid())
   );
+-- The WITH CHECK keeps an author from re-authoring their row as the
+-- assistant (sender_type = 'ai'), which would otherwise render as an
+-- AI bubble inside the room. The orchestrator writes AI rows with
+-- service_role and bypasses RLS, so this only constrains clients.
 drop policy if exists "messages_update_own" on public.messages;
 create policy "messages_update_own" on public.messages
-  for update using (sender_id = auth.uid());
+  for update
+  using (sender_id = auth.uid() and sender_type = 'human')
+  with check (sender_id = auth.uid() and sender_type = 'human');
 
 -- MESSAGE_ATTACHMENTS: visible/insertable if you can see the parent message.
 drop policy if exists "attachments_select_member" on public.message_attachments;
@@ -358,9 +411,20 @@ create policy "reactions_select_member" on public.reactions
       where m.id = message_id and public.is_conversation_member(m.conversation_id, auth.uid())
     )
   );
+-- Membership matters here: without it, `user_id = auth.uid()` alone lets a
+-- caller react to (and thereby confirm the existence/content of) any message
+-- whose id it knows, in a conversation it does not belong to.
 drop policy if exists "reactions_insert_own" on public.reactions;
 create policy "reactions_insert_own" on public.reactions
-  for insert with check (user_id = auth.uid());
+  for insert with check (
+    user_id = auth.uid()
+    and exists (
+      select 1
+      from public.messages m
+      where m.id = message_id
+        and public.is_conversation_member(m.conversation_id, auth.uid())
+    )
+  );
 drop policy if exists "reactions_delete_own" on public.reactions;
 create policy "reactions_delete_own" on public.reactions
   for delete using (user_id = auth.uid());
@@ -462,6 +526,90 @@ $$;
 grant execute on function public.create_conversation(conversation_type, text, text, ai_mode) to authenticated;
 grant execute on function public.search_messages(text, int) to authenticated;
 grant execute on function public.mark_read(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- 9c. RATE LIMITS ENFORCED IN THE DATABASE
+-- ---------------------------------------------------------------------
+-- The Edge Functions enforce `ai_invocations_per_min`. The other two
+-- documented limits (30 messages/min, 20 invites/hour) are enforced here,
+-- with BEFORE INSERT triggers, so they hold on *every* write path —
+-- including direct PostgREST writes that never reach an Edge Function.
+--
+-- Both triggers are SECURITY DEFINER (the counter query must not itself be
+-- filtered by the caller's RLS) and both skip service_role / AI rows, so the
+-- orchestrator's own bookkeeping never trips them.
+
+create or replace function public.enforce_message_rate_limit()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_recent int;
+begin
+  -- AI-authored rows (sender_id is null) are written by the orchestrator
+  -- under service_role and are never counted.
+  if new.sender_id is null then
+    return new;
+  end if;
+
+  select count(*) into v_recent
+  from public.messages
+  where sender_id = new.sender_id
+    and created_at > now() - interval '60 seconds';
+
+  if v_recent >= 30 then
+    raise exception 'rate_limited'
+      using
+        errcode = 'P0001',
+        hint = 'messages_per_min: 30 per 60s';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists messages_rate_limit on public.messages;
+create trigger messages_rate_limit
+  before insert on public.messages
+  for each row execute function public.enforce_message_rate_limit();
+
+create or replace function public.enforce_invite_rate_limit()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_recent int;
+begin
+  select count(*) into v_recent
+  from public.invites
+  where created_by = new.created_by
+    and created_at > now() - interval '1 hour';
+
+  if v_recent >= 20 then
+    raise exception 'rate_limited'
+      using
+        errcode = 'P0001',
+        hint = 'invites_per_hour: 20 per 3600s';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists invites_rate_limit on public.invites;
+create trigger invites_rate_limit
+  before insert on public.invites
+  for each row execute function public.enforce_invite_rate_limit();
+
+-- Supporting indexes for the two counter queries above.
+create index if not exists idx_messages_sender_created
+  on public.messages (sender_id, created_at desc);
+create index if not exists idx_invites_created_by
+  on public.invites (created_by, created_at desc);
 
 -- ---------------------------------------------------------------------
 -- 10. REALTIME PUBLICATION
