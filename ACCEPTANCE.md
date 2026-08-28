@@ -154,7 +154,7 @@ all pass locally; the Playwright run happens in GitHub Actions.
 | Integration test (fail-closed) | ✅ | `tests/moderation-fail-closed.test.ts` |
 | E2E Playwright (MU2) | 🟡 | `e2e/` suite implemented — 20 tests (AI chat, group room, @ai + moderation, ⌘K palette, history, browser axe audit in both themes); `playwright.config.ts` + a dedicated `e2e` CI job added. Chromium is unreachable in this sandbox, so the run happens in CI. |
 | Design-token contrast (WCAG AA) | ✅ | `scripts/contrast.mjs` parses `globals.css` and asserts 44 text-on-surface pairs (both themes) — **44/44 PASS**; wired into CI. |
-| k6 50-member broadcast storm | ⛔ | |
+| k6 50-member broadcast storm | 🟡 | `load/k6/broadcast.js` harness + `seed-room.mjs` + `load/k6/README.md` (methodology + explicit acceptance thresholds). **Measured results pending a live Supabase deployment** — no results are claimed (see `load/k6/README.md`). |
 | gitleaks | ✅ | wired into CI |
 | `ci.yml` | ✅ | lint, typecheck, unit, deno check, fail-closed, gitleaks — **green on GitHub** (run `33117956383`) |
 | `release-major.yml` | 🟡 | live as `.github/workflows/release.yml` (push to `main` + dispatch); **red — blocked on repo secrets**, not on code; not tag-triggered on `v[0-9]+.0.0` |
