@@ -67,6 +67,7 @@ test("palette: sign out returns to the landing page", async ({ page }) => {
   await page.keyboard.press("Enter");
 
   await page.waitForURL(/\/$/);
-  // Landing hero copy confirms we're on the public site.
-  await expect(page.getByRole("button", { name: /Start chatting/i })).toBeVisible();
+  // Landing hero CTA confirms we're on the public site. It is a link-styled
+  // navigation (single <a>, not a button-in-link) — see Button `asChild`.
+  await expect(page.getByRole("link", { name: /Start chatting/i })).toBeVisible();
 });
