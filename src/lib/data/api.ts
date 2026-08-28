@@ -92,6 +92,7 @@ export async function listConversations(): Promise<ConversationSummary[]> {
           : 0;
         return {
           ...c,
+          pinned_at: mem.pinned_at ?? null,
           member_count: db.members.filter((m) => m.conversation_id === c.id).length,
           last_message: last
             ? { content: last.content, created_at: last.created_at, sender_type: last.sender_type }
@@ -113,12 +114,13 @@ export async function listConversations(): Promise<ConversationSummary[]> {
 
   const { data: memberships } = await supa
     .from("conversation_members")
-    .select("conversation_id, last_read_at, conversations(*)")
+    .select("conversation_id, last_read_at, pinned_at, conversations(*)")
     .eq("user_id", auth.user.id);
 
   const rows = (memberships ?? []) as unknown as Array<{
     conversation_id: string;
     last_read_at: string | null;
+    pinned_at: string | null;
     conversations: Conversation;
   }>;
   if (rows.length === 0) return [];
@@ -146,6 +148,7 @@ export async function listConversations(): Promise<ConversationSummary[]> {
         : 0;
       return {
         ...r.conversations,
+        pinned_at: r.pinned_at ?? null,
         member_count: (counts ?? []).filter((c) => c.conversation_id === r.conversation_id).length,
         last_message: last
           ? { content: last.content, created_at: last.created_at, sender_type: last.sender_type }
@@ -517,6 +520,35 @@ export async function toggleReaction(messageId: string, emoji: string): Promise<
   }
 }
 
+/**
+ * §3 pinned conversations. The pin lives on the caller's membership row,
+ * so it is a per-user sidebar preference — pinning a room changes nobody
+ * else's list. RLS (`members_update_self`) allows the write and pins
+ * `role`, so this cannot be used to escalate privileges.
+ */
+export async function setPinned(conversationId: string, pinned: boolean): Promise<void> {
+  const value = pinned ? new Date().toISOString() : null;
+
+  if (DEMO_MODE) {
+    const m = demo
+      .db()
+      .members.find((x) => x.conversation_id === conversationId && x.user_id === DEMO_USER_ID);
+    if (m) m.pinned_at = value;
+    demo.commit();
+    return;
+  }
+
+  const supa = getSupabaseBrowser()!;
+  const { data: auth } = await supa.auth.getUser();
+  if (!auth.user) throw new Error("not authenticated");
+  const { error } = await supa
+    .from("conversation_members")
+    .update({ pinned_at: value })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", auth.user.id);
+  if (error) throw error;
+}
+
 /* ------------------------------------------------------------------ */
 /* Invites                                                             */
 /* ------------------------------------------------------------------ */
@@ -575,6 +607,7 @@ export async function consumeInvite(code: string): Promise<{ conversation: Conve
         role: "member",
         joined_at: new Date().toISOString(),
         last_read_at: null,
+        pinned_at: null,
       });
       inv.uses += 1;
     }

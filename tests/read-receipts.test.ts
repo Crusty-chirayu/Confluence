@@ -39,6 +39,7 @@ function member(user_id: string, last_read_at: string | null, name?: string): Co
     role: "member",
     joined_at: NOW,
     last_read_at,
+    pinned_at: null,
     profile: name ? profile(user_id, name) : undefined,
   };
 }

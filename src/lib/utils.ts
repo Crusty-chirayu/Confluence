@@ -81,6 +81,32 @@ export function plainPreview(md: string): string {
     .trim();
 }
 
+export interface PinnedPartition<T> {
+  pinned: T[];
+  rest: T[];
+}
+
+/**
+ * Split a conversation list into the pinned group and everything else.
+ *
+ * Pinned rows float to the top of the sidebar, ordered by when they were
+ * pinned (most recent first) rather than by recency — a pin is a deliberate
+ * placement, so it should hold still while other conversations move under
+ * it. Unpinned rows keep the order the caller already sorted them into.
+ */
+export function partitionPinned<T extends { pinned_at?: string | null }>(
+  items: readonly T[],
+): PinnedPartition<T> {
+  const pinned: T[] = [];
+  const rest: T[] = [];
+  for (const item of items) {
+    if (item.pinned_at) pinned.push(item);
+    else rest.push(item);
+  }
+  pinned.sort((a, b) => (b.pinned_at ?? "").localeCompare(a.pinned_at ?? ""));
+  return { pinned, rest };
+}
+
 export const MENTION_RE = /@ai\b/i;
 
 export function mentionsAi(text: string): boolean {

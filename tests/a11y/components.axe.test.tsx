@@ -21,6 +21,7 @@ import { MessageItem } from "../../src/components/chat/message-item";
 import { Composer } from "../../src/components/chat/composer";
 import { Modal } from "../../src/components/ui/modal";
 import { CommandPalette } from "../../src/components/layout/command-palette";
+import { Sidebar } from "../../src/components/layout/sidebar";
 import { StreamAnnouncer } from "../../src/components/chat/stream-announcer";
 import { ThemeSegmented } from "../../src/components/theme-provider";
 import type { ConversationMember, ConversationSummary } from "../../src/lib/types";
@@ -98,6 +99,7 @@ function members(): ConversationMember[] {
       role: "member",
       joined_at: "2026-01-01T00:00:00Z",
       last_read_at: null,
+      pinned_at: null,
       profile: profile(),
     },
     {
@@ -106,12 +108,13 @@ function members(): ConversationMember[] {
       role: "admin",
       joined_at: "2026-01-01T00:00:00Z",
       last_read_at: null,
+      pinned_at: null,
       profile: profile({ id: "u2", display_name: "Grace Hopper" }),
     },
   ];
 }
 
-function conversations(): ConversationSummary[] {
+function summaries(): ConversationSummary[] {
   return [
     {
       id: "c1",
@@ -125,6 +128,23 @@ function conversations(): ConversationSummary[] {
       member_count: 2,
       last_message: { content: "Ship it", created_at: "2026-01-01T12:00:00Z", sender_type: "human" },
       unread: 2,
+      pinned_at: null,
+    },
+    {
+      id: "c2",
+      type: "direct_ai",
+      name: null,
+      topic: null,
+      ai_mode: "auto",
+      created_by: "u1",
+      created_at: "2026-01-02T00:00:00Z",
+      archived_at: null,
+      member_count: 1,
+      last_message: { content: "Pinned thread", created_at: "2026-01-02T12:00:00Z", sender_type: "ai" },
+      unread: 0,
+      // Pinned rows render an always-visible pin button next to the link —
+      // the case that could regress into a nested interactive control.
+      pinned_at: "2026-01-02T00:00:00Z",
     },
   ];
 }
@@ -198,6 +218,52 @@ describe("axe-core — chat surfaces (§3: 1:1 chat / group room)", () => {
   });
 });
 
+describe("axe-core — sidebar (§3: conversation list, pinned conversations)", () => {
+  const noop = () => {};
+
+  function renderSidebar() {
+    return render(
+      <ThemeProvider>
+        <Sidebar
+          conversations={summaries()}
+          loading={false}
+          onNew={noop}
+          onJoin={noop}
+          onSearch={noop}
+          onPalette={noop}
+          onTogglePin={noop}
+        />
+      </ThemeProvider>,
+    );
+  }
+
+  it("the conversation list has no violations", async () => {
+    const { container } = renderSidebar();
+    await expectNoA11yViolations(container);
+  });
+
+  it("the pin control is a sibling of the link, not nested inside it", async () => {
+    const { container } = renderSidebar();
+    const link = container.querySelector('a[href="/app/c/c2"]');
+    expect(link).toBeTruthy();
+    // nested-interactive is the regression this guards: a <button> inside
+    // an <a> is invalid and unreachable for keyboard/AT users.
+    expect(link!.querySelector("button")).toBeNull();
+    const pin = container.querySelector('button[aria-label="Unpin New chat"]');
+    expect(pin).toBeTruthy();
+    expect(pin!.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("exposes each section as a named list", async () => {
+    const { container } = renderSidebar();
+    const lists = [...container.querySelectorAll("ul[aria-label]")];
+    expect(lists.map((l) => l.getAttribute("aria-label"))).toEqual([
+      "Pinned",
+      "Rooms",
+    ]);
+  });
+});
+
 describe("axe-core — dialogs (§3: room settings, ⌘K palette)", () => {
   it("an open Modal is a properly labelled dialog", async () => {
     render(
@@ -225,7 +291,7 @@ describe("axe-core — dialogs (§3: room settings, ⌘K palette)", () => {
         <CommandPalette
           open
           onClose={noop}
-          conversations={conversations()}
+          conversations={summaries()}
           onNewConversation={noop}
           onJoin={noop}
           onSearch={noop}
