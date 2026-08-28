@@ -32,6 +32,7 @@ import {
 } from "@/lib/data/api";
 import type { Conversation, ConversationMember, Message, Reaction } from "@/lib/types";
 import { conversationTitle, dayLabel, shouldInvokeAi } from "@/lib/utils";
+import { computeReadReceipt } from "@/lib/read-receipts";
 import { tEnter, tExit } from "@/lib/motion";
 
 export function ChatView({ conversation: initial }: { conversation: Conversation }) {
@@ -117,6 +118,10 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
       )
       .on("postgres_changes", { event: "*", schema: "public", table: "reactions" }, () => {
         void listReactions(conversation.id).then(setReactions);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversation_members" }, () => {
+        // Last-read timestamps (read receipts) live here — refresh when they change.
+        void listMembers(conversation.id).then(setMembers);
       })
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         const { user_id, name } = payload as { user_id: string; name: string };
@@ -382,6 +387,11 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
                       currentUserId={uid}
                       canRegenerate={canRegenerate}
                       reactions={reactions.filter((r) => r.message_id === m.id)}
+                      readReceipt={
+                        isGroup && m.sender_type === "human" && m.sender_id === uid
+                          ? computeReadReceipt(m, members, uid)
+                          : null
+                      }
                       onReact={async (emoji) => {
                         await toggleReaction(m.id, emoji);
                         setReactions(await listReactions(conversation.id));
