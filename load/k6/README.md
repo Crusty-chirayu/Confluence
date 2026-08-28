@@ -27,6 +27,12 @@ performance. Do not cite them as results.
 | `broadcast.js` | k6 scenarios (`postgrest_storm`, `realtime_observers`) + thresholds |
 | `seed-room.mjs` | Node helper that provisions a 50-member room via `service_role` (server-only) and prints the k6 env values |
 
+> **Secret-scan note:** these scripts read credentials from `__ENV`/`process.env`
+> through a small `env()` helper rather than a bare `x = SOMETHING_LONG`
+> assignment. The latter trips gitleaks' `generic-api-key` rule on the
+> *identifier* even when no secret value is present. The file passes the
+> gitleaks default ruleset.
+
 ## Requirements (owner-provided)
 
 - A deployed Supabase project with `supabase_schema.sql` (or the migration) applied.
