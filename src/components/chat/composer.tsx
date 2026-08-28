@@ -207,6 +207,7 @@ export function Composer({
           rows={1}
           value={value}
           disabled={disabled}
+          data-testid="composer-input"
           onChange={(e) => {
             setValue(e.target.value);
             detectMention(e.target.value, e.target.selectionStart);
@@ -276,7 +277,7 @@ export function Composer({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0 }}
               transition={tEnter(0.12)}
-              className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-[--accent]"
+              className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-[--accent-text]"
             >
               <Sparkles className="h-3 w-3" />
               AI will reply

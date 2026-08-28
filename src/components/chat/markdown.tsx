@@ -60,7 +60,7 @@ function withMentions(node: React.ReactNode): React.ReactNode {
         className={cn(
           "rounded px-1 py-px font-medium",
           p.toLowerCase() === "@ai"
-            ? "bg-[--accent-subtle] text-[--accent]"
+            ? "bg-[--accent-subtle] text-[--accent-text]"
             : "bg-[--bg-active] text-[--fg]",
         )}
       >

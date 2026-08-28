@@ -63,7 +63,7 @@ export default function JoinPage() {
       >
         {state === "working" && (
           <>
-            <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-[--accent]" />
+            <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-[--accent-text]" />
             <code className="font-mono text-[12.5px] text-[--fg-muted]">{code}</code>
           </>
         )}

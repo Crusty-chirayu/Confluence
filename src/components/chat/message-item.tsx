@@ -233,7 +233,7 @@ export const MessageItem = React.memo(function MessageItem({
                   className={cn(
                     "flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] transition-colors duration-[--d-micro]",
                     info.mine
-                      ? "border-[--accent] bg-[--accent-subtle] text-[--accent]"
+                      ? "border-[--accent] bg-[--accent-subtle] text-[--accent-text]"
                       : "border-[--border] bg-[--surface] text-[--fg-muted] hover:border-[--border-strong]",
                   )}
                 >

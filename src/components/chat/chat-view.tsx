@@ -480,7 +480,7 @@ function EmptyState({ isGroup, aiMode }: { isGroup: boolean; aiMode: string }) {
       transition={tEnter(0.32)}
       className="mx-auto flex h-full max-w-md flex-col items-center justify-center px-6 text-center"
     >
-      <span className="mb-4 grid h-14 w-14 place-items-center rounded-[--r-lg] bg-[--accent-subtle] text-[--accent]">
+      <span className="mb-4 grid h-14 w-14 place-items-center rounded-[--r-lg] bg-[--accent-subtle] text-[--accent-text]">
         {isGroup ? <Users className="h-6 w-6" /> : <Sparkles className="h-6 w-6" />}
       </span>
       <h2 className="text-[16px] font-semibold">

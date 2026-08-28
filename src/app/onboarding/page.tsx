@@ -189,7 +189,7 @@ export default function OnboardingPage() {
                       <o.icon
                         className={cn(
                           "mb-2 h-5 w-5",
-                          kind === o.v ? "text-[--accent]" : "text-[--fg-muted]",
+                          kind === o.v ? "text-[--accent-text]" : "text-[--fg-muted]",
                         )}
                       />
                       <p className="text-[13.5px] font-semibold">{o.title}</p>

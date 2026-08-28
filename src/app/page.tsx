@@ -178,7 +178,7 @@ export default function LandingPage() {
           className="mx-auto max-w-3xl text-center"
         >
           <motion.div variants={riseIn}>
-            <span className="inline-flex items-center gap-2 rounded-full border border-[--accent-border] bg-[--accent-subtle] px-3.5 py-1.5 text-[12.5px] font-medium text-[--accent]">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[--accent-border] bg-[--accent-subtle] px-3.5 py-1.5 text-[12.5px] font-medium text-[--accent-text]">
               <Sparkles className="h-3.5 w-3.5" />
               v2.0 — group rooms with opt-in AI
             </span>
@@ -252,7 +252,7 @@ export default function LandingPage() {
                   transition={tEnter(0.2)}
                   className="group h-full rounded-[--r-lg] border border-[--border] bg-[--surface] p-6 shadow-[--e1] transition-colors duration-[--d-standard] hover:border-[--border-strong] hover:shadow-[--e2]"
                 >
-                  <span className="mb-4 inline-grid h-10 w-10 place-items-center rounded-[--r-md] bg-[--accent-subtle] text-[--accent]">
+                  <span className="mb-4 inline-grid h-10 w-10 place-items-center rounded-[--r-md] bg-[--accent-subtle] text-[--accent-text]">
                     <f.icon className="h-5 w-5" />
                   </span>
                   <h3 className="text-[15px] font-semibold tracking-tight">{f.title}</h3>
@@ -277,7 +277,7 @@ export default function LandingPage() {
             {STEPS.map((s) => (
               <RevealItem key={s.n}>
                 <div className="flex gap-5">
-                  <span className="font-mono text-[13px] font-semibold tabular-nums text-[--accent]">
+                  <span className="font-mono text-[13px] font-semibold tabular-nums text-[--accent-text]">
                     {s.n}
                   </span>
                   <div className="min-w-0">

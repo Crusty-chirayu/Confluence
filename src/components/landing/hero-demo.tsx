@@ -93,7 +93,7 @@ export function HeroDemo() {
         <div className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-[--fg-muted]">
           <Hash className="h-3.5 w-3.5" />
           <span className="truncate">launch-war-room</span>
-          <span className="ml-1 rounded-full bg-[--accent-subtle] px-2 py-0.5 text-[11px] font-semibold text-[--accent]">
+          <span className="ml-1 rounded-full bg-[--accent-subtle] px-2 py-0.5 text-[11px] font-semibold text-[--accent-text]">
             AI: mention only
           </span>
         </div>
@@ -144,7 +144,7 @@ export function HeroDemo() {
                       {isAi ? "Assistant" : beat.name}
                     </span>
                     {isAi && (
-                      <span className="rounded bg-[--accent-subtle] px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-[--accent]">
+                      <span className="rounded bg-[--accent-subtle] px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-[--accent-text]">
                         AI
                       </span>
                     )}
@@ -170,7 +170,7 @@ export function HeroDemo() {
       <div className="border-t border-[--border] bg-[--bg-subtle] p-3">
         <div className="flex items-center gap-2 rounded-[--r-md] border border-[--border] bg-[--surface] px-3 py-2.5">
           <span className="flex-1 text-[13px] text-[--fg-subtle]">
-            Message the room… use <span className="font-medium text-[--accent]">@ai</span> to bring
+            Message the room… use <span className="font-medium text-[--accent-text]">@ai</span> to bring
             in the assistant
           </span>
           <motion.span
