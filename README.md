@@ -169,6 +169,11 @@ the contract note in each file and in [`ci/README.md`](./ci/README.md).
 
 Required repository secrets are listed in [`.env.example`](./.env.example) and [`ci/README.md`](./ci/README.md).
 
+Audit & release docs:
+- [`SECURITY.md`](./SECURITY.md) — secrets, RLS/authorization, input/output handling (XSS, fail-closed moderation, unanimous training consent), and the owner/config follow-ups.
+- [`AUDIT.md`](./AUDIT.md) — the verifiable security / performance / accessibility audit (measurable numbers, nothing fabricated).
+- [`RELEASING.md`](./RELEASING.md) — the owner-run release checklist (server secrets, CI activation + action bumps, release secrets, db push + function deploy, verification).
+
 ---
 
 ## Scripts

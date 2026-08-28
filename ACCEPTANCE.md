@@ -15,6 +15,7 @@ Legend: **✅ done** · **🟡 partial** · **⛔ pending** · **➖ out of scop
 | CI workflow | ✅ **GREEN on GitHub** | run `33117956383` on `9230ff1` — all 3 jobs succeeded: typecheck/lint/build, **Verify Edge Functions (deno check + fail-closed integration)**, gitleaks |
 | Deno typecheck fix | ✅ | root `deno.json` + committed `deno.lock` + `npm:` import map — details below; first run `99ebad0` failed resolving `npm:@supabase/realtime-js@2.112.4` |
 | Release workflow | 🔴 **RED — blocked on secrets** | run `33115211404` on `99ebad0` failed: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` (and Vercel secrets) unset; to be configured by the repo owner, then re-verified |
+| MU-H release readiness | 🟡 | `RELEASING.md` documents every owner step (server secrets, CI activation + action bumps, release secrets, db push + function deploy, verification). **Blocked on owner credentials / `workflows` permission** |
 
 **Deno fix summary (commit `9230ff1`):** CI runs `deno` from the repo root, where Deno
 (a) discovers no `supabase/functions/deno.json` and (b) routes *every* npm package
