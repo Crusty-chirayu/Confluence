@@ -37,7 +37,7 @@ export function LandingNav() {
           : "border-b border-transparent bg-transparent",
       )}
     >
-      <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-5">
+      <nav aria-label="Main" className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-5">
         <Link href="/" className="flex items-center gap-2.5">
           <Logo className="h-7 w-7" />
           <span className="text-[15px] font-semibold tracking-tight">Confluence</span>
@@ -57,14 +57,12 @@ export function LandingNav() {
 
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
-          <Link href="/login" className="hidden sm:block">
-            <Button variant="ghost" size="sm">
-              Sign in
-            </Button>
-          </Link>
-          <Link href="/signup">
-            <Button size="sm">Get started</Button>
-          </Link>
+          <Button asChild href="/login" variant="ghost" size="sm" className="hidden sm:inline-flex">
+            Sign in
+          </Button>
+          <Button asChild href="/signup" size="sm">
+            Get started
+          </Button>
           <button
             className="grid h-9 w-9 place-items-center rounded-[--r-md] text-[--fg-muted] hover:bg-[--bg-hover] md:hidden"
             onClick={() => setOpen((o) => !o)}
@@ -96,11 +94,9 @@ export function LandingNav() {
               {l.label}
             </a>
           ))}
-          <Link href="/login" onClick={() => setOpen(false)}>
-            <Button variant="secondary" className="mt-2 w-full">
-              Sign in
-            </Button>
-          </Link>
+          <Button asChild href="/login" variant="secondary" className="mt-2 w-full" onClick={() => setOpen(false)}>
+            Sign in
+          </Button>
         </div>
       </motion.div>
     </motion.header>

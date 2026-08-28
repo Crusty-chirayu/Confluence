@@ -196,7 +196,7 @@ export const MessageItem = React.memo(function MessageItem({
              sender identity. AI = teal, own = brand accent, others = neutral. */
           <div
             className={cn(
-              "inline-block max-w-full rounded-[--r-lg] px-3 py-2 text-[14px] leading-5",
+              "bubble inline-block max-w-full rounded-[--r-lg] px-3 py-2 text-[14px] leading-5",
               message.status === "superseded" && "opacity-45",
               isAi
                 ? "bg-[--bubble-ai-bg] text-[--bubble-ai-fg]"

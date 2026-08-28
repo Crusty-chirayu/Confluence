@@ -504,9 +504,16 @@ body {
   margin-top: 0.25em;
 }
 .prose-chat a {
-  color: var(--brand);
+  /* --accent-text is the theme-aware "accent as text" token — it clears AA on
+     every chat surface in both themes (--brand alone fails in dark). */
+  color: var(--accent-text);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+/* Inside a sender bubble the link inherits the bubble's own (AA-validated)
+   text color — a purple link on the purple own-message bubble would vanish. */
+.bubble .prose-chat a {
+  color: inherit;
 }
 .prose-chat code {
   font-family: var(--font-mono);

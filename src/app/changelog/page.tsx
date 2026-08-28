@@ -150,7 +150,7 @@ export default async function ChangelogPage() {
                       href={r.html_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-4 inline-block text-[13px] font-medium text-[--brand] hover:underline"
+                      className="mt-4 inline-block text-[13px] font-medium text-[--accent-text] hover:underline"
                     >
                       View on GitHub →
                     </a>

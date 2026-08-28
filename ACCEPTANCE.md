@@ -16,6 +16,7 @@ Legend: **✅ done** · **🟡 partial** · **⛔ pending** · **➖ out of scop
 | Deno typecheck fix | ✅ | root `deno.json` + committed `deno.lock` + `npm:` import map — details below; first run `99ebad0` failed resolving `npm:@supabase/realtime-js@2.112.4` |
 | Release workflow | 🔴 **RED — blocked on secrets** | run `33115211404` on `99ebad0` failed: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` (and Vercel secrets) unset; to be configured by the repo owner, then re-verified |
 | MU-H release readiness | 🟡 | `RELEASING.md` documents every owner step (server secrets, CI activation + action bumps, release secrets, db push + function deploy, verification). **Blocked on owner credentials / `workflows` permission** |
+| This session's work (a11y fixes + E2E alignment + Playwright CI activation) | 🟡 **PUSHED, PR #11 — CI green on this tree; CI-activation commit held back** | 3 commits on `arena/01a047d7-group-chatbot` (top of `main` `5692356`): a11y fixes, spec alignment, docs — pushed 2026-08-28, **PR #11** open. CI verified on GitHub: push run `33175833909` on this tree is **3/3 green** (typecheck/lint/tests/build · Deno fail-closed · gitleaks); PR run `33175850610` on the same tree was 2/3 green, the gitleaks job hitting the **documented intermittent crash** of `gitleaks-action@v2` (Node 20 forced onto 24 — `SECURITY.md` item 2; no secret finding). The **Playwright CI-activation commit is not in the branch**: the session credential (a GitHub App) lacks the `workflows` permission, so GitHub **server-side rejects** any push of a commit touching `.github/workflows/ci.yml` (verified 2026-08-28: "refusing to allow a GitHub App to create or update workflow … without `workflows` permission"). The byte-identical change ships in the branch as `ci/patches/ci-playwright-and-contrast.patch` (lands on `main` with the merge). One-time owner action: `RELEASING.md` §3 |
 
 **Deno fix summary (commit `9230ff1`):** CI runs `deno` from the repo root, where Deno
 (a) discovers no `supabase/functions/deno.json` and (b) routes *every* npm package
@@ -48,14 +49,36 @@ the current `main` and is checked out on `arena/01a04768-group-chatbot`:
 | History (previous conversation, persistence, navigate-away-and-back) | `e2e/history.spec.ts` | ✅ |
 | Real-browser **axe-core audit** (both themes, WCAG AA, full ruleset) | `e2e/accessibility.spec.ts` | ✅ |
 | Tailwind semantic-token correction (§6 palette + theme-aware AI/accent-text) | `src/app/globals.css` | ✅ |
-| WCAG AA token contrast gate | `scripts/contrast.mjs` (44 pairs, pass) | ✅ |
-| Playwright CI job + contrast step | `.github/workflows/ci.yml` | ✅ |
+| WCAG AA token contrast gate | `scripts/contrast.mjs` (54 pairs, pass) | ✅ |
+| Playwright CI job + contrast step | `.github/workflows/ci.yml` | ⛔ **not in the branch** — GitHub rejects (server-side, 2026-08-28) any push of a commit touching `.github/workflows/*` because the session credential is a GitHub App without the `workflows` permission. The byte-identical change ships in the branch as `ci/patches/ci-playwright-and-contrast.patch` (lands on `main` with the merge); one-time owner action in `RELEASING.md` §3 |
 
 **Verification honesty:** the browser binaries (`playwright install chromium`)
 are unreachable from this sandbox (`cdn.playwright.dev` → TLS ECONNRESET), so
-the E2E/axe suite and the `e2e` CI job are **implemented and configured but
-not yet executed** here. The unit/typecheck/lint/build/token-contrast checks
-all pass locally; the Playwright run happens in GitHub Actions.
+the live E2E/axe run happens in GitHub Actions, not here.
+
+### Pre-CI verification pass (2026-08-28) — what was done WITHOUT a browser
+
+Before activating the `e2e` CI job, the suite was verified as far as the
+sandbox allows. This pass **found and fixed three real WCAG AA violations**
+the browser axe run would have caught, plus two spec bugs — none of which are
+"implemented but unverified" hand-waving, each is backed by a runnable check:
+
+| Check (runnable locally) | Result |
+|---|---|
+| Full-page axe in jsdom (structural rules: roles, labels, landmarks, ARIA, nested-interactive, heading order…) over **15 surfaces** — landing, login, signup, forgot-password, settings, dashboard (signed in), chat (1:1 + group, seeded), command palette, new-conversation / room-settings / search / join modals, onboarding, join-code page | **0 violations** (before the fixes: `nested-interactive` ×10 CTAs, `landmark-unique` on the landing). `/changelog` is a server component (fetches GitHub Releases) and only runs under the browser axe scan |
+| Token-matrix contrast analysis — every `text-[--x]` × `bg-[--y]` combination used in the codebase, both themes | caught `.prose-chat a` (`--brand` #5555ee) at 3.7:1 on the dark app background / 2.4:1 on the dark AI bubble → now theme-aware `--accent-text` |
+| Journey simulations in jsdom with real timers — sign-in → send → streamed AI reply → persisted row; mention-only routing (@ai summons, plain text does not); moderation block (send disabled + reason shown); attachment chip on a sent message | all 5 pass |
+| Selector cross-check — every E2E `getByRole`/`getByTestId`/`getByLabel` string matched against the rendered component source | all 22 tests' selectors exist; 2 specs corrected (offline journey needs a chat surface; landing CTA is now a link) |
+| `npx playwright test --list` | 22 tests in 8 files, config valid |
+
+Resulting local gates (all on the committed tree): `tsc --noEmit` ✅ ·
+`npm run lint` 0 errors ✅ · `npm test` 43/43 ✅ · `node scripts/contrast.mjs`
+54/54 ✅ · `npm run build` ✅.
+
+**Still not verified (only a real browser can do it):** the Chromium run of
+the 22 tests, including axe colour-contrast on rendered text and the
+framer-motion timing in the journeys. That is exactly what the new `e2e` CI
+job provides — its first green run is the remaining evidence.
 
 ---
 
@@ -69,8 +92,8 @@ all pass locally; the Playwright run happens in GitHub Actions.
 | 4 | Route tree for every §3 screen, a11y from first draft | 🟡 | see §3 table |
 | 5 | Edge Functions, key only via `Deno.env.get` | ✅ | verified: single read, never logged; **typechecked green in CI** since `9230ff1` |
 | 6 | Component tree using semantic tokens + §2.7 motion | ✅ | shared `src/lib/motion.ts` |
-| 7 | One sample of each test type | 🟡 | unit + integration done (12 vitest + 6 Deno, all green in CI); E2E/k6 pending |
-| 8 | `ci.yml` and `release-major.yml` in full | 🟡 | both live & running; CI **green**, Release blocked on secrets (see GitHub status) |
+| 7 | One sample of each test type | 🟡 | unit + integration done (43 vitest + the Deno fail-closed integration suite, green in CI); E2E: 22 Playwright tests implemented + locally pre-verified (see above), first live run pending in the new `e2e` job; k6 harness done, live run needs a deployed Supabase project |
+| 8 | `ci.yml` and `release.yml` in full | 🟡 | both live & running; CI **green** on `main` (verified through `9230ff1`; later merges each ran their own CI); the `e2e` job + contrast step are held out of the branch as `ci/patches/ci-playwright-and-contrast.patch` — owner push, session credential lacks `workflows` permission (see GitHub status); Release blocked on secrets |
 | 9 | Acceptance checklist | ✅ | this file |
 
 ---
@@ -88,7 +111,7 @@ all pass locally; the Playwright run happens in GitHub Actions.
 | §2.5 AI ring + "AI" pill + teal typing dots | ✅ | |
 | §2.5 `ai_mode` badge (dot/outline/filled) | ✅ | **corrected** |
 | §2.6 focus ring, `prefers-reduced-motion` | ✅ | instant cut, not slower |
-| §2.6 contrast audit at 4.5:1 | ✅ | `scripts/contrast.mjs` asserts 44 token pairs (both themes) — PASS; browser axe audit includes colour-contrast (full rules, not disabled) in the Playwright `e2e` job |
+| §2.6 contrast audit at 4.5:1 | ✅ | `scripts/contrast.mjs` asserts 54 token pairs (both themes, incl. markdown-link + AI-accent pairs) — PASS; browser axe audit includes colour-contrast (full rules, not disabled) in the Playwright `e2e` job |
 | §2.7 motion tokens, all surfaces | ✅ | 5 one-offs replaced with `tExit()` |
 | §2.7 60fps under 4x CPU throttle | ⛔ | not measured |
 
@@ -153,7 +176,7 @@ all pass locally; the Playwright run happens in GitHub Actions.
 | axe-core in CI, merge-blocking | ✅ | **added** — `tests/a11y/` (10 tests) runs inside `npm test`, so the existing CI gate enforces it; jsdom covers structural rules (roles/labels/landmarks/ARIA); color-contrast needs a real browser → Playwright phase |
 | Unit test sample | ✅ | `tests/utils.test.ts` + `stream-announcer.test.tsx`, 12 passing |
 | Integration test (fail-closed) | ✅ | `tests/moderation-fail-closed.test.ts` |
-| E2E Playwright (MU2) | 🟡 | `e2e/` suite implemented — 20 tests (AI chat, group room, @ai + moderation, ⌘K palette, history, browser axe audit in both themes); `playwright.config.ts` + a dedicated `e2e` CI job added. Chromium is unreachable in this sandbox, so the run happens in CI. |
+| E2E Playwright (MU2) | 🟡 | `e2e/` suite implemented — 22 tests (AI chat, group room, @ai + moderation, ⌘K palette, history, browser axe audit in both themes, offline, attachments); `playwright.config.ts` + a dedicated `e2e` CI job (change held out of the branch as `ci/patches/ci-playwright-and-contrast.patch` — owner push, see GitHub status). Chromium is unreachable in this sandbox, so the live run happens in CI. |
 | Design-token contrast (WCAG AA) | ✅ | `scripts/contrast.mjs` parses `globals.css` and asserts 44 text-on-surface pairs (both themes) — **44/44 PASS**; wired into CI. |
 | k6 50-member broadcast storm | 🟡 | `load/k6/broadcast.js` harness + `seed-room.mjs` + `load/k6/README.md` (methodology + explicit acceptance thresholds). **Measured results pending a live Supabase deployment** — no results are claimed (see `load/k6/README.md`). |
 | gitleaks | ✅ | wired into CI |
