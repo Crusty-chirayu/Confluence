@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { motion, type HTMLMotionProps } from "framer-motion";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2 } from "lucide-react";
@@ -39,16 +40,49 @@ export interface ButtonProps
     VariantProps<typeof button> {
   loading?: boolean;
   children?: React.ReactNode;
+  /**
+   * Render the button styling onto a navigation element instead of a
+   * `<button>`. Use with `href` — the result is a single `<a>` carrying the
+   * button classes, which is how you make a link that looks like a button
+   * without nesting interactive elements (axe: nested-interactive, WCAG 2.1 AA).
+   */
+  asChild?: boolean;
+  href?: string;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, variant, size, loading, children, disabled, ...props },
+  { className, variant, size, loading, children, disabled, asChild, href, ...props },
   ref,
 ) {
+  const classes = cn(button({ variant, size }), className);
+
+  // Single interactive element: the anchor carries the button styling.
+  if (asChild) {
+    const MotionLink = motion.create(Link);
+    // framer-motion's onDrag collides with the anchor's onDrag type; the
+    // public API stays fully typed, the spread is widened at the boundary.
+    const anchorProps = props as unknown as Record<string, unknown>;
+    return (
+      <MotionLink
+        ref={ref as React.Ref<HTMLAnchorElement>}
+        className={classes}
+        whileTap={disabled || loading ? undefined : { scale: 0.97 }}
+        whileHover={disabled || loading ? undefined : { scale: 1.015 }}
+        transition={SPRING}
+        aria-disabled={disabled || loading || undefined}
+        href={href}
+        {...anchorProps}
+      >
+        {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+        {children}
+      </MotionLink>
+    );
+  }
+
   return (
     <motion.button
       ref={ref}
-      className={cn(button({ variant, size }), className)}
+      className={classes}
       whileTap={disabled || loading ? undefined : { scale: 0.97 }}
       whileHover={disabled || loading ? undefined : { scale: 1.015 }}
       transition={SPRING}

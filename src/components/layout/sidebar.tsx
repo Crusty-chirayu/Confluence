@@ -143,11 +143,16 @@ export function Sidebar({
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-medium">{profile?.display_name ?? "You"}</p>
           </div>
-          <Link href="/app/settings" onClick={onNavigate}>
-            <Button variant="ghost" size="iconSm" aria-label="Settings">
-              <Settings className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Button
+            asChild
+            href="/app/settings"
+            variant="ghost"
+            size="iconSm"
+            aria-label="Settings"
+            onClick={onNavigate}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="iconSm" onClick={handleSignOut} aria-label="Sign out">
             <LogOut className="h-4 w-4" />
           </Button>

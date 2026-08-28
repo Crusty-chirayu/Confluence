@@ -207,17 +207,13 @@ export default function LandingPage() {
             variants={riseIn}
             className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
           >
-            <Link href="/signup" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto">
-                Start chatting free
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/app" className="w-full sm:w-auto">
-              <Button size="lg" variant="secondary" className="w-full sm:w-auto">
-                {DEMO_MODE ? "Explore the demo" : "Open the app"}
-              </Button>
-            </Link>
+            <Button asChild href="/signup" size="lg" className="w-full sm:w-auto">
+              Start chatting free
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button asChild href="/app" size="lg" variant="secondary" className="w-full sm:w-auto">
+              {DEMO_MODE ? "Explore the demo" : "Open the app"}
+            </Button>
           </motion.div>
 
           <motion.p variants={riseIn} className="mt-4 text-[12.5px] text-[--fg-subtle]">
@@ -354,11 +350,14 @@ export default function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link href="/signup" className="mt-7">
-                    <Button variant={p.highlight ? "primary" : "secondary"} className="w-full">
-                      {p.cta}
-                    </Button>
-                  </Link>
+                  <Button
+                    asChild
+                    href="/signup"
+                    variant={p.highlight ? "primary" : "secondary"}
+                    className="mt-7 w-full"
+                  >
+                    {p.cta}
+                  </Button>
                 </div>
               </RevealItem>
             ))}
@@ -381,17 +380,13 @@ export default function LandingPage() {
           </RevealItem>
           <RevealItem>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link href="/signup" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto">
-                  Create your account
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/app" className="w-full sm:w-auto">
-                <Button size="lg" variant="secondary" className="w-full sm:w-auto">
-                  Open the app
-                </Button>
-              </Link>
+              <Button asChild href="/signup" size="lg" className="w-full sm:w-auto">
+                Create your account
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+              <Button asChild href="/app" size="lg" variant="secondary" className="w-full sm:w-auto">
+                Open the app
+              </Button>
             </div>
           </RevealItem>
         </Reveal>
@@ -405,7 +400,10 @@ export default function LandingPage() {
             <span className="text-[13.5px] font-semibold">Confluence</span>
             <span className="text-[12.5px] text-[--fg-subtle]">v2.0</span>
           </div>
-          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] text-[--fg-muted]">
+          <nav
+            aria-label="Footer"
+            className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] text-[--fg-muted]"
+          >
             <a href="#features" className="hover:text-[--fg]">Features</a>
             <a href="#security" className="hover:text-[--fg]">Security</a>
             <a href="#pricing" className="hover:text-[--fg]">Pricing</a>

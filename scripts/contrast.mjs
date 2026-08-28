@@ -89,6 +89,13 @@ const pairs = [
   ["bubble-ai-fg on bubble-ai-bg", "--bubble-ai-fg", "--bubble-ai-bg", 4.5],
   ["bubble-user-fg on bubble-user-bg", "--bubble-user-fg", "--bubble-user-bg", 4.5],
   ["bubble-other-fg on bubble-other-bg", "--bubble-other-fg", "--bubble-other-bg", 4.5],
+  // Markdown links inside an AI / other bubble (.prose-chat a uses
+  // --accent-text; inside an own bubble they inherit the bubble fg).
+  ["accent text on bubble-ai-bg", "--accent-text", "--bubble-ai-bg", 4.5],
+  ["accent text on bubble-other-bg", "--accent-text", "--bubble-other-bg", 4.5],
+  ["accent text on surface-raised", "--accent-text", "--bg-surface-raised", 4.5],
+  ["ai-accent text on bg-app", "--ai-accent", "--bg-app", 4.5],
+  ["ai-accent text on surface", "--ai-accent", "--bg-surface", 4.5],
   ["info on bg-app", "--info", "--bg-app", 4.5],
   ["warning on bg-app", "--warning", "--bg-app", 4.5],
   ["danger on bg-app", "--danger", "--bg-app", 4.5],

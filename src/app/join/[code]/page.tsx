@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { CheckCircle2, Hash, Loader2, XCircle } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
@@ -90,9 +89,9 @@ export default function JoinPage() {
               <XCircle className="h-6 w-6" />
             </span>
             <p className="text-[14px] leading-relaxed text-[--fg-muted]">{message}</p>
-            <Link href="/app">
-              <Button className="mt-5">Go to your conversations</Button>
-            </Link>
+            <Button asChild href="/app" className="mt-5">
+              Go to your conversations
+            </Button>
           </>
         )}
       </motion.div>
