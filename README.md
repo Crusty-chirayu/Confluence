@@ -99,7 +99,7 @@ Every animation is driven by tokens in [`src/lib/motion.ts`](./src/lib/motion.ts
 - **Exit is always faster than entry.**
 - **`prefers-reduced-motion`** collapses every animation to an instant cut (not a slower version) via a global override in `globals.css`.
 
-Highlights: staggered scroll reveals on the landing page, hero parallax, blurred-glass nav after 40px, `layout` animation for conversation-list reordering, streaming reveal with a blinking caret (no per-token effects — that's visually noisy at speed), staggered-pulse typing dots, reactions popping in on an overshoot spring, sun↔moon rotate-and-fade theme morph with a 200ms surface crossfade, skeleton shimmer wherever content has a predictable shape (spinners only where it doesn't), and toasts with a visible shrinking dismissal bar.
+Highlights: staggered scroll reveals on the landing page, hero parallax, blurred-glass nav after 40px, `layout` animation for conversation-list reordering, streaming reveal with a blinking caret (no per-token effects — that's visually noisy at speed), staggered-pulse typing dots, reactions popping in on an overshoot spring, sun↔moon rotate-and-fade theme morph with a 200ms surface crossfade, skeleton shimmer wherever content has a predictable shape (spinners only where it doesn't), toasts with a visible shrinking dismissal bar, and an accessible offline / reconnecting / restored banner that collapses to an instant cut under `prefers-reduced-motion`.
 
 Destructive confirms use a **debounce with a visual tell** — clicking the confirm button within 450ms of the dialog opening shakes it instead of silently swallowing the click.
 
@@ -135,6 +135,8 @@ src/
     landing/                nav, hero-demo, section primitives
     theme-provider.tsx      light/dark/system + morphing toggle
     session-provider.tsx    auth state, works in both modes
+    network-provider.tsx    online/offline/reconnecting state (§27)
+    offline-banner.tsx      accessible offline / restored banner
   lib/
     motion.ts               §2.7 motion tokens — single source of truth
     data/api.ts             unified data layer (Supabase ⟷ demo)

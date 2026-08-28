@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { MessageListSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { useSession } from "@/components/session-provider";
+import { useNetworkStatus } from "@/components/network-provider";
 import { DEMO_MODE } from "@/lib/env";
 import { demo } from "@/lib/data/demo-store";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
@@ -38,6 +39,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
   const params = useSearchParams();
   const toast = useToast();
   const { profile } = useSession();
+  const { unavailable } = useNetworkStatus();
   const highlightId = params.get("m");
 
   const [conversation, setConversation] = React.useState(initial);
@@ -202,6 +204,17 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
 
   const handleSend = async (text: string) => {
     setAtBottom(true);
+    // In real (Supabase) mode we must not pretend a message reached the server
+    // while the connection is down. Demo mode is localStorage-backed, so a
+    // send works offline — but we still tell the user they're offline.
+    if (unavailable && !DEMO_MODE) {
+      toast.push({
+        kind: "warning",
+        title: "You're offline",
+        description: "Reconnect before sending — your message hasn't been sent yet.",
+      });
+      return;
+    }
     try {
       const msg = await sendMessage(conversation.id, text);
       setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));

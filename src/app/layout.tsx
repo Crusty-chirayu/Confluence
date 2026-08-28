@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider, themeScript } from "@/components/theme-provider";
 import { SessionProvider } from "@/components/session-provider";
 import { ToastProvider } from "@/components/ui/toast";
+import { NetworkProvider } from "@/components/network-provider";
 
 export const metadata: Metadata = {
   title: {
@@ -34,9 +35,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="antialiased">
         <ThemeProvider>
-          <ToastProvider>
-            <SessionProvider>{children}</SessionProvider>
-          </ToastProvider>
+          <NetworkProvider>
+            <ToastProvider>
+              <SessionProvider>{children}</SessionProvider>
+            </ToastProvider>
+          </NetworkProvider>
         </ThemeProvider>
       </body>
     </html>

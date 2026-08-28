@@ -118,7 +118,7 @@ all pass locally; the Playwright run happens in GitHub Actions.
 | File attachments (P1) | ⛔ | schema + bucket + policies ready; no UI |
 | Admin analytics (P2) | ➖ | views exist |
 | Empty / error / loading states | ✅ | skeletons, moderation notice, 404 |
-| Offline / reconnecting banner | ⛔ | |
+| Offline / reconnecting banner | ✅ | `NetworkProvider` + `OfflineBanner` (online/offline/reconnecting/restored); real-mode sends are refused while offline (not pretended); unit-tested + `e2e/offline.spec.ts` |
 
 ---
 
