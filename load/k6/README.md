@@ -62,7 +62,29 @@ performance. Do not cite them as results.
 
 3. For the full 50-connection fan-out, increase the observer VUs via
    `K6_REALTIME_MSGS` and the scenarios (the default is a conservative,
-   deterministic run that respects the 30 msg/min rate limiter).
+   deterministic run that stays inside the rate limiter).
+
+## Rate limiter — now enforced in the database ⚠️
+
+`messages_per_min` (30/minute **per sender**) is enforced by a
+`BEFORE INSERT` trigger on `public.messages`, not by application code
+(see `supabase/migrations/20260828000000_rls_hardening.sql`). Every VU
+shares one `K6_ACCESS_TOKEN`, so from the database's point of view the
+whole storm is a *single* sender.
+
+`broadcast.js` therefore paces sends with `K6_SEND_SLEEP_S` (default
+`2.2`s ≈ 27 messages/minute). Two consequences to know before you cite any
+number from this harness:
+
+- **Paced (default):** the run measures insert/list latency and Realtime
+  fan-out. Valid for the thresholds below.
+- **Unpaced (`K6_SEND_SLEEP_S=0`):** the run measures the rate limiter —
+  inserts start failing with `rate_limited` once 30 land inside a minute,
+  so `request_failure_rate` will blow past the 1% threshold by design.
+
+If you want a 50-*sender* storm rather than 50 observers behind one token,
+seed per-VU tokens (`seed-room.mjs` prints one per member) and raise
+`K6_SEND_SLEEP_S` only if the shared-sender ceiling bites.
 
 ## Acceptance thresholds (§32)
 
