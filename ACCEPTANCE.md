@@ -115,7 +115,7 @@ all pass locally; the Playwright run happens in GitHub Actions.
 | Global search (P1) | 🟡 | full-text works; no sender/date filters |
 | **Command palette (⌘K)** | ✅ | **added** — navigate/create/theme; search moved to ⌘/ |
 | User settings (profile, theme, training toggle) | 🟡 | notifications / connected accounts / export-delete missing |
-| File attachments (P1) | ⛔ | schema + bucket + policies ready; no UI |
+| File attachments (P1) | ✅ | composer upload (validate 10MB, allowlist, excludes SVG), private bucket write + member-scoped signed-URL chips; real-mode storage calls + demo object URLs; unit + E2E specs |
 | Admin analytics (P2) | ➖ | views exist |
 | Empty / error / loading states | ✅ | skeletons, moderation notice, 404 |
 | Offline / reconnecting banner | ✅ | `NetworkProvider` + `OfflineBanner` (online/offline/reconnecting/restored); real-mode sends are refused while offline (not pretended); unit-tested + `e2e/offline.spec.ts` |
@@ -135,7 +135,7 @@ all pass locally; the Playwright run happens in GitHub Actions.
 | RLS enabled + explicit policies, every table | ✅ | 10/10 tables |
 | Default-deny, membership-scoped | ✅ | audit tables: RLS on, zero policies |
 | Storage policies mirror membership | ✅ | SECURITY DEFINER helper |
-| Signed URLs for attachments | 🟡 | bucket private; no upload UI yet |
+| Signed URLs for attachments | ✅ | `attachmentUrl()` mints member-scoped 24h signed URLs (or demo object URLs); chips render/download |
 | `training_opt_in` default false | ✅ | DB + trigger + signup + settings |
 | **Orchestrator checks flag before training** | ✅ | unanimous opt-in — ratified, see Interpretation calls |
 | Rate limits: messages, AI, invites | ✅ | |

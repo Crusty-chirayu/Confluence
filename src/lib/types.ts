@@ -47,6 +47,17 @@ export interface Message {
   created_at: string;
   edited_at: string | null;
   deleted_at: string | null;
+  /** Attachments attached to this message (private, member-scoped). */
+  attachments?: MessageAttachment[];
+}
+
+export interface MessageAttachment {
+  id: string;
+  message_id: string;
+  storage_path: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
 }
 
 export interface Reaction {
