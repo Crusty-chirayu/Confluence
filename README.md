@@ -150,7 +150,7 @@ supabase_schema.sql         the complete, runnable database layer
 
 ## CI/CD — "push everything" release policy (§1)
 
-- **[`.github/workflows/ci.yml`](./.github/workflows/ci.yml)** — live; on every push/PR: typecheck, lint, unit tests, build, plus `deno check` on all three Edge Functions, the moderation fail-closed integration test, and a gitleaks secret scan.
+- **[`.github/workflows/ci.yml`](./.github/workflows/ci.yml)** — live; on every push/PR: typecheck, lint, unit tests, token-contrast, build, plus `deno check` on all three Edge Functions, the moderation fail-closed integration test, a gitleaks secret scan, and a dedicated **Playwright E2E + browser axe job** (`e2e`).
 - **[`.github/workflows/release.yml`](./.github/workflows/release.yml)** — live; on push to `main`, in strict dependency order: **migrations → Edge Functions → frontend**. A partial deploy is treated as a failed deploy.
 
 > Both workflows were initially shipped under [`ci/`](./ci) (the original push credential
@@ -178,6 +178,28 @@ npm run start    # serve the build
 npm run lint     # eslint
 npx tsc --noEmit # typecheck
 npm test         # unit + component + a11y (axe-core) suites
-npm run test:a11y  # axe-core accessibility suite only
+npm run test:a11y  # vitest axe-core accessibility suite (jsdom, structural)
 npm run test:edge  # Deno moderation fail-closed integration test
+npm run test:contrast  # WCAG AA token contrast against globals.css (no browser)
+npm run test:e2e       # Playwright E2E + browser axe audit (needs Chromium)
+npm run test:e2e:install  # download Chromium for the E2E suite
 ```
+
+### End-to-end / browser accessibility
+
+The Playwright suite (`e2e/`) runs the app in **demo mode** and covers the
+critical journeys: AI chat streaming + persistence, group rooms, @ai mention
+and moderation, ⌘K command palette, history, and a real-browser **axe-core
+audit (light + dark, WCAG AA — not disabled)**. It targets stable selectors
+(roles, labels, `data-testid`), emulates `prefers-reduced-motion`, and
+produces a report + traces on failure.
+
+```bash
+npx playwright install --with-deps chromium  # one-time
+npm run test:e2e
+```
+
+The token contrast script parses `src/app/globals.css`, resolves the semantic
+tokens for both themes, and asserts every text-on-surface pair meets 4.5:1
+(normal) / 3:1 (large & UI). It runs in CI and is a real, runnable substitute
+for the browser contrast scan.

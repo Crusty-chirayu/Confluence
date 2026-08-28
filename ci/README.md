@@ -12,7 +12,7 @@ GitHub Actions workflows for the §1 "push everything" release policy.
 
 | Workflow | File | Trigger | Steps |
 | --- | --- | --- | --- |
-| CI | `.github/workflows/ci.yml` | every push + PR to `main` | `npm ci` → `tsc --noEmit` → `npm run lint` → unit tests → `npm run build`, **plus** `deno check` on all three Edge Functions, the moderation fail-closed integration test (`deno test`), and a gitleaks secret scan |
+| CI | `.github/workflows/ci.yml` | every push + PR to `main` | `npm ci` → `tsc --noEmit` → `npm run lint` → unit tests → `node scripts/contrast.mjs` (WCAG AA token gate) → `npm run build`, **plus** a dedicated **Playwright E2E + browser axe audit** job (`e2e`), `deno check` on all three Edge Functions, the moderation fail-closed integration test (`deno test`), and a gitleaks secret scan |
 | Release | `.github/workflows/release.yml` | push to `main`, or manual dispatch | **1** `supabase db push` → **2** deploy `ai-orchestrator`, `moderation-check`, `invite-consume` → **3** build & deploy the frontend to Vercel |
 
 `release.yml` runs strictly in that order via `needs:`, so a schema change is always live
