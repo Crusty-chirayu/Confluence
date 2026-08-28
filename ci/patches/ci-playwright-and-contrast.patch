@@ -1,8 +1,20 @@
 diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
-index fdc4d66..a2807fe 100644
+index fdc4d66..d930c98 100644
 --- a/.github/workflows/ci.yml
 +++ b/.github/workflows/ci.yml
-@@ -34,12 +34,46 @@ jobs:
+@@ -15,9 +15,9 @@ jobs:
+     name: Typecheck, lint, build
+     runs-on: ubuntu-latest
+     steps:
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@v5
+ 
+-      - uses: actions/setup-node@v4
++      - uses: actions/setup-node@v5
+         with:
+           node-version: 22
+           cache: npm
+@@ -34,17 +34,51 @@ jobs:
        - name: Unit tests
          run: npm test
  
@@ -20,9 +32,9 @@ index fdc4d66..a2807fe 100644
 +    runs-on: ubuntu-latest
 +    timeout-minutes: 30
 +    steps:
-+      - uses: actions/checkout@v4
++      - uses: actions/checkout@v5
 +
-+      - uses: actions/setup-node@v4
++      - uses: actions/setup-node@v5
 +        with:
 +          node-version: 22
 +          cache: npm
@@ -49,3 +61,21 @@ index fdc4d66..a2807fe 100644
    edge-functions:
      name: Verify Edge Functions
      runs-on: ubuntu-latest
+     steps:
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@v5
+ 
+       - uses: denoland/setup-deno@v2
+         with:
+@@ -67,9 +101,9 @@ jobs:
+     name: Secret scan (gitleaks)
+     runs-on: ubuntu-latest
+     steps:
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@v5
+         with:
+           fetch-depth: 0
+-      - uses: gitleaks/gitleaks-action@v2
++      - uses: gitleaks/gitleaks-action@v3
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

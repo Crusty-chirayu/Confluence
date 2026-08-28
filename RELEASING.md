@@ -11,8 +11,13 @@ so the release can be executed against a real deployment.
 - `main` contains: MU2 (Playwright E2E + browser axe + §6 AA tokens), MU-C (k6
   harness), MU-D (attachments), MU-E (read receipts), MU-F (offline), MU-G
   (security/perf/a11y audit). All CI jobs on `main` are green.
-- The Playwright CI **job is not active yet** — it requires an owner push (see
-  §3). The tests themselves (22 specs) are committed and collected.
+- The Playwright CI **job is not active on `main` yet** — the CI-activation
+  change is held **out of** `arena/01a047d7-group-chatbot` (the session's
+  GitHub App credential cannot push workflow files; GitHub rejects it
+  server-side) and ships in the branch as
+  `ci/patches/ci-playwright-and-contrast.patch`, awaiting the one-time owner
+  action described in §3. The tests themselves (22 tests) are committed and
+  collected.
 - The **Release** workflow currently fails at "Push migrations" because the
   Supabase release secrets are not set (expected until you run §4).
 
@@ -41,22 +46,43 @@ key and the provider key must stay server-side.
 
 ## 3. Activate CI (one-time owner push)
 
-The Playwright `e2e` job + the token-contrast step live in a patch that the
-current credential cannot commit (GitHub App lacks `workflows` scope). An owner
-with `workflows: write` applies and pushes it, and bumps the deprecated actions:
+**State as of 2026-08-28 (after credential reconnect):** the session's
+GitHub credential was restored, but a push of any commit touching
+`.github/workflows/ci.yml` is **rejected server-side by GitHub**:
+"refusing to allow a GitHub App to create or update workflow
+`.github/workflows/ci.yml` without `workflows` permission" — the session
+credential is a GitHub App without that permission. The CI-activation commit
+is therefore **not in `arena/01a047d7-group-chatbot`** (the branch carries
+the a11y fixes, the spec alignment and these docs, and pushes/PRs/merges
+normally); the byte-identical change ships in the branch as
+`ci/patches/ci-playwright-and-contrast.patch` and lands on `main` with the
+merge.
 
-```bash
-git apply ci/patches/ci-playwright-and-contrast.patch
-# also bump: actions/checkout@v4 -> @v5, gitleaks/gitleaks-action@v2 -> @v3
-git add .github/workflows/ci.yml
-git commit -m "ci: run Playwright E2E + token-contrast; bump actions to Node-24-safe"
-git push
-```
+One-time owner action (either path):
 
-Without the bump, `accounts/checkout@v4` and `gitleaks-action@v2` are forced
-onto Node 24 and intermittently crash the gitleaks job (no secret finding —
-documented in `SECURITY.md`). The token-contrast step (`scripts/contrast.mjs`)
-is already wired into the CI.
+- **A. Grant the session's GitHub App the `workflows` permission** (repo
+  Settings → GitHub Apps → the installation → Repository permissions →
+  *Workflows*: read & write) and let this session know — the session then
+  applies the patch, commits, pushes, PRs, merges and verifies CI.
+- **B. Apply the patch on `main` yourself** — with any credential that has
+  `workflows: write`:
+
+  ```bash
+  git apply ci/patches/ci-playwright-and-contrast.patch
+  git add .github/workflows/ci.yml
+  git commit -m "ci: run Playwright E2E + token-contrast; bump actions to Node-24-safe"
+  git push
+  ```
+
+The patch in `ci/patches/` is the exact diff of the held-back CI-activation
+commit — verified byte-identical and clean-applying to `main` (e2e job +
+contrast step + `actions/checkout@v4 -> @v5`, `actions/setup-node@v4 -> @v5`,
+`gitleaks/gitleaks-action@v2 -> @v3`). Without the bump, the Node-20 actions
+run on the Node 24 runners and intermittently crash the gitleaks job (no
+secret finding — documented in `SECURITY.md`).
+
+Once the job is live it needs **no secrets**: the suite runs the app in demo
+mode (the `webServer` env forces empty Supabase vars).
 
 ## 4. Release workflow secrets (owner)
 

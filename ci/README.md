@@ -7,6 +7,14 @@ GitHub Actions workflows for the §1 "push everything" release policy.
 > push lacked the `workflows` permission, and were activated with commit `99ebad0`
 > ("ci: activate workflows"). No workflow files live in `ci/` anymore; this README is
 > their documentation.
+>
+> **Pending (2026-08-28):** the Playwright `e2e` job, the token-contrast step and the
+> Node-24 action bumps are **not in the branch** — the session's GitHub App credential
+> lacks the `workflows` permission and GitHub rejected (server-side, 2026-08-28) a push
+> of the commit that touches `.github/workflows/ci.yml` (the earlier credential 401 was
+> resolved the same day). The byte-identical change is kept at
+> [`patches/ci-playwright-and-contrast.patch`](patches/ci-playwright-and-contrast.patch)
+> (in the branch, lands on `main` with the merge); one-time owner action: `../RELEASING.md` §3.
 
 ## What they do
 

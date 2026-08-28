@@ -57,15 +57,24 @@ These are **not** code defects but require owner-held credentials or a
 workflow-permitted push:
 
 1. **`.github/workflows/*` push permission.** The GitHub App used for pushes
-   lacks the `workflows` scope, so it cannot write workflow files. To activate
-   the Playwright CI job (and bump GitHub Actions to Node-24-compatible
-   versions, see below) an owner with the `workflows` permission must push
-   `.github/workflows/ci.yml`.
+   lacks the `workflows` permission, so it cannot write workflow files —
+   confirmed server-side on 2026-08-28 ("refusing to allow a GitHub App to
+   create or update workflow … without `workflows` permission"). The
+   Playwright CI activation (e2e job + contrast step + action bumps) is
+   therefore **held out of** `arena/01a047d7-group-chatbot`; the
+   byte-identical change ships in the branch as
+   `ci/patches/ci-playwright-and-contrast.patch` (lands on `main` with the
+   merge) and an owner with the `workflows` permission must apply/push it
+   (see `RELEASING.md` §3). The earlier credential-expiry (HTTP 401) issue
+   was resolved on 2026-08-28; the missing `workflows` permission is the
+   only remaining blocker for this item.
 2. **gitleaks on Node 24.** `actions/checkout@v4` and `gitleaks/gitleaks-action@v2`
    target Node 20, which GitHub deprecated (2025-09-19) and now forces onto
    Node 24 — causing intermittent gitleaks job failures with **no secret
-   finding**. Bump to `actions/checkout@v5` and `gitleaks/gitleaks-action@v3`
-   (owner push).
+   finding**. The bump to `actions/checkout@v5` / `setup-node@v5` /
+   `gitleaks/gitleaks-action@v3` is included in
+   `ci/patches/ci-playwright-and-contrast.patch` (owner push, see item 1);
+   it takes effect when the patch reaches `main`.
 3. **Release secrets.** `release.yml` fails until the owner sets
    `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`,
    `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` (see `ci/README.md`).
