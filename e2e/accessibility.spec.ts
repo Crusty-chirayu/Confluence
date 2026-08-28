@@ -11,7 +11,7 @@ import { expect, resetDemo, demoSignIn, startAiChat } from "./helpers";
  * The `expect` message names the page + theme so a failure is actionable.
  */
 
-const PUBLIC_PAGES = ["/", "/login", "/signup", "/forgot-password", "/changelog"];
+const PUBLIC_PAGES = ["/", "/pricing", "/login", "/signup", "/forgot-password", "/changelog"];
 
 async function scan(page: import("@playwright/test").Page, label: string): Promise<void> {
   const results = await new AxeBuilder({ page }).analyze();

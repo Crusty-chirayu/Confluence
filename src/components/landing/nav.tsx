@@ -14,7 +14,7 @@ const LINKS = [
   { href: "#features", label: "Features" },
   { href: "#how", label: "How it works" },
   { href: "#security", label: "Security" },
-  { href: "#pricing", label: "Pricing" },
+  { href: "/pricing", label: "Pricing" },
   { href: "/changelog", label: "Changelog" },
 ];
 
@@ -44,15 +44,27 @@ export function LandingNav() {
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">
-          {LINKS.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className="rounded-[--r-sm] px-3 py-2 text-[13.5px] font-medium text-[--fg-muted] transition-colors hover:text-[--fg]"
-            >
-              {l.label}
-            </a>
-          ))}
+          {LINKS.map((l) =>
+            // Hash links stay on the landing page; routes use next/link so
+            // they are client-side navigations (and prefetched), not reloads.
+            l.href.startsWith("/") ? (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="rounded-[--r-sm] px-3 py-2 text-[13.5px] font-medium text-[--fg-muted] transition-colors hover:text-[--fg]"
+              >
+                {l.label}
+              </Link>
+            ) : (
+              <a
+                key={l.href}
+                href={l.href}
+                className="rounded-[--r-sm] px-3 py-2 text-[13.5px] font-medium text-[--fg-muted] transition-colors hover:text-[--fg]"
+              >
+                {l.label}
+              </a>
+            ),
+          )}
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -84,16 +96,27 @@ export function LandingNav() {
         style={{ height: open ? "auto" : 0 }}
       >
         <div className="flex flex-col p-3">
-          {LINKS.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              onClick={() => setOpen(false)}
-              className="rounded-[--r-md] px-3 py-2.5 text-sm font-medium text-[--fg-muted] hover:bg-[--bg-hover] hover:text-[--fg]"
-            >
-              {l.label}
-            </a>
-          ))}
+          {LINKS.map((l) =>
+            l.href.startsWith("/") ? (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className="rounded-[--r-md] px-3 py-2.5 text-sm font-medium text-[--fg-muted] hover:bg-[--bg-hover] hover:text-[--fg]"
+              >
+                {l.label}
+              </Link>
+            ) : (
+              <a
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className="rounded-[--r-md] px-3 py-2.5 text-sm font-medium text-[--fg-muted] hover:bg-[--bg-hover] hover:text-[--fg]"
+              >
+                {l.label}
+              </a>
+            ),
+          )}
           <Button asChild href="/login" variant="secondary" className="mt-2 w-full" onClick={() => setOpen(false)}>
             Sign in
           </Button>
