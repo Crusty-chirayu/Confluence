@@ -10,6 +10,11 @@ import { cn } from "@/lib/utils";
 import { formatFileSize, validateAttachmentFile } from "@/lib/attachments";
 import { popover, SPRING, tEnter, tExit } from "@/lib/motion";
 
+/** The mention popup's listbox id, referenced by the combobox. */
+const MENTION_LISTBOX_ID = "composer-mention-listbox";
+const MENTION_OPTION_PREFIX = "composer-mention-option-";
+const mentionOptionId = (index: number) => `${MENTION_OPTION_PREFIX}${index}`;
+
 interface MentionOption {
   id: string;
   label: string;
@@ -157,65 +162,45 @@ export function Composer({
     }
   };
 
+  // The popup is "open" for ARIA purposes only while it has options — an
+  // `aria-expanded="true"` with nothing to expand to is worse than false.
+  const mentionOpen = mentionQuery !== null && options.length > 0;
+
   const willInvokeAi =
     aiMode === "auto" || (aiMode === "mention_only" && /@ai\b/i.test(value));
 
   return (
     <div className="relative border-t border-[--border] bg-[--bg] px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
-      {/* moderation pre-warning */}
-      <AnimatePresence initial={false}>
-        {verdict.verdict !== "pass" && (
-          <motion.div
-            initial={{ opacity: 0, y: 6, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: "auto" }}
-            exit={{ opacity: 0, height: 0, transition: tExit() }}
-            transition={tEnter()}
-            className="mb-2 overflow-hidden"
-          >
-            <div className="flex items-start gap-2 rounded-[--r-md] border border-[--warning]/30 bg-[--warning-subtle] px-3 py-2 text-[12.5px] text-[--warning]">
-              <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>
-                <strong className="font-semibold">{verdict.label}.</strong>{" "}
-                {tooLong
-                  ? `Trim it to ${MAX_MESSAGE_LENGTH.toLocaleString()} characters or fewer.`
-                  : "This won't pass moderation, so it can't be sent."}
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* @mention autocomplete — scales+fades from the caret area */}
-      <AnimatePresence>
-        {mentionQuery !== null && options.length > 0 && (
-          <motion.div
-            variants={popover}
-            initial="hidden"
-            animate="show"
-            exit="exit"
-            style={{ transformOrigin: "bottom left" }}
-            className="absolute bottom-full left-3 z-30 mb-2 w-[min(20rem,calc(100%-1.5rem))] overflow-hidden rounded-[--r-md] border border-[--border] bg-[--surface-raised] shadow-[--e3] sm:left-4"
-          >
-            {options.map((o, i) => (
-              <button
-                key={o.id}
-                onMouseEnter={() => setCursor(i)}
-                onClick={() => applyMention(o)}
-                className={cn(
-                  "flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors duration-[--d-micro]",
-                  i === cursor ? "bg-[--bg-hover]" : "hover:bg-[--bg-hover]",
-                )}
-              >
-                {o.isAi ? <AiAvatar size="xs" /> : <Avatar name={o.sub} url={o.avatarUrl} size="xs" />}
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium">@{o.label}</span>
-                  <span className="block truncate text-[11.5px] text-[--fg-muted]">{o.sub}</span>
+      {/*
+        moderation pre-warning.
+        The live region is rendered unconditionally and only its contents
+        change: a `role="status"` node inserted *with* its text already in
+        it is missed by some screen readers, so the container has to be in
+        the DOM before the warning appears.
+      */}
+      <div role="status" aria-live="polite" className="empty:hidden">
+        <AnimatePresence initial={false}>
+          {verdict.verdict !== "pass" && (
+            <motion.div
+              initial={{ opacity: 0, y: 6, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: "auto" }}
+              exit={{ opacity: 0, height: 0, transition: tExit() }}
+              transition={tEnter()}
+              className="mb-2 overflow-hidden"
+            >
+              <div className="flex items-start gap-2 rounded-[--r-md] border border-[--warning]/30 bg-[--warning-subtle] px-3 py-2 text-[12.5px] text-[--warning]">
+                <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  <strong className="font-semibold">{verdict.label}.</strong>{" "}
+                  {tooLong
+                    ? `Trim it to ${MAX_MESSAGE_LENGTH.toLocaleString()} characters or fewer.`
+                    : "This won't pass moderation, so it can't be sent."}
                 </span>
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* pending attachments */}
       <AnimatePresence>
@@ -249,9 +234,10 @@ export function Composer({
         )}
       </AnimatePresence>
 
-      {fileError && (
-        <p className="mb-2 text-[12px] font-medium text-[--danger]">{fileError}</p>
-      )}
+      {/* Same reasoning as the warning above: the region exists first. */}
+      <div role="alert" className="empty:hidden">
+        {fileError && <p className="mb-2 text-[12px] font-medium text-[--danger]">{fileError}</p>}
+      </div>
 
       <div
         className={cn(
@@ -261,30 +247,103 @@ export function Composer({
           verdict.verdict !== "pass" ? "border-[--warning]/50" : "border-[--border]",
         )}
       >
-        <textarea
-          ref={ref}
-          rows={1}
-          value={value}
-          disabled={disabled}
-          data-testid="composer-input"
-          onChange={(e) => {
-            setValue(e.target.value);
-            detectMention(e.target.value, e.target.selectionStart);
-            onTyping?.();
-          }}
-          onKeyDown={onKeyDown}
-          onClick={(e) => detectMention(value, e.currentTarget.selectionStart)}
-          placeholder={
-            disabled
-              ? "You can't post in this conversation."
-              : isGroup
-                ? aiMode === "off"
-                  ? "Message the room…"
-                  : "Message the room… type @ai to bring in the assistant"
-                : "Ask anything…"
-          }
-          className="max-h-[200px] min-h-[24px] flex-1 resize-none bg-transparent py-1 text-[14px] leading-relaxed text-[--fg] outline-none placeholder:text-[--fg-subtle] disabled:opacity-60"
-        />
+        {/*
+          WAI-ARIA combobox (ARIA 1.2). The role lives on the wrapper, not on
+          the textarea: `role="combobox"` is only defined for text *inputs*,
+          and axe flags it on a <textarea>. A combobox owns its textbox and,
+          when expanded, its listbox — hence both live inside this element.
+
+          Without this a screen-reader user gets no indication that @mention
+          suggestions exist, and the highlighted one is never announced
+          (WCAG 4.1.2).
+        */}
+        <div
+          role="combobox"
+          aria-haspopup="listbox"
+          aria-expanded={mentionOpen}
+          // Only set while the popup exists: an aria-controls pointing at an
+          // id that is not in the DOM is itself a validity error.
+          aria-controls={mentionOpen ? MENTION_LISTBOX_ID : undefined}
+          aria-label="Message"
+          className="relative min-w-0 flex-1"
+        >
+          <textarea
+            ref={ref}
+            rows={1}
+            value={value}
+            disabled={disabled}
+            data-testid="composer-input"
+            aria-autocomplete="list"
+            aria-activedescendant={
+              mentionOpen && options[cursor] ? mentionOptionId(cursor) : undefined
+            }
+            onChange={(e) => {
+              setValue(e.target.value);
+              detectMention(e.target.value, e.target.selectionStart);
+              onTyping?.();
+            }}
+            onKeyDown={onKeyDown}
+            onClick={(e) => detectMention(value, e.currentTarget.selectionStart)}
+            placeholder={
+              disabled
+                ? "You can't post in this conversation."
+                : isGroup
+                  ? aiMode === "off"
+                    ? "Message the room…"
+                    : "Message the room… type @ai to bring in the assistant"
+                  : "Ask anything…"
+            }
+            className="max-h-[200px] min-h-[24px] w-full resize-none bg-transparent py-1 text-[14px] leading-relaxed text-[--fg] outline-none placeholder:text-[--fg-subtle] disabled:opacity-60"
+          />
+
+          {/* @mention autocomplete — scales+fades up from the input */}
+          <AnimatePresence>
+            {mentionOpen && (
+              <motion.div
+                id={MENTION_LISTBOX_ID}
+                role="listbox"
+                aria-label="Mention suggestions"
+                variants={popover}
+                initial="hidden"
+                animate="show"
+                exit="exit"
+                style={{ transformOrigin: "bottom left" }}
+                className="absolute bottom-full left-0 z-30 mb-2 w-[min(20rem,100%)] overflow-hidden rounded-[--r-md] border border-[--border] bg-[--surface-raised] shadow-[--e3]"
+              >
+                {options.map((o, i) => (
+                  <button
+                    key={o.id}
+                    id={mentionOptionId(i)}
+                    role="option"
+                    aria-selected={i === cursor}
+                    // The options are driven with the arrow keys from the
+                    // textarea (aria-activedescendant); a stray Tab would
+                    // move focus out of the popup and desync the cursor.
+                    tabIndex={-1}
+                    onMouseEnter={() => setCursor(i)}
+                    onClick={() => applyMention(o)}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors duration-[--d-micro]",
+                      i === cursor ? "bg-[--bg-hover]" : "hover:bg-[--bg-hover]",
+                    )}
+                  >
+                    {o.isAi ? (
+                      <AiAvatar size="xs" />
+                    ) : (
+                      <Avatar name={o.sub} url={o.avatarUrl} size="xs" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-medium">@{o.label}</span>
+                      <span className="block truncate text-[11.5px] text-[--fg-muted]">
+                        {o.sub}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* attach a file (private, member-scoped) */}
         <input

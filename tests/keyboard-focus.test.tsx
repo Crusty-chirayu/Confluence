@@ -14,6 +14,7 @@ import * as React from "react";
 import { Modal, ConfirmDialog } from "../src/components/ui/modal";
 import { CommandPalette } from "../src/components/layout/command-palette";
 import { Button } from "../src/components/ui/button";
+import { Composer } from "../src/components/chat/composer";
 import type { ConversationSummary } from "../src/lib/types";
 
 vi.mock("next/navigation", () => ({
@@ -234,5 +235,111 @@ describe("CommandPalette — keyboard behaviour", () => {
     await flushFrame();
     fireEvent.keyDown(dialog().querySelector("input")!, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe("Composer — @mention combobox", () => {
+  const members = [
+    {
+      conversation_id: "c1",
+      user_id: "u2",
+      role: "member" as const,
+      joined_at: "2026-01-01T00:00:00Z",
+      last_read_at: null,
+      pinned_at: null,
+      profile: {
+        id: "u2",
+        display_name: "Grace Hopper",
+        avatar_url: null,
+        theme_pref: "system" as const,
+        training_opt_in: false,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+    },
+  ];
+
+  function renderComposer() {
+    return render(
+      <Composer
+        members={members}
+        isGroup
+        aiMode="mention_only"
+        streaming={false}
+        onSend={() => {}}
+        onStop={() => {}}
+      />,
+    );
+  }
+
+  it("is collapsed until a mention is typed", () => {
+    const { container } = renderComposer();
+    const combo = container.querySelector('[role="combobox"]')!;
+    expect(combo.getAttribute("aria-expanded")).toBe("false");
+    expect(combo.getAttribute("aria-controls")).toBeNull();
+    expect(container.querySelector('[role="listbox"]')).toBeNull();
+  });
+
+  it("exposes the suggestions as a listbox with a selected option", () => {
+    const { container } = renderComposer();
+    const combo = container.querySelector('[role="combobox"]')!;
+    const input = container.querySelector("textarea")!;
+
+    fireEvent.change(input, { target: { value: "@" } });
+
+    expect(combo.getAttribute("aria-expanded")).toBe("true");
+    const listbox = container.querySelector('[role="listbox"]')!;
+    expect(combo.getAttribute("aria-controls")).toBe(listbox.id);
+
+    const options = [...container.querySelectorAll('[role="option"]')];
+    expect(options.length).toBeGreaterThan(0);
+    expect(options[0].getAttribute("aria-selected")).toBe("true");
+    // activedescendant names the highlighted option, so it is announced.
+    expect(input.getAttribute("aria-activedescendant")).toBe(options[0].id);
+  });
+
+  it("moves the highlighted option with the arrow keys", () => {
+    const { container } = renderComposer();
+    const input = container.querySelector("textarea")!;
+    fireEvent.change(input, { target: { value: "@" } });
+
+    const options = [...container.querySelectorAll('[role="option"]')];
+    expect(input.getAttribute("aria-activedescendant")).toBe(options[0].id);
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(input.getAttribute("aria-activedescendant")).toBe(options[1].id);
+
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(input.getAttribute("aria-activedescendant")).toBe(options[0].id);
+  });
+
+  it("closes the listbox on Escape and after applying a mention", () => {
+    const { container } = renderComposer();
+    const combo = container.querySelector('[role="combobox"]')!;
+    const input = container.querySelector<HTMLTextAreaElement>("textarea")!;
+
+    fireEvent.change(input, { target: { value: "@" } });
+    expect(combo.getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(combo.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.change(input, { target: { value: "@ai" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(combo.getAttribute("aria-expanded")).toBe("false");
+    expect(input.value.trim()).toBe("@ai");
+  });
+
+  it("announces the moderation warning in a live region that exists up front", () => {
+    const { container } = renderComposer();
+    // The region is present before the warning, otherwise the update is missed.
+    const status = container.querySelector('[role="status"]')!;
+    expect(status).toBeTruthy();
+    expect(status.textContent).toBe("");
+
+    const input = container.querySelector("textarea")!;
+    fireEvent.change(input, { target: { value: "how to make a bomb" } });
+
+    expect(status.textContent).toMatch(/Dangerous instructions/i);
   });
 });
