@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Markdown } from "./markdown";
 import type { Message, Profile, Reaction } from "@/lib/types";
+import type { ReadReceipt } from "@/lib/read-receipts";
+import { readReceiptLabel } from "@/lib/read-receipts";
 import { cn, clockTime } from "@/lib/utils";
 import { messageIn, popIn, popover, SPRING, tEnter } from "@/lib/motion";
 
@@ -34,6 +36,7 @@ export interface MessageItemProps {
   currentUserId: string;
   highlighted?: boolean;
   canRegenerate: boolean;
+  readReceipt?: ReadReceipt | null;
   onReact: (emoji: string) => void;
   onEdit: (content: string) => void;
   onDelete: () => void;
@@ -51,6 +54,7 @@ export const MessageItem = React.memo(function MessageItem({
   currentUserId,
   highlighted,
   canRegenerate,
+  readReceipt,
   onReact,
   onEdit,
   onDelete,
@@ -215,6 +219,16 @@ export const MessageItem = React.memo(function MessageItem({
             ) : streaming ? (
               <span className="stream-caret" />
             ) : null}
+          </div>
+        )}
+
+        {/* read receipt — only for the sender's own human messages in a room */}
+        {readReceipt && (
+          <div className="mt-1 flex items-center gap-1 pl-1" aria-live="polite">
+            <Check className="h-3 w-3 text-[--info]" aria-hidden />
+            <span className="text-[10.5px] text-[--fg-subtle]">
+              {readReceiptLabel(readReceipt) || "Sent"}
+            </span>
           </div>
         )}
 
