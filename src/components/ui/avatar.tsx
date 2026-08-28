@@ -78,7 +78,7 @@ export function AiPill({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "rounded-[--r-pill] bg-[--bubble-ai-ring] px-1.5 py-px text-[10px] font-semibold uppercase leading-[14px] tracking-wide text-white",
+        "rounded-[--r-pill] bg-[--ai] px-1.5 py-px text-[10px] font-semibold uppercase leading-[14px] tracking-wide text-[--ai-foreground]",
         className,
       )}
     >

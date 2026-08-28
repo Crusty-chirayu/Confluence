@@ -30,6 +30,34 @@ bug this checklist has caught in CI.
 
 ---
 
+## Major Update 2 — reconstruction
+
+The previously-completed-but-lost local commit `86c4246` (MU2 Playwright/E2E
++ production fixes) was **not recovered from Git** (it was never pushed and is
+not part of `origin`). Its functionality was re-implemented cleanly on top of
+the current `main` and is checked out on `arena/01a04768-group-chatbot`:
+
+| Reconstructed piece | Where | Status |
+|---|---|---|
+| Playwright config (Chromium, deterministic, isolated demo data, reduced-motion emulation, report/screenshot/trace on failure) | `playwright.config.ts` | ✅ |
+| **Journey A — AI chat** (stream, persistence after refresh, composer usability) | `e2e/ai-chat.spec.ts` | ✅ |
+| **Journey B — Group room** (create, membership, seeded history, invite) | `e2e/group-room.spec.ts` | ✅ |
+| **Journey C — AI mention** (@ai attribution, non-mention does not summon, moderation warning) | `e2e/ai-mention.spec.ts` | ✅ |
+| ⌘K command palette (open/keyboard/theme/room/sign-out/escape) | `e2e/command-palette.spec.ts` | ✅ |
+| History (previous conversation, persistence, navigate-away-and-back) | `e2e/history.spec.ts` | ✅ |
+| Real-browser **axe-core audit** (both themes, WCAG AA, full ruleset) | `e2e/accessibility.spec.ts` | ✅ |
+| Tailwind semantic-token correction (§6 palette + theme-aware AI/accent-text) | `src/app/globals.css` | ✅ |
+| WCAG AA token contrast gate | `scripts/contrast.mjs` (44 pairs, pass) | ✅ |
+| Playwright CI job + contrast step | `.github/workflows/ci.yml` | ✅ |
+
+**Verification honesty:** the browser binaries (`playwright install chromium`)
+are unreachable from this sandbox (`cdn.playwright.dev` → TLS ECONNRESET), so
+the E2E/axe suite and the `e2e` CI job are **implemented and configured but
+not yet executed** here. The unit/typecheck/lint/build/token-contrast checks
+all pass locally; the Playwright run happens in GitHub Actions.
+
+---
+
 ## §17 deliverables
 
 | # | Deliverable | Status | Notes |
@@ -59,7 +87,7 @@ bug this checklist has caught in CI.
 | §2.5 AI ring + "AI" pill + teal typing dots | ✅ | |
 | §2.5 `ai_mode` badge (dot/outline/filled) | ✅ | **corrected** |
 | §2.6 focus ring, `prefers-reduced-motion` | ✅ | instant cut, not slower |
-| §2.6 contrast audit at 4.5:1 | 🟡 | axe-core runs in CI (structural rules); color-contrast requires rendered CSS → Playwright/Chromium phase |
+| §2.6 contrast audit at 4.5:1 | ✅ | `scripts/contrast.mjs` asserts 44 token pairs (both themes) — PASS; browser axe audit includes colour-contrast (full rules, not disabled) in the Playwright `e2e` job |
 | §2.7 motion tokens, all surfaces | ✅ | 5 one-offs replaced with `tExit()` |
 | §2.7 60fps under 4x CPU throttle | ⛔ | not measured |
 
@@ -124,7 +152,8 @@ bug this checklist has caught in CI.
 | axe-core in CI, merge-blocking | ✅ | **added** — `tests/a11y/` (10 tests) runs inside `npm test`, so the existing CI gate enforces it; jsdom covers structural rules (roles/labels/landmarks/ARIA); color-contrast needs a real browser → Playwright phase |
 | Unit test sample | ✅ | `tests/utils.test.ts` + `stream-announcer.test.tsx`, 12 passing |
 | Integration test (fail-closed) | ✅ | `tests/moderation-fail-closed.test.ts` |
-| E2E Playwright, 3 journeys | ⛔ | browser download blocked in this sandbox |
+| E2E Playwright (MU2) | 🟡 | `e2e/` suite implemented — 20 tests (AI chat, group room, @ai + moderation, ⌘K palette, history, browser axe audit in both themes); `playwright.config.ts` + a dedicated `e2e` CI job added. Chromium is unreachable in this sandbox, so the run happens in CI. |
+| Design-token contrast (WCAG AA) | ✅ | `scripts/contrast.mjs` parses `globals.css` and asserts 44 text-on-surface pairs (both themes) — **44/44 PASS**; wired into CI. |
 | k6 50-member broadcast storm | ⛔ | |
 | gitleaks | ✅ | wired into CI |
 | `ci.yml` | ✅ | lint, typecheck, unit, deno check, fail-closed, gitleaks — **green on GitHub** (run `33117956383`) |

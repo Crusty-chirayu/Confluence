@@ -266,7 +266,7 @@ export function AiModeBadge({ mode }: { mode: string }) {
       className={cn(
         "inline-flex items-center gap-1 rounded-[--r-pill] px-2 py-0.5 text-[11px] font-semibold",
         filled
-          ? "bg-[--ai-teal-500] text-white"
+          ? "bg-[--ai] text-[--ai-foreground]"
           : "border border-[--ai-teal-500] text-[--ai-teal-500]",
       )}
     >

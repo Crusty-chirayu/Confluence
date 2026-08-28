@@ -23,7 +23,7 @@ function Highlighted({ text, query }: { text: string; query: string }) {
     <>
       {text.split(re).map((part, i) =>
         re.test(part) ? (
-          <mark key={i} className="rounded bg-[--accent-subtle] px-0.5 text-[--accent]">
+          <mark key={i} className="rounded bg-[--accent-subtle] px-0.5 text-[--accent-text]">
             {part}
           </mark>
         ) : (

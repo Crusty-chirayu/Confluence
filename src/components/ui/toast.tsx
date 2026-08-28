@@ -33,7 +33,7 @@ const ICONS: Record<Kind, React.ElementType> = {
 const ACCENT: Record<Kind, string> = {
   success: "text-[--success]",
   error: "text-[--danger]",
-  info: "text-[--accent]",
+  info: "text-[--accent-text]",
   warning: "text-[--warning]",
 };
 

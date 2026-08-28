@@ -60,7 +60,7 @@ export function SectionHeading({
     <div className={cn("mx-auto max-w-2xl text-center", className)}>
       {eyebrow && (
         <RevealItem>
-          <p className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.14em] text-[--accent]">
+          <p className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.14em] text-[--accent-text]">
             {eyebrow}
           </p>
         </RevealItem>
