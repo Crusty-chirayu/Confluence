@@ -81,13 +81,21 @@ Browser ──▶ Next.js (Vercel)
 | AI provider key | Only ever in the Edge Function environment |
 | Invite redemption | `invite-consume` (service_role) — the client has no RLS path to an invite for a room it hasn't joined |
 | Moderation | Two stages (`pre`, `post`), **fails closed** — a classifier error blocks publication |
-| Rate limiting | Fixed-window counters in `rate_limit_events`: 30 msg/min, 10 AI calls/min, 20 invites/hr |
+| Rate limiting | 30 msg/min and 20 invites/hr as `BEFORE INSERT` triggers in the database (every write path), plus fixed-window Edge Function counters in `rate_limit_events` for 10 AI calls/min and 60 moderation checks/min |
 | Attachments | Private bucket, storage policies call the same membership check |
-| Training data | `profiles.training_opt_in`, off by default |
+| Training data | `profiles.training_opt_in`, off by default; routing requires **unanimous** opt-in |
+| Redirect targets | `?next=` is collapsed to a same-origin path by `safeInternalPath()` — no open redirects |
 
 The client-side classifier in `src/lib/data/moderation-local.ts` is a **UX affordance only** — it warns before you send. The authoritative check always runs server-side.
 
 ---
+
+## Typography (§2.3)
+
+Inter and JetBrains Mono are **self-hosted**: variable woff2 files live in
+[`src/app/fonts/`](./src/app/fonts) (both SIL OFL 1.1 licences committed alongside them) and are
+wired through `next/font/local`, which derives adjusted fallback metrics so the system-font
+fallback no longer shifts layout on first paint. No request goes to a font CDN.
 
 ## Motion system (§2.7)
 
@@ -109,14 +117,15 @@ Destructive confirms use a **debounce with a visual tell** — clicking the conf
 
 | Route | Purpose |
 | --- | --- |
-| `/` | Landing — hero with a live animated demo, features, how-it-works, security, pricing |
+| `/` | Landing — hero with a live animated demo, features, how-it-works, security, pricing teaser |
+| `/pricing` | Standalone pricing — the full plan table, FAQ, and the limits behind each tier |
 | `/login`, `/signup` | Email + Google auth, inline validation, password strength, in-place success states |
 | `/forgot-password`, `/reset-password` | Recovery flow |
 | `/auth/callback` | OAuth / magic-link code exchange |
 | `/onboarding` | 3-step: profile & training opt-in → theme → first conversation |
 | `/app` | Dashboard — greeting, quick actions, starter prompts |
 | `/app/c/[id]` | Chat surface — 1:1 and group, streaming, reactions, edit, regenerate |
-| `/app/settings` | Profile, appearance, privacy & data, account |
+| `/app/settings` | Profile, appearance, privacy & data (incl. JSON export), account |
 | `/join/[code]` | Invite redemption |
 
 Room settings (name, topic, AI mode, members, roles, invites, danger zone) live in a modal on the chat surface.
@@ -137,6 +146,7 @@ src/
     session-provider.tsx    auth state, works in both modes
     network-provider.tsx    online/offline/reconnecting state (§27)
     offline-banner.tsx      accessible offline / restored banner
+  app/fonts/               self-hosted Inter + JetBrains Mono (OFL licences)
   lib/
     motion.ts               §2.7 motion tokens — single source of truth
     data/api.ts             unified data layer (Supabase ⟷ demo)
@@ -144,15 +154,23 @@ src/
     supabase/               browser + server clients
 supabase/
   functions/                ai-orchestrator, moderation-check, invite-consume
-  migrations/               versioned copy of the schema
-supabase_schema.sql         the complete, runnable database layer
+  migrations/               versioned history — `supabase db push` applies these
+supabase_schema.sql         the complete, re-runnable snapshot of the database layer
 ```
 
 ---
 
 ## CI/CD — "push everything" release policy (§1)
 
-- **[`.github/workflows/ci.yml`](./.github/workflows/ci.yml)** — live; on every push/PR: typecheck, lint, unit tests, token-contrast, build, plus `deno check` on all three Edge Functions, the moderation fail-closed integration test, a gitleaks secret scan, and a dedicated **Playwright E2E + browser axe job** (`e2e`).
+- **[`.github/workflows/ci.yml`](./.github/workflows/ci.yml)** — live; on every push/PR: typecheck, lint, unit tests, build, plus `deno check` on all three Edge Functions, the moderation fail-closed integration test, and a gitleaks secret scan.
+
+  ⚠️ **The Playwright `e2e` job and the token-contrast step are NOT in this file yet.** The
+  `e2e/` suite (31 tests) and `scripts/contrast.mjs` are committed and run locally, but the
+  commit that adds them to `ci.yml` cannot be pushed by the agent's GitHub App credential
+  (GitHub rejects workflow writes server-side without the `workflows` permission — re-verified
+  2026-08-28). The exact diff ships in the repo as
+  [`ci/patches/ci-playwright-and-contrast.patch`](./ci/patches/ci-playwright-and-contrast.patch);
+  see [`RELEASING.md` §3](./RELEASING.md) for the one-time owner action.
 - **[`.github/workflows/release.yml`](./.github/workflows/release.yml)** — live; on push to `main`, in strict dependency order: **migrations → Edge Functions → frontend**. A partial deploy is treated as a failed deploy.
 
 > Both workflows were initially shipped under [`ci/`](./ci) (the original push credential
@@ -186,7 +204,7 @@ npm run lint     # eslint
 npx tsc --noEmit # typecheck
 npm test         # unit + component + a11y (axe-core) suites
 npm run test:a11y  # vitest axe-core accessibility suite (jsdom, structural)
-npm run test:edge  # Deno moderation fail-closed integration test
+npm run test:edge  # Deno moderation fail-closed integration test (needs the Deno runtime)
 npm run test:contrast  # WCAG AA token contrast against globals.css (no browser)
 npm run test:e2e       # Playwright E2E + browser axe audit (needs Chromium)
 npm run test:e2e:install  # download Chromium for the E2E suite
@@ -208,5 +226,6 @@ npm run test:e2e
 
 The token contrast script parses `src/app/globals.css`, resolves the semantic
 tokens for both themes, and asserts every text-on-surface pair meets 4.5:1
-(normal) / 3:1 (large & UI). It runs in CI and is a real, runnable substitute
-for the browser contrast scan.
+(normal) / 3:1 (large & UI) — 54 pairs, both themes. It is runnable locally
+today (`npm run test:contrast`); wiring it into CI is part of
+`ci/patches/ci-playwright-and-contrast.patch`.

@@ -23,6 +23,8 @@ import { HeroDemo } from "@/components/landing/hero-demo";
 import { Reveal, RevealItem, SectionHeading } from "@/components/landing/section";
 import { Logo } from "@/components/logo";
 import { riseIn, staggerParent, tEnter } from "@/lib/motion";
+// Shared with the standalone /pricing route so the two cannot drift.
+import { PLANS as PRICING } from "@/lib/pricing";
 import { DEMO_MODE } from "@/lib/env";
 
 const FEATURES = [
@@ -104,42 +106,6 @@ const SECURITY = [
   },
 ];
 
-const PRICING = [
-  {
-    name: "Free",
-    price: "$0",
-    cadence: "forever",
-    blurb: "For trying the whole thing out.",
-    features: ["Unlimited 1:1 AI chats", "3 group rooms", "30-day history", "Community support"],
-    cta: "Start free",
-    highlight: false,
-  },
-  {
-    name: "Team",
-    price: "$12",
-    cadence: "per user / month",
-    blurb: "For groups that actually ship together.",
-    features: [
-      "Unlimited rooms & members",
-      "Full history + global search",
-      "File attachments",
-      "Admin analytics",
-      "Priority model access",
-    ],
-    cta: "Start 14-day trial",
-    highlight: true,
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    cadence: "annual",
-    blurb: "For when procurement gets involved.",
-    features: ["SSO / SAML", "Audit log export", "Data residency", "Custom moderation policy", "99.9% SLA"],
-    cta: "Talk to us",
-    highlight: false,
-  },
-];
-
 export default function LandingPage() {
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -154,6 +120,9 @@ export default function LandingPage() {
     <div className="min-h-dvh bg-[--bg]">
       <LandingNav />
 
+      {/* Every page needs one <main>: it is the landmark a screen-reader
+          user jumps to in order to skip the nav (§4 / WCAG 2.4.1). */}
+      <main>
       {/* ---------------- HERO ---------------- */}
       <section ref={heroRef} className="relative overflow-hidden px-5 pb-20 pt-32 sm:pt-40">
         {/* aurora backdrop */}
@@ -321,6 +290,18 @@ export default function LandingPage() {
       <section className="border-t border-[--border] bg-[--bg-subtle] px-5 py-24 sm:py-32">
         <Reveal id="pricing" className="mx-auto max-w-5xl">
           <SectionHeading eyebrow="Pricing" title="Priced per person, not per token" />
+          <RevealItem>
+            <p className="-mt-8 mb-12 text-center text-[13.5px] text-[--fg-muted]">
+              Full plan details, limits and the awkward questions live on{" "}
+              <Link
+                href="/pricing"
+                className="font-medium text-[--accent-text] hover:underline"
+              >
+                the pricing page
+              </Link>
+              .
+            </p>
+          </RevealItem>
           <div className="mt-14 grid gap-5 lg:grid-cols-3">
             {PRICING.map((p) => (
               <RevealItem key={p.name}>
@@ -392,6 +373,8 @@ export default function LandingPage() {
         </Reveal>
       </section>
 
+      </main>
+
       {/* ---------------- FOOTER ---------------- */}
       <footer className="border-t border-[--border] px-5 py-12">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
@@ -406,7 +389,7 @@ export default function LandingPage() {
           >
             <a href="#features" className="hover:text-[--fg]">Features</a>
             <a href="#security" className="hover:text-[--fg]">Security</a>
-            <a href="#pricing" className="hover:text-[--fg]">Pricing</a>
+            <Link href="/pricing" className="hover:text-[--fg]">Pricing</Link>
             <Link href="/changelog" className="hover:text-[--fg]">Changelog</Link>
             <Link href="/login" className="hover:text-[--fg]">Sign in</Link>
           </nav>

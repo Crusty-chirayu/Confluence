@@ -98,6 +98,7 @@ function seed(): DB {
         role: "owner",
         joined_at: ago(180),
         last_read_at: now(),
+        pinned_at: null,
       },
       {
         conversation_id: roomId,
@@ -105,6 +106,7 @@ function seed(): DB {
         role: "owner",
         joined_at: ago(240),
         last_read_at: ago(30),
+        pinned_at: null,
       },
       ...BOT_MEMBERS.map((b, i) => ({
         conversation_id: roomId,
@@ -112,6 +114,7 @@ function seed(): DB {
         role: (i === 0 ? "admin" : "member") as ConversationMember["role"],
         joined_at: ago(230 - i * 10),
         last_read_at: ago(5),
+        pinned_at: null,
       })),
     ],
     messages: [
@@ -287,6 +290,7 @@ export const demo = {
       role: "owner",
       joined_at: now(),
       last_read_at: now(),
+      pinned_at: null,
     });
     save();
     return id;

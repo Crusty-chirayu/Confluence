@@ -50,6 +50,15 @@ const ME = env("K6_ME_ID", "me");
 const targetMsgs = parseInt(env("K6_REALTIME_MSGS", "12"), 10);
 const waitMs = parseInt(env("K6_WAIT_MS", "15000"), 10);
 
+// Pacing between sends, in seconds. The 30 messages/minute limit is enforced
+// by a BEFORE INSERT trigger on public.messages (see
+// supabase/migrations/20260828000000_rls_hardening.sql), so an unpaced VU
+// would spend the run measuring the rate limiter instead of the broadcast
+// fan-out. 2.2s keeps every VU under ~28 messages/minute with headroom for
+// clock skew. Set K6_SEND_SLEEP_S=0 to deliberately drive the limiter (a
+// useful database-pressure signal, but it will fail the <1% threshold).
+const sendPacing = parseFloat(env("K6_SEND_SLEEP_S", "2.2"));
+
 const headers = {
   apikey: anon,
   Authorization: `Bearer ${token}`,
@@ -101,6 +110,10 @@ export function postgrestSend() {
     "list 200": (r) => r.status === 200,
   });
   failures.add(!okList);
+
+  // The insert above is rate-limited in the database (30/min per sender); a
+  // 201-confirmed send costs one unit, so pace the next one.
+  if (sendPacing > 0) sleep(sendPacing);
 }
 
 /**
@@ -198,8 +211,8 @@ export const options = {
     realtime_propagation_s: ["p(95)<2.0"], // 95% of events observed <2s after write
     realtime_connect_s: ["p(95)<2.5"], // 95% of realtime joins <2.5s
   },
-  // Keep the run modest; a broadcast storm with many VUs can trip the
-  // 30 msg/min rate limiter, which is itself part of the database-pressure
-  // signal. Run with K6_STAGES overridden for the full storm.
+  // A broadcast storm with unpaced VUs will trip the database's 30 msg/min
+  // per-sender trigger; sends are paced by K6_SEND_SLEEP_S (default 2.2s) so
+  // the storm measures fan-out rather than the limiter.
   discardResponseBodies: true,
 };

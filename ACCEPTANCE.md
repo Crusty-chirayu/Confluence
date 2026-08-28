@@ -1,8 +1,73 @@
 # §17 Acceptance Criteria Checklist
 
-Status against the v2.0 master build prompt, after the full-spec reconciliation.
+Status against the v2.0 master build prompt.
 
-Legend: **✅ done** · **🟡 partial** · **⛔ pending** · **➖ out of scope for this pass (P1/P2)**
+Legend: **GREEN** done and verified · **YELLOW** implemented, not fully verified ·
+**RED** missing/broken · **BLUE** needs external/manual infrastructure ·
+**OPTIONAL** non-blocking
+
+(The tables below use the symbols they were originally written with:
+✅ done · 🟡 partial / implemented but unverified · ⛔ pending ·
+🔵 external infrastructure · ➖ out of scope for this pass.)
+
+---
+
+## Final code-completion pass (session `arena/01a04990-group-chatbot`, 2026-08-28)
+
+Everything below was re-verified against the code in this session rather than
+taken from previous reports.
+
+### Gates run locally in this session (all on the committed tree)
+
+| Gate | Command | Result |
+|---|---|---|
+| Typecheck | `npx tsc --noEmit` | ✅ clean |
+| Lint | `npm run lint` | ✅ 0 errors (19 pre-existing `<EffectEvent>`/set-state-in-effect warnings) |
+| Unit + a11y | `npm test` | ✅ **83 tests / 9 files** |
+| Token contrast | `node scripts/contrast.mjs` | ✅ **54 pairs**, both themes |
+| Production build | `npm run build` | ✅ 14 routes, 0 errors |
+| Playwright collection | `npx playwright test --list` | ✅ **31 tests / 12 files** |
+| Playwright execution | `npx playwright test` | ⛔ **NOT RUN — ENVIRONMENT LIMITATION** (no Chromium; `cdn.playwright.dev` unreachable from the sandbox) |
+| Deno typecheck / integration | `deno check …`, `deno test …` | ⛔ **NOT RUN — ENVIRONMENT LIMITATION** (no Deno runtime in the sandbox; both run in the `edge-functions` CI job, which is green) |
+
+### What this pass changed
+
+**Security (all previously exploitable or leaking):**
+
+| Finding | Fix | Status |
+|---|---|---|
+| `conversation_members` INSERT allowed `user_id = auth.uid()` → **any authenticated user could join any conversation** by UUID, defeating every other policy | INSERT is now admin-only; membership is minted by `create_conversation()` / `invite-consume` only | GREEN |
+| `conversation_members` UPDATE had no `WITH CHECK` → Postgres reused USING, so **any member could set their own `role` to `owner`** | split into a self policy that pins `role` to its pre-update value + an admin policy | GREEN |
+| `messages` UPDATE had no `WITH CHECK` → an author could flip `sender_type` to `'ai'` (assistant impersonation) | `with check (sender_id = auth.uid() and sender_type = 'human')` | GREEN |
+| `profiles` SELECT was open to every authenticated user → whole user base enumerable | narrowed to self + co-members | GREEN |
+| `reactions` INSERT did not check membership | now requires membership of the message's conversation | GREEN |
+| **Open redirect**: `?next=` echoed into `router.push()` / `NextResponse.redirect()` | `safeInternalPath()` applied at `/login`, the OAuth buttons and `/auth/callback`; 6 unit tests | GREEN |
+| Edge Functions returned provider/Postgres error text to callers | logged server-side, generic messages returned | GREEN |
+| `messages_per_min` (30) and `invites_per_hour` (20) were documented but **never enforced** | `BEFORE INSERT` triggers, enforced on every write path | GREEN |
+| `moderation-check` had no rate limit at all | `moderation_checks_per_min` (60) | GREEN |
+| Auth attempts per IP | not implementable in app code — Supabase Auth / CAPTCHA configuration | **BLUE** |
+| `ALLOWED_ORIGINS` defaults to `*` on the Edge Functions | configure per environment; tokens are not cookies so exposure is limited | **BLUE** |
+
+**Features that were missing:**
+
+| Item | Before | After | Status |
+|---|---|---|---|
+| Pinned conversations (§3) | ⛔ none | `conversation_members.pinned_at`, `setPinned()`, a Pinned group in the sidebar with an accessible toggle | GREEN |
+| Standalone `/pricing` (§3, P1) | 🟡 landing section only | `/pricing` route sharing one plan table with the landing teaser | GREEN |
+| Export my data (§3 settings) | ⛔ none | client-side JSON export of everything the account can read | GREEN |
+| Self-hosted fonts (§2.3) | 🟡 declared, resolved to system fallbacks | Inter + JetBrains Mono committed and served from origin via `next/font/local` | GREEN |
+| 60fps @ 4× CPU throttle (§2.7) | ⛔ not measured | measurement harness added (`e2e/perf.spec.ts`); **the number is still unmeasured** | **YELLOW** |
+
+**Accessibility (found and fixed, none of them visible to axe):**
+
+| Gap | Fix | Status |
+|---|---|---|
+| `Modal` set `aria-modal="true"` but **never moved focus** — keyboard users were stranded behind the backdrop | focus in on open, Tab wrapped at both edges, focus restored to the trigger on close | GREEN |
+| Command palette dropped focus on close | focus restored to the opener | GREEN |
+| `@mention` autocomplete had **no combobox/listbox semantics** | WAI-ARIA 1.2 combobox + listbox + `aria-activedescendant` | GREEN |
+| Moderation warning / attachment error appeared silently | persistent `role="status"` / `role="alert"` regions | GREEN |
+| Landing page had no `<main>` landmark | wrapped | GREEN |
+| Sidebar groups were unlabelled runs of links | named `<ul>` per group | GREEN |
 
 ---
 
@@ -10,93 +75,12 @@ Legend: **✅ done** · **🟡 partial** · **⛔ pending** · **➖ out of scop
 
 | Item | Status | Evidence |
 |---|---|---|
-| PR #1 — "AI Chat Platform v2.0 — full build + spec reconciliation" | ✅ **MERGED** | merge commit `3ac6d66`, `main` now at `99ebad0`+ |
-| GitHub Actions | ✅ **ACTIVE** | `ci.yml` + `release.yml` live in `.github/workflows/` since `99ebad0` |
-| CI workflow | ✅ **GREEN on GitHub** | run `33117956383` on `9230ff1` — all 3 jobs succeeded: typecheck/lint/build, **Verify Edge Functions (deno check + fail-closed integration)**, gitleaks |
-| Deno typecheck fix | ✅ | root `deno.json` + committed `deno.lock` + `npm:` import map — details below; first run `99ebad0` failed resolving `npm:@supabase/realtime-js@2.112.4` |
-| Release workflow | 🔴 **RED — blocked on secrets** | run `33115211404` on `99ebad0` failed: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` (and Vercel secrets) unset; to be configured by the repo owner, then re-verified |
-| MU-H release readiness | 🟡 | `RELEASING.md` documents every owner step (server secrets, CI activation + action bumps, release secrets, db push + function deploy, verification). **Blocked on owner credentials / `workflows` permission** |
-| This session's work (a11y fixes + E2E alignment + Playwright CI activation) | 🟡 **PUSHED, PR #11 — CI green on this tree; CI-activation commit held back** | 3 commits on `arena/01a047d7-group-chatbot` (top of `main` `5692356`): a11y fixes, spec alignment, docs — pushed 2026-08-28, **PR #11** open. CI verified on GitHub: push run `33175833909` on this tree is **3/3 green** (typecheck/lint/tests/build · Deno fail-closed · gitleaks); PR run `33175850610` on the same tree was 2/3 green, the gitleaks job hitting the **documented intermittent crash** of `gitleaks-action@v2` (Node 20 forced onto 24 — `SECURITY.md` item 2; no secret finding). The **Playwright CI-activation commit is not in the branch**: the session credential (a GitHub App) lacks the `workflows` permission, so GitHub **server-side rejects** any push of a commit touching `.github/workflows/ci.yml` (verified 2026-08-28: "refusing to allow a GitHub App to create or update workflow … without `workflows` permission"). The byte-identical change ships in the branch as `ci/patches/ci-playwright-and-contrast.patch` (lands on `main` with the merge). One-time owner action: `RELEASING.md` §3 |
-
-**Deno fix summary (commit `9230ff1`):** CI runs `deno` from the repo root, where Deno
-(a) discovers no `supabase/functions/deno.json` and (b) routes *every* npm package
-through the root `package.json`/node_modules (byonm) — so the functions' former
-`jsr:@supabase/supabase-js@2` imports and their hard-pinned npm deps could not resolve
-in a fresh checkout. Fix: shared modules import the bare specifier, mapped to
-`npm:@supabase/supabase-js@2.112.4` (exact frontend lockfile version) in a new root
-`deno.json` with `nodeModulesDir: "auto"` and a committed `deno.lock` — `deno check`
-provisions the pinned versions itself, no workflow change and no verification
-suppression (a latent `string | null` in `ai-orchestrator` surfaced and was fixed
-fail-closed). The typecheck also surfaced and fixed the first genuine Edge Function
-bug this checklist has caught in CI.
-
----
-
-## Major Update 2 — reconstruction
-
-The previously-completed-but-lost local commit `86c4246` (MU2 Playwright/E2E
-+ production fixes) was **not recovered from Git** (it was never pushed and is
-not part of `origin`). Its functionality was re-implemented cleanly on top of
-the current `main` and is checked out on `arena/01a04768-group-chatbot`:
-
-| Reconstructed piece | Where | Status |
-|---|---|---|
-| Playwright config (Chromium, deterministic, isolated demo data, reduced-motion emulation, report/screenshot/trace on failure) | `playwright.config.ts` | ✅ |
-| **Journey A — AI chat** (stream, persistence after refresh, composer usability) | `e2e/ai-chat.spec.ts` | ✅ |
-| **Journey B — Group room** (create, membership, seeded history, invite) | `e2e/group-room.spec.ts` | ✅ |
-| **Journey C — AI mention** (@ai attribution, non-mention does not summon, moderation warning) | `e2e/ai-mention.spec.ts` | ✅ |
-| ⌘K command palette (open/keyboard/theme/room/sign-out/escape) | `e2e/command-palette.spec.ts` | ✅ |
-| History (previous conversation, persistence, navigate-away-and-back) | `e2e/history.spec.ts` | ✅ |
-| Real-browser **axe-core audit** (both themes, WCAG AA, full ruleset) | `e2e/accessibility.spec.ts` | ✅ |
-| Tailwind semantic-token correction (§6 palette + theme-aware AI/accent-text) | `src/app/globals.css` | ✅ |
-| WCAG AA token contrast gate | `scripts/contrast.mjs` (54 pairs, pass) | ✅ |
-| Playwright CI job + contrast step | `.github/workflows/ci.yml` | ⛔ **not in the branch** — GitHub rejects (server-side, 2026-08-28) any push of a commit touching `.github/workflows/*` because the session credential is a GitHub App without the `workflows` permission. The byte-identical change ships in the branch as `ci/patches/ci-playwright-and-contrast.patch` (lands on `main` with the merge); one-time owner action in `RELEASING.md` §3 |
-
-**Verification honesty:** the browser binaries (`playwright install chromium`)
-are unreachable from this sandbox (`cdn.playwright.dev` → TLS ECONNRESET), so
-the live E2E/axe run happens in GitHub Actions, not here.
-
-### Pre-CI verification pass (2026-08-28) — what was done WITHOUT a browser
-
-Before activating the `e2e` CI job, the suite was verified as far as the
-sandbox allows. This pass **found and fixed three real WCAG AA violations**
-the browser axe run would have caught, plus two spec bugs — none of which are
-"implemented but unverified" hand-waving, each is backed by a runnable check:
-
-| Check (runnable locally) | Result |
-|---|---|
-| Full-page axe in jsdom (structural rules: roles, labels, landmarks, ARIA, nested-interactive, heading order…) over **15 surfaces** — landing, login, signup, forgot-password, settings, dashboard (signed in), chat (1:1 + group, seeded), command palette, new-conversation / room-settings / search / join modals, onboarding, join-code page | **0 violations** (before the fixes: `nested-interactive` ×10 CTAs, `landmark-unique` on the landing). `/changelog` is a server component (fetches GitHub Releases) and only runs under the browser axe scan |
-| Token-matrix contrast analysis — every `text-[--x]` × `bg-[--y]` combination used in the codebase, both themes | caught `.prose-chat a` (`--brand` #5555ee) at 3.7:1 on the dark app background / 2.4:1 on the dark AI bubble → now theme-aware `--accent-text` |
-| Journey simulations in jsdom with real timers — sign-in → send → streamed AI reply → persisted row; mention-only routing (@ai summons, plain text does not); moderation block (send disabled + reason shown); attachment chip on a sent message | all 5 pass |
-| Selector cross-check — every E2E `getByRole`/`getByTestId`/`getByLabel` string matched against the rendered component source | all 22 tests' selectors exist; 2 specs corrected (offline journey needs a chat surface; landing CTA is now a link) |
-| `npx playwright test --list` | 22 tests in 8 files, config valid |
-
-Resulting local gates (all on the committed tree): `tsc --noEmit` ✅ ·
-`npm run lint` 0 errors ✅ · `npm test` 43/43 ✅ · `node scripts/contrast.mjs`
-54/54 ✅ · `npm run build` ✅.
-
-**Still not verified (only a real browser can do it):** the Chromium run of
-the 22 tests, including axe colour-contrast on rendered text and the
-framer-motion timing in the journeys. That is exactly what the new `e2e` CI
-job provides — its first green run is the remaining evidence.
-
----
-
-## §17 deliverables
-
-| # | Deliverable | Status | Notes |
-|---|---|---|---|
-| 1 | Scope/assumptions confirmation | ✅ | `README.md` + the reconciliation report in-thread |
-| 2 | Architecture diagram, Realtime as platform of record | ✅ | `README.md` — no Redis/Gateway |
-| 3 | Tokens implementing every §2 value, both themes | ✅ | `src/app/globals.css` |
-| 4 | Route tree for every §3 screen, a11y from first draft | 🟡 | see §3 table |
-| 5 | Edge Functions, key only via `Deno.env.get` | ✅ | verified: single read, never logged; **typechecked green in CI** since `9230ff1` |
-| 6 | Component tree using semantic tokens + §2.7 motion | ✅ | shared `src/lib/motion.ts` |
-| 7 | One sample of each test type | 🟡 | unit + integration done (43 vitest + the Deno fail-closed integration suite, green in CI); E2E: 22 Playwright tests implemented + locally pre-verified (see above), first live run pending in the new `e2e` job; k6 harness done, live run needs a deployed Supabase project |
-| 8 | `ci.yml` and `release.yml` in full | 🟡 | both live & running; CI **green** on `main` (verified through `9230ff1`; later merges each ran their own CI); the `e2e` job + contrast step are held out of the branch as `ci/patches/ci-playwright-and-contrast.patch` — owner push, session credential lacks `workflows` permission (see GitHub status); Release blocked on secrets |
-| 9 | Acceptance checklist | ✅ | this file |
-
----
+| `main` at session start | `c2cb9eb` | `fix: clear WCAG AA violations found in pre-CI axe audit; align E2E specs (#11)` |
+| `ci.yml` / `release.yml` | ✅ live in `.github/workflows/` since `99ebad0` | |
+| CI jobs currently on `main` | `verify` (typecheck/lint/unit/build), `edge-functions` (deno check + fail-closed), `secrets-scan` (gitleaks) | `.github/workflows/ci.yml` — **no `e2e` job, no contrast step** |
+| **Playwright `e2e` job on `main`** | 🔴 **NOT PRESENT — re-verified 2026-08-28** | the session's credential is a GitHub App; pushing a commit that touches `.github/workflows/ci.yml` is rejected server-side: *"refusing to allow a GitHub App to create or update workflow … without `workflows` permission"*. The byte-identical diff ships as `ci/patches/ci-playwright-and-contrast.patch` |
+| Release workflow | 🔴 **blocked on owner secrets** | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `VERCEL_*` unset |
+| Real Supabase / Vercel deployment | 🔴 **not started** (deliberately — this session is the code checkpoint) | see `RELEASING.md` |
 
 ## §2 Design system
 
@@ -106,14 +90,14 @@ job provides — its first green run is the remaining evidence.
 | §2.2 semantic tokens, light → dark | ✅ | incl. `--bubble-*` |
 | AI identity = `ai-teal-500`, not gray/brand | ✅ | **corrected** — was brand-purple |
 | Real bubbles, not flat rows | ✅ | **corrected** — §2.2 requires a bg container |
-| §2.3 Inter + JetBrains Mono, 14/20 default | 🟡 | stacks wired; webfonts not self-hosted |
+| §2.3 Inter + JetBrains Mono, 14/20 default | ✅ | **self-hosted** variable woff2 in `src/app/fonts`, wired via `next/font/local` (fallback metrics derived, no CDN request) |
 | §2.4 spacing/radius/elevation/breakpoints | ✅ | 6/12/20/999 radii |
 | §2.5 AI ring + "AI" pill + teal typing dots | ✅ | |
 | §2.5 `ai_mode` badge (dot/outline/filled) | ✅ | **corrected** |
-| §2.6 focus ring, `prefers-reduced-motion` | ✅ | instant cut, not slower |
-| §2.6 contrast audit at 4.5:1 | ✅ | `scripts/contrast.mjs` asserts 54 token pairs (both themes, incl. markdown-link + AI-accent pairs) — PASS; browser axe audit includes colour-contrast (full rules, not disabled) in the Playwright `e2e` job |
+| §2.6 focus ring, `prefers-reduced-motion` | ✅ | instant cut, not slower; dialogs now move/trap/restore focus |
+| §2.6 contrast audit at 4.5:1 | ✅ | `scripts/contrast.mjs` — **54/54 pairs pass**, both themes. Browser colour-contrast is in the Playwright axe spec (runs locally when Chromium is available; **not in CI yet**, see GitHub status) |
 | §2.7 motion tokens, all surfaces | ✅ | 5 one-offs replaced with `tExit()` |
-| §2.7 60fps under 4x CPU throttle | ⛔ | not measured |
+| §2.7 60fps under 4x CPU throttle | 🟡 | `e2e/perf.spec.ts` measures frame intervals under CDP 4× throttling and enforces a jank ceiling (p95 ≤ 50 ms, no frame > 250 ms). The 60 fps (16.7 ms) bar is **reported, not asserted**, until CI produces a first baseline — see the header note |
 
 ---
 
@@ -122,7 +106,7 @@ job provides — its first green run is the remaining evidence.
 | Screen | Status | Notes |
 |---|---|---|
 | Landing (hero, live demo, features, pricing teaser, footer) | ✅ | |
-| Pricing page (P1) | 🟡 | section on landing; no standalone route |
+| Pricing page (P1) | ✅ | **standalone `/pricing` route**; plan table shared with the landing teaser |
 | **Changelog / release notes** | ✅ | **added** — GitHub Releases API, ISR |
 | Status page (P2) | ➖ | |
 | Sign up + **default-OFF training checkbox** | ✅ | **added to signup**, never pre-checked |
@@ -130,15 +114,15 @@ job provides — its first green run is the remaining evidence.
 | Verify email | 🟡 | "check your inbox" state; no standalone route |
 | Onboarding (≤3 steps) | ✅ | |
 | Conversation list / dashboard | ✅ | unread badges, search entry |
-| Pinned conversations | ⛔ | not implemented |
+| Pinned conversations | ✅ | `conversation_members.pinned_at` (per-member) + a Pinned group in the sidebar and an accessible toggle; 8 unit tests + 4 E2E |
 | 1:1 AI chat (stream/stop/regenerate/edit, md+copy) | ✅ | |
 | Group room (members, presence, @ai, badge, invites) | ✅ | |
 | Typing indicators / reactions (P1) | ✅ | |
 | Read receipts (P1) | ✅ | `last_read_at` surfaced as a "Seen by …" indicator on the sender's own messages in a room; `computeReadReceipt` helper + `conversation_members` realtime subscription; unit-tested |
 | Room settings + danger zone | ✅ | |
-| Global search (P1) | 🟡 | full-text works; no sender/date filters |
+| Global search (P1) | 🟡 | full-text works; no sender/date filters (**OPTIONAL**) |
 | **Command palette (⌘K)** | ✅ | **added** — navigate/create/theme; search moved to ⌘/ |
-| User settings (profile, theme, training toggle) | 🟡 | notifications / connected accounts / export-delete missing |
+| User settings (profile, theme, training toggle) | 🟡 | **JSON data export added** (client-side, no endpoint). Notifications and connected accounts need a push/email provider and OAuth provider configuration respectively — **BLUE**, not code work. Account deletion stays a support action by design |
 | File attachments (P1) | ✅ | composer upload (validate 10MB, allowlist, excludes SVG), private bucket write + member-scoped signed-URL chips; real-mode storage calls + demo object URLs; unit + E2E specs |
 | Admin analytics (P2) | ➖ | views exist |
 | Empty / error / loading states | ✅ | skeletons, moderation notice, 404 |
@@ -162,8 +146,8 @@ job provides — its first green run is the remaining evidence.
 | Signed URLs for attachments | ✅ | `attachmentUrl()` mints member-scoped 24h signed URLs (or demo object URLs); chips render/download |
 | `training_opt_in` default false | ✅ | DB + trigger + signup + settings |
 | **Orchestrator checks flag before training** | ✅ | unanimous opt-in — ratified, see Interpretation calls |
-| Rate limits: messages, AI, invites | ✅ | |
-| Rate limits: auth attempts per IP | ⛔ | relies on Supabase Auth defaults |
+| Rate limits: messages, AI, invites | ✅ | 30 msg/min and 20 invites/hr are `BEFORE INSERT` triggers (every write path); 10 AI calls/min and 60 moderation checks/min are Edge Function counters |
+| Rate limits: auth attempts per IP | 🔵 | **BLUE** — Supabase Auth rate limits + CAPTCHA are Dashboard/Auth configuration, not application code. Nothing in this repo can enforce it; documented in `SECURITY.md` |
 
 ---
 
@@ -171,13 +155,13 @@ job provides — its first green run is the remaining evidence.
 
 | Item | Status | Notes |
 |---|---|---|
-| Keyboard reachability, focus trap, ARIA | 🟡 | dialogs labelled, message list is `role="log"`; not audited |
+| Keyboard reachability, focus trap, ARIA | ✅ | dialogs labelled **and** focus-managed (in/trap/restore, 10 tests); combobox + listbox for @mentions; live regions for moderation verdicts; `role="log"` message list; named `<ul>` sidebar groups; `<main>` on every route. 13 axe tests, 0 violations |
 | `aria-live="polite"` batched for streaming | ✅ | **added** — 1s batching + completion flush, tested |
-| axe-core in CI, merge-blocking | ✅ | **added** — `tests/a11y/` (10 tests) runs inside `npm test`, so the existing CI gate enforces it; jsdom covers structural rules (roles/labels/landmarks/ARIA); color-contrast needs a real browser → Playwright phase |
-| Unit test sample | ✅ | `tests/utils.test.ts` + `stream-announcer.test.tsx`, 12 passing |
+| axe-core in CI, merge-blocking | ✅ | `tests/a11y/` (**13 tests**) runs inside `npm test`, which the `verify` CI job runs — so it is merge-blocking. jsdom covers structural rules; colour-contrast needs a real browser |
+| Unit test sample | ✅ | 83 tests / 9 files, including `tests/keyboard-focus.test.tsx` (15) and `tests/data-export.test.ts` (8) |
 | Integration test (fail-closed) | ✅ | `tests/moderation-fail-closed.test.ts` |
-| E2E Playwright (MU2) | 🟡 | `e2e/` suite implemented — 22 tests (AI chat, group room, @ai + moderation, ⌘K palette, history, browser axe audit in both themes, offline, attachments); `playwright.config.ts` + a dedicated `e2e` CI job (change held out of the branch as `ci/patches/ci-playwright-and-contrast.patch` — owner push, see GitHub status). Chromium is unreachable in this sandbox, so the live run happens in CI. |
-| Design-token contrast (WCAG AA) | ✅ | `scripts/contrast.mjs` parses `globals.css` and asserts 44 text-on-surface pairs (both themes) — **44/44 PASS**; wired into CI. |
+| E2E Playwright (MU2) | 🟡 | `e2e/` — **31 tests / 12 files** (AI chat, group room, @ai + moderation, ⌘K palette, history, offline, attachments, **pinned**, **settings/export**, **fonts**, **perf**, browser axe in both themes). Chromium is unreachable in this sandbox and the `e2e` CI job is blocked, so **the suite has never been executed** — treat it as implemented-but-unverified |
+| Design-token contrast (WCAG AA) | ✅ | `scripts/contrast.mjs` — **54/54 pairs PASS**, both themes. Runnable locally; CI wiring is in the held-back patch |
 | k6 50-member broadcast storm | 🟡 | `load/k6/broadcast.js` harness + `seed-room.mjs` + `load/k6/README.md` (methodology + explicit acceptance thresholds). **Measured results pending a live Supabase deployment** — no results are claimed (see `load/k6/README.md`). |
 | gitleaks | ✅ | wired into CI |
 | `ci.yml` | ✅ | lint, typecheck, unit, deno check, fail-closed, gitleaks — **green on GitHub** (run `33117956383`) |
@@ -245,11 +229,14 @@ These are environmental/scope limitations rather than design decisions.
    cannot create commits touching `.github/workflows/*` — the original reason
    the pipelines shipped under `ci/`. Activation was applied by the owner
    (`99ebad0`), and the Deno CI fix (`9230ff1`) was deliberately designed to
-   need **zero** workflow changes. Any future workflow edit must be pushed by
-   the owner; `ci/README.md` documents the pipelines.
+   need **zero** workflow changes. **Re-confirmed 2026-08-28 in this session:**
+   a push of the `e2e`-job commit was rejected server-side. Any future workflow
+   edit must be pushed by the owner; `ci/README.md` documents the pipelines.
 
-2. **Fonts.** Inter and JetBrains Mono are declared but resolve to system
-   fallbacks; Google Fonts is unreachable from the build sandbox. Self-host via
-   `next/font/local` for production fidelity.
+2. **Rate limiting is per-sender, not per-IP.** The 30 msg/min trigger counts
+   per `sender_id`; per-IP abuse protection is a Supabase Auth / edge
+   configuration matter (BLUE).
 
-3. **Pricing is a landing section**, not the standalone P1 route.
+3. **Notifications and connected accounts** are not implemented: the first
+   needs a push/email provider, the second needs OAuth provider configuration.
+   Both are infrastructure, not application code.

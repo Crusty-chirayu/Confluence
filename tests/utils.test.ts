@@ -6,7 +6,13 @@
  *   npx vitest run tests/utils.test.ts
  */
 import { describe, expect, it } from "vitest";
-import { mentionsAi, plainPreview, shouldInvokeAi, initials } from "../src/lib/utils";
+import {
+  initials,
+  mentionsAi,
+  plainPreview,
+  safeInternalPath,
+  shouldInvokeAi,
+} from "../src/lib/utils";
 
 describe("shouldInvokeAi — ai_mode contract (§7)", () => {
   it("never invokes when the room has AI off", () => {
@@ -46,5 +52,43 @@ describe("initials", () => {
     expect(initials("Ada Lovelace")).toBe("AL");
     expect(initials("Prince")).toBe("PR");
     expect(initials("")).toBe("?");
+  });
+});
+
+describe("safeInternalPath — open-redirect guard", () => {
+  it("accepts ordinary in-app paths", () => {
+    expect(safeInternalPath("/app")).toBe("/app");
+    expect(safeInternalPath("/app/settings")).toBe("/app/settings");
+    expect(safeInternalPath("/join/abc123")).toBe("/join/abc123");
+    expect(safeInternalPath("/app?tab=privacy")).toBe("/app?tab=privacy");
+  });
+
+  it("falls back when the value is missing or blank", () => {
+    expect(safeInternalPath(null)).toBe("/app");
+    expect(safeInternalPath(undefined)).toBe("/app");
+    expect(safeInternalPath("   ")).toBe("/app");
+    expect(safeInternalPath("")).toBe("/app");
+  });
+
+  it("rejects absolute URLs", () => {
+    expect(safeInternalPath("https://evil.example/steal")).toBe("/app");
+    expect(safeInternalPath("http://evil.example")).toBe("/app");
+    expect(safeInternalPath("javascript:alert(1)")).toBe("/app");
+  });
+
+  it("rejects protocol-relative hosts, including encoded and backslash forms", () => {
+    expect(safeInternalPath("//evil.example")).toBe("/app");
+    expect(safeInternalPath("/\\evil.example")).toBe("/app");
+    expect(safeInternalPath("/%2f%2fevil.example")).toBe("/app");
+    expect(safeInternalPath("/https://evil.example")).toBe("/app");
+  });
+
+  it("rejects control characters (header / log injection)", () => {
+    expect(safeInternalPath("/app\nSet-Cookie: a=b")).toBe("/app");
+    expect(safeInternalPath("/app\u0000")).toBe("/app");
+  });
+
+  it("honours an explicit fallback", () => {
+    expect(safeInternalPath("https://evil.example", "/onboarding")).toBe("/onboarding");
   });
 });

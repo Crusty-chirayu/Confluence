@@ -254,12 +254,16 @@ Deno.serve(async (req) => {
     });
 
     if (!upstream.ok || !upstream.body) {
+      // Log upstream detail server-side (function logs) but never return it:
+      // provider error bodies can echo request headers, and the request
+      // headers carry the provider key.
       const detail = await upstream.text().catch(() => "");
+      console.error("ai-orchestrator: provider_error", upstream.status, detail.slice(0, 500));
       await admin
         .from("messages")
         .update({ content: "_The assistant is unavailable right now._", status: "error" })
         .eq("id", aiMessageId);
-      throw new HttpError(502, "provider_error", detail.slice(0, 500));
+      throw new HttpError(502, "provider_error", "The model provider rejected the request.");
     }
 
     // --- 7. stream to client + persist progressively -------------------------
@@ -397,6 +401,9 @@ Deno.serve(async (req) => {
     if (e instanceof HttpError) {
       return json(req, { error: e.code, detail: e.detail ?? null }, e.status);
     }
-    return json(req, { error: "internal_error", detail: String(e).slice(0, 300) }, 500);
+    // Unexpected failures stay opaque to the caller — internal messages leak
+    // schema, urls and identifiers. They go to the function logs instead.
+    console.error("ai-orchestrator: internal_error", e);
+    return json(req, { error: "internal_error", detail: null }, 500);
   }
 });

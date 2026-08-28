@@ -32,6 +32,8 @@ export interface ConversationMember {
   role: MemberRole;
   joined_at: string;
   last_read_at: string | null;
+  /** §3 pinned conversations — a per-member preference. NULL = not pinned. */
+  pinned_at: string | null;
   profile?: Profile;
 }
 
@@ -82,6 +84,8 @@ export interface ConversationSummary extends Conversation {
   member_count: number;
   last_message: Pick<Message, "content" | "created_at" | "sender_type"> | null;
   unread: number;
+  /** Mirrors the caller's conversation_members.pinned_at. */
+  pinned_at: string | null;
 }
 
 export interface SearchHit {

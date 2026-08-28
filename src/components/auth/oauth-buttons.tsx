@@ -7,6 +7,7 @@ import { demo } from "@/lib/data/demo-store";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useToast } from "@/components/ui/toast";
+import { safeInternalPath } from "@/lib/utils";
 
 function GoogleMark() {
   return (
@@ -32,6 +33,9 @@ function GoogleMark() {
 }
 
 export function OAuthButtons({ next = "/app" }: { next?: string }) {
+  // The target is echoed into the OAuth redirectTo URL, so it is sanitised
+  // here as well as at the callback — defence in depth, not decoration.
+  const target = safeInternalPath(next);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const toast = useToast();
@@ -41,13 +45,13 @@ export function OAuthButtons({ next = "/app" }: { next?: string }) {
     if (DEMO_MODE) {
       demo.signIn();
       toast.push({ kind: "success", title: "Signed in", description: "Demo session started." });
-      router.push(next);
+      router.push(target);
       return;
     }
     const supa = getSupabaseBrowser()!;
     const { error } = await supa.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(target)}` },
     });
     if (error) {
       toast.push({ kind: "error", title: "Google sign-in failed", description: error.message });

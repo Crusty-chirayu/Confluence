@@ -9,6 +9,7 @@ import {
   Hash,
   LogOut,
   MessagesSquare,
+  Pin,
   Plus,
   Search,
   Settings,
@@ -23,7 +24,14 @@ import { ConversationListSkeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/components/session-provider";
 import { signOut } from "@/lib/data/api";
 import type { ConversationSummary } from "@/lib/types";
-import { cn, conversationTitle, plainPreview, relativeTime, truncate } from "@/lib/utils";
+import {
+  cn,
+  conversationTitle,
+  partitionPinned,
+  plainPreview,
+  relativeTime,
+  truncate,
+} from "@/lib/utils";
 import { popIn, SPRING, tEnter } from "@/lib/motion";
 
 export function Sidebar({
@@ -34,6 +42,7 @@ export function Sidebar({
   onSearch,
   onPalette,
   onNavigate,
+  onTogglePin,
 }: {
   conversations: ConversationSummary[];
   loading: boolean;
@@ -42,13 +51,17 @@ export function Sidebar({
   onSearch: () => void;
   onPalette: () => void;
   onNavigate?: () => void;
+  onTogglePin?: (conversationId: string, pinned: boolean) => void;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const { profile } = useSession();
 
-  const direct = conversations.filter((c) => c.type === "direct_ai");
-  const rooms = conversations.filter((c) => c.type === "group");
+  // §3 pinned conversations: pinned rows float to the top of the list, in
+  // the order they were pinned, and are removed from the type groups below.
+  const { pinned, rest } = partitionPinned(conversations);
+  const direct = rest.filter((c) => c.type === "direct_ai");
+  const rooms = rest.filter((c) => c.type === "group");
 
   const handleSignOut = async () => {
     await signOut();
@@ -108,6 +121,19 @@ export function Sidebar({
           </div>
         ) : (
           <div className="space-y-4">
+            {pinned.length > 0 && (
+              <Group label="Pinned">
+                {pinned.map((c) => (
+                  <ConversationRow
+                    key={c.id}
+                    c={c}
+                    active={pathname === `/app/c/${c.id}`}
+                    onNavigate={onNavigate}
+                    onTogglePin={onTogglePin}
+                  />
+                ))}
+              </Group>
+            )}
             {direct.length > 0 && (
               <Group label="Direct AI chats">
                 {direct.map((c) => (
@@ -116,6 +142,7 @@ export function Sidebar({
                     c={c}
                     active={pathname === `/app/c/${c.id}`}
                     onNavigate={onNavigate}
+                    onTogglePin={onTogglePin}
                   />
                 ))}
               </Group>
@@ -128,6 +155,7 @@ export function Sidebar({
                     c={c}
                     active={pathname === `/app/c/${c.id}`}
                     onNavigate={onNavigate}
+                    onTogglePin={onTogglePin}
                   />
                 ))}
               </Group>
@@ -164,11 +192,15 @@ export function Sidebar({
 
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div>
+    <div data-testid="conversation-group" data-group={label}>
       <p className="px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[--fg-subtle]">
         {label}
       </p>
-      <div className="space-y-px">{children}</div>
+      {/* A real list: screen readers announce "list of N items" and the
+          group heading names it, rather than a run of unrelated links. */}
+      <ul aria-label={label} className="space-y-px">
+        {children}
+      </ul>
     </div>
   );
 }
@@ -177,25 +209,34 @@ function ConversationRow({
   c,
   active,
   onNavigate,
+  onTogglePin,
 }: {
   c: ConversationSummary;
   active: boolean;
   onNavigate?: () => void;
+  onTogglePin?: (conversationId: string, pinned: boolean) => void;
 }) {
   const title = conversationTitle(c);
+  const pinned = Boolean(c.pinned_at);
   const preview = c.last_message
     ? `${c.last_message.sender_type === "ai" ? "AI: " : ""}${truncate(plainPreview(c.last_message.content), 44)}`
     : "No messages yet";
 
   return (
-    <motion.div layout transition={SPRING}>
+    <motion.li
+      layout
+      transition={SPRING}
+      // `group` scopes the pin button's hover/focus reveal to this row.
+      className={cn(
+        "group relative flex items-center rounded-[--r-md] pr-1 transition-colors duration-[--d-micro]",
+        active ? "bg-[--bg-active]" : "hover:bg-[--bg-hover] hover:shadow-[--e1]",
+      )}
+    >
       <Link
         href={`/app/c/${c.id}`}
         onClick={onNavigate}
-        className={cn(
-          "group flex items-center gap-2.5 rounded-[--r-md] px-2.5 py-2 transition-colors duration-[--d-micro]",
-          active ? "bg-[--bg-active]" : "hover:bg-[--bg-hover] hover:shadow-[--e1]",
-        )}
+        aria-current={active ? "page" : undefined}
+        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[--r-md] px-2.5 py-2"
       >
         {c.type === "direct_ai" ? (
           <AiAvatar size="sm" />
@@ -239,7 +280,32 @@ function ConversationRow({
           </div>
         </div>
       </Link>
-    </motion.div>
+
+      {onTogglePin && (
+        <button
+          type="button"
+          data-testid={pinned ? "unpin-button" : "pin-button"}
+          aria-pressed={pinned}
+          aria-label={pinned ? `Unpin ${title}` : `Pin ${title}`}
+          title={pinned ? "Unpin" : "Pin to top"}
+          onClick={() => onTogglePin(c.id, !pinned)}
+          className={cn(
+            "grid h-6 w-6 shrink-0 place-items-center rounded-[--r-sm] text-[--fg-subtle] transition-opacity duration-[--d-micro]",
+            "hover:bg-[--bg-active] hover:text-[--fg]",
+            // Revealed on hover / keyboard focus so the row stays clean,
+            // but always visible once pinned (state must be discoverable).
+            pinned
+              ? "text-[--accent-text] opacity-100"
+              : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100",
+          )}
+        >
+          <Pin
+            className={cn("h-3.5 w-3.5", pinned && "fill-current")}
+            strokeWidth={pinned ? 2.5 : 2}
+          />
+        </button>
+      )}
+    </motion.li>
   );
 }
 
