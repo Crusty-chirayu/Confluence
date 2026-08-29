@@ -110,7 +110,7 @@ export const MessageItem = React.memo(function MessageItem({
       className={cn(
         "group relative flex gap-3 rounded-[--r-md] px-2 py-1.5 transition-colors duration-[--d-standard]",
         showHeader ? "mt-4" : "mt-0.5",
-        highlighted && "bg-[--accent-subtle]",
+        highlighted ? "bg-[--accent-subtle]" : "hover:bg-[--bg-hover]/50",
       )}
     >
       {/* gutter: avatar or hover timestamp */}
@@ -179,7 +179,7 @@ export const MessageItem = React.memo(function MessageItem({
             </div>
           </div>
         ) : blocked ? (
-          <div className="flex items-start gap-2 rounded-[--r-md] border border-[--warning]/30 bg-[--warning-subtle] px-3 py-2.5 text-[13px] text-[--warning]">
+          <div className="flex items-start gap-2 rounded-[--r-md] border border-[--warning]/30 bg-[--warning-subtle] px-3 py-2.5 text-[13px] text-[--warning] shadow-[--e1]">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
               <strong className="font-semibold">Withheld by the safety filter.</strong> This content
@@ -187,22 +187,26 @@ export const MessageItem = React.memo(function MessageItem({
             </span>
           </div>
         ) : errored ? (
-          <div className="flex items-start gap-2 rounded-[--r-md] border border-[--danger]/30 bg-[--danger-subtle] px-3 py-2.5 text-[13px] text-[--danger]">
+          <div className="flex items-start gap-2 rounded-[--r-md] border border-[--danger]/30 bg-[--danger-subtle] px-3 py-2.5 text-[13px] text-[--danger] shadow-[--e1]">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{message.content || "The assistant couldn't respond."}</span>
           </div>
         ) : (
           /* §2.2/§2.5: real bubbles — a background container carries the
-             sender identity. AI = teal, own = brand accent, others = neutral. */
+             sender identity. AI = teal, own = brand accent, others = neutral.
+             A hairline inset ring (rather than a heavier outer border) gives
+             AI/other bubbles a touch of edge definition and material depth
+             without competing with the message content; the solid own-
+             message bubble stays clean and unadorned. */
           <div
             className={cn(
-              "bubble inline-block max-w-full rounded-[--r-lg] px-3 py-2 text-[14px] leading-5",
+              "bubble inline-block max-w-[68ch] rounded-[--r-lg] px-3.5 py-2.5 text-[14px] leading-[1.5] shadow-[--e1] transition-shadow duration-[--d-standard] group-hover:shadow-[--e2]",
               message.status === "superseded" && "opacity-45",
               isAi
-                ? "bg-[--bubble-ai-bg] text-[--bubble-ai-fg]"
+                ? "bg-[--bubble-ai-bg] text-[--bubble-ai-fg] ring-1 ring-inset ring-[--bubble-ai-ring]/25"
                 : isOwn
                   ? "bg-[--bubble-user-bg] text-[--bubble-user-fg]"
-                  : "bg-[--bubble-other-bg] text-[--bubble-other-fg]",
+                  : "bg-[--bubble-other-bg] text-[--bubble-other-fg] ring-1 ring-inset ring-[--border]/60",
             )}
           >
             <Markdown content={message.content} />
@@ -253,6 +257,8 @@ export const MessageItem = React.memo(function MessageItem({
                   initial="hidden"
                   animate="show"
                   exit="exit"
+                  whileTap={{ scale: 0.92 }}
+                  transition={SPRING}
                   onClick={() => onReact(emoji)}
                   className={cn(
                     "flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] transition-colors duration-[--d-micro]",
@@ -275,7 +281,7 @@ export const MessageItem = React.memo(function MessageItem({
         <div
           className={cn(
             "absolute -top-3 right-2 flex items-center gap-0.5 rounded-[--r-md] border border-[--border]",
-            "bg-[--surface-raised] p-0.5 opacity-0 shadow-[--e2] transition-opacity duration-[--d-micro]",
+            "bg-[--surface-raised]/95 p-0.5 opacity-0 shadow-[--e2] backdrop-blur-sm transition-opacity duration-[--d-micro]",
             "group-hover:opacity-100 focus-within:opacity-100",
           )}
         >
@@ -294,7 +300,7 @@ export const MessageItem = React.memo(function MessageItem({
                     initial="hidden"
                     animate="show"
                     exit="exit"
-                    className="absolute right-0 top-9 z-20 flex gap-0.5 rounded-[--r-md] border border-[--border] bg-[--surface-raised] p-1 shadow-[--e3]"
+                    className="absolute right-0 top-9 z-20 flex gap-0.5 rounded-[--r-md] border border-[--border] bg-[--surface-raised]/95 p-1 shadow-[--e3] backdrop-blur-sm"
                   >
                     {QUICK_EMOJI.map((e) => (
                       <motion.button

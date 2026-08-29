@@ -69,53 +69,58 @@ function LoginForm() {
       footer={
         <>
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-medium text-[--accent-text] hover:underline">
+          <Link
+            href="/signup"
+            className="font-medium text-[--accent-text] underline-offset-2 transition-colors duration-[--d-micro] hover:underline"
+          >
             Create one
           </Link>
         </>
       }
     >
-      <OAuthButtons next={next} />
-      <OrDivider />
+      <div className="space-y-6">
+        <OAuthButtons next={next} />
+        <OrDivider />
 
-      <form onSubmit={submit} className="space-y-4" noValidate>
-        <Field label="Email" error={errors.email} id="email">
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@company.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            aria-invalid={Boolean(errors.email)}
-          />
-        </Field>
+        <form onSubmit={submit} className="space-y-5" noValidate>
+          <Field label="Email" error={errors.email} id="email">
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              placeholder="you@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={Boolean(errors.email)}
+            />
+          </Field>
 
-        <Field label="Password" error={errors.password} id="password">
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            aria-invalid={Boolean(errors.password)}
-          />
-        </Field>
+          <Field label="Password" error={errors.password} id="password">
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              aria-invalid={Boolean(errors.password)}
+            />
+          </Field>
 
-        <div className="flex justify-end">
-          <Link
-            href="/forgot-password"
-            className="text-[12.5px] font-medium text-[--fg-muted] hover:text-[--accent-text]"
-          >
-            Forgot password?
-          </Link>
-        </div>
+          <div className="flex justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-[12.5px] font-medium text-[--fg-muted] transition-colors duration-[--d-micro] hover:text-[--accent-text]"
+            >
+              Forgot password?
+            </Link>
+          </div>
 
-        <Button type="submit" className="w-full" loading={loading}>
-          Sign in
-        </Button>
-      </form>
+          <Button type="submit" className="w-full" loading={loading}>
+            Sign in
+          </Button>
+        </form>
+      </div>
     </AuthShell>
   );
 }

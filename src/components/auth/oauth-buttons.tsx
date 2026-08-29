@@ -60,7 +60,12 @@ export function OAuthButtons({ next = "/app" }: { next?: string }) {
   };
 
   return (
-    <Button variant="secondary" className="w-full" onClick={google} loading={loading}>
+    <Button
+      variant="secondary"
+      className="group relative w-full overflow-hidden border border-[--border]/70 bg-[--surface]/70 backdrop-blur-sm transition-all duration-[--d-micro] hover:border-[--border-strong] hover:bg-[--bg-hover]/80 hover:shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,0_6px_16px_-8px_rgba(0,0,0,0.35)] active:scale-[0.985] active:shadow-none"
+      onClick={google}
+      loading={loading}
+    >
       {!loading && <GoogleMark />}
       Continue with Google
     </Button>
@@ -70,9 +75,11 @@ export function OAuthButtons({ next = "/app" }: { next?: string }) {
 export function OrDivider() {
   return (
     <div className="my-5 flex items-center gap-3">
-      <span className="h-px flex-1 bg-[--border]" />
-      <span className="text-[12px] font-medium uppercase tracking-wide text-[--fg-subtle]">or</span>
-      <span className="h-px flex-1 bg-[--border]" />
+      <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[--border]" />
+      <span className="text-[11.5px] font-medium uppercase tracking-[0.08em] text-[--fg-subtle]">
+        or
+      </span>
+      <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[--border]" />
     </div>
   );
 }

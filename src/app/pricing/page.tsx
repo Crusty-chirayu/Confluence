@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 export default function PricingPage() {
   return (
     <div className="min-h-dvh bg-[--bg]">
-      <header className="border-b border-[--border]">
+      <header className="sticky top-0 z-40 border-b border-[--border]/70 bg-[--bg]/85 backdrop-blur-md supports-[backdrop-filter]:bg-[--bg]/70">
         <nav
           aria-label="Pricing"
           className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-5"
@@ -34,13 +34,13 @@ export default function PricingPage() {
           <div className="flex items-center gap-1.5">
             <Link
               href="/#features"
-              className="hidden rounded-[--r-sm] px-3 py-2 text-[13.5px] font-medium text-[--fg-muted] transition-colors hover:text-[--fg] sm:block"
+              className="hidden rounded-[--r-sm] px-3 py-2 text-[13.5px] font-medium text-[--fg-muted] transition-colors duration-[--d-micro] hover:text-[--fg] sm:block"
             >
               Features
             </Link>
             <Link
               href="/changelog"
-              className="hidden rounded-[--r-sm] px-3 py-2 text-[13.5px] font-medium text-[--fg-muted] transition-colors hover:text-[--fg] sm:block"
+              className="hidden rounded-[--r-sm] px-3 py-2 text-[13.5px] font-medium text-[--fg-muted] transition-colors duration-[--d-micro] hover:text-[--fg] sm:block"
             >
               Changelog
             </Link>
@@ -56,7 +56,15 @@ export default function PricingPage() {
       </header>
 
       <main>
-        <section className="px-5 pb-10 pt-16 sm:pt-24">
+        <section className="relative overflow-hidden px-5 pb-10 pt-16 sm:pt-24">
+          {/* faint atmosphere behind the hero only — quiet enough not to compete with the cards */}
+          <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
+            <div
+              className="absolute left-1/2 top-[-16rem] h-[32rem] w-[46rem] -translate-x-1/2 rounded-full opacity-[0.09] blur-[110px]"
+              style={{ background: "radial-gradient(circle, var(--accent), transparent 62%)" }}
+            />
+          </div>
+
           <Reveal className="mx-auto max-w-5xl">
             <SectionHeading
               eyebrow="Pricing"
@@ -68,10 +76,10 @@ export default function PricingPage() {
               {PLANS.map((p) => (
                 <RevealItem key={p.name}>
                   <div
-                    className={`relative flex h-full flex-col rounded-[--r-lg] border p-6 ${
+                    className={`group relative flex h-full flex-col rounded-[--r-lg] border p-6 transition-all duration-[--d-standard] hover:-translate-y-1 ${
                       p.highlight
-                        ? "border-[--accent] bg-[--surface] shadow-[--e3]"
-                        : "border-[--border] bg-[--surface]"
+                        ? "border-[--accent] bg-[--surface] shadow-[--e3] hover:shadow-[--e3]"
+                        : "border-[--border] bg-[--surface] hover:border-[--border-strong] hover:shadow-[--e2]"
                     }`}
                   >
                     {p.highlight && (
@@ -113,10 +121,10 @@ export default function PricingPage() {
             <h2 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">
               Questions people actually ask
             </h2>
-            <dl className="mt-10 space-y-7">
+            <dl className="mt-10 divide-y divide-[--border]">
               {PRICING_FAQ.map((item) => (
                 <RevealItem key={item.q}>
-                  <div>
+                  <div className="py-5 first:pt-0 last:pb-0">
                     <dt className="text-[14.5px] font-semibold">{item.q}</dt>
                     <dd className="mt-1.5 text-pretty text-[13.5px] leading-relaxed text-[--fg-muted]">
                       {item.a}
@@ -165,19 +173,19 @@ export default function PricingPage() {
             aria-label="Footer"
             className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] text-[--fg-muted]"
           >
-            <Link href="/#features" className="hover:text-[--fg]">
+            <Link href="/#features" className="transition-colors duration-[--d-micro] hover:text-[--fg]">
               Features
             </Link>
-            <Link href="/#security" className="hover:text-[--fg]">
+            <Link href="/#security" className="transition-colors duration-[--d-micro] hover:text-[--fg]">
               Security
             </Link>
-            <Link href="/pricing" className="hover:text-[--fg]">
+            <Link href="/pricing" className="transition-colors duration-[--d-micro] hover:text-[--fg]">
               Pricing
             </Link>
-            <Link href="/changelog" className="hover:text-[--fg]">
+            <Link href="/changelog" className="transition-colors duration-[--d-micro] hover:text-[--fg]">
               Changelog
             </Link>
-            <Link href="/login" className="hover:text-[--fg]">
+            <Link href="/login" className="transition-colors duration-[--d-micro] hover:text-[--fg]">
               Sign in
             </Link>
           </nav>
@@ -186,4 +194,3 @@ export default function PricingPage() {
     </div>
   );
 }
-
