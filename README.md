@@ -2,7 +2,7 @@
 
 A ChatGPT/Discord hybrid: **private 1:1 AI chat** plus **opt-in AI participation inside multi-user group rooms**, sharing a single conversation model.
 
-Built per the v2.0 master build prompt: Next.js 16 (App Router) + TypeScript + Tailwind v4 on the front, Supabase (Postgres, Auth, Realtime, Storage, Edge Functions) on the back, Anthropic Messages API for streaming inference.
+Built per the v2.0 master build prompt: Next.js 16 (App Router) + TypeScript + Tailwind v4 on the front, Supabase (Postgres, Auth, Realtime, Storage, Edge Functions) on the back, OpenRouter's OpenAI-compatible Chat Completions API for streaming inference.
 
 ---
 
@@ -30,7 +30,7 @@ With no environment variables set, the app boots into **demo mode** — an in-br
 5. Set the server-only secrets and deploy the functions:
 
    ```bash
-   supabase secrets set AI_PROVIDER_API_KEY=sk-ant-...
+   supabase secrets set OPENROUTER_API_KEY=sk-or-...
    supabase functions deploy ai-orchestrator moderation-check invite-consume
    ```
 
@@ -52,7 +52,9 @@ Browser ──▶ Next.js (Vercel)
                                     ├── moderation-check
                                     └── invite-consume    ← service_role
                                           │
-                                          └──▶ Anthropic Messages API (streaming)
+                                          └──▶ OpenRouter Chat Completions API
+                                               (OpenAI-compatible, streaming)
+                                               ← _shared/provider.ts translation layer
 ```
 
 **The AI provider key never reaches the browser.** The client calls `ai-orchestrator`, which streams SSE back while progressively updating one `messages` row — so every member of a group room watches the same answer appear at the same moment.
@@ -63,7 +65,7 @@ Browser ──▶ Next.js (Vercel)
 2. Client calls `ai-orchestrator`.
 3. Function verifies membership → rate limits → **pre-moderates** the trigger message.
 4. Inserts a placeholder AI row with `status: 'streaming'`.
-5. Streams from Anthropic; forwards SSE deltas to the caller and flushes the row every ~400ms.
+5. Streams from OpenRouter; forwards SSE deltas to the caller and flushes the row every ~400ms.
 6. **Post-moderates** the finished output. Pass → `status: 'sent'`. Fail → content redacted, `status: 'blocked'`.
 7. Logs tokens and latency to `ai_usage_log`.
 
@@ -78,7 +80,7 @@ Browser ──▶ Next.js (Vercel)
 | Who can read a conversation | RLS `is_conversation_member()` on `conversations`, `messages`, `reactions`, `message_attachments` |
 | Who can administer a room | RLS `is_conversation_admin()` — owner/admin only |
 | Audit tables | RLS **enabled with zero policies** → unreachable from `anon`/`authenticated`; only `service_role` |
-| AI provider key | Only ever in the Edge Function environment |
+| AI provider key | `OPENROUTER_API_KEY` — only ever in the Edge Function environment |
 | Invite redemption | `invite-consume` (service_role) — the client has no RLS path to an invite for a room it hasn't joined |
 | Moderation | Two stages (`pre`, `post`), **fails closed** — a classifier error blocks publication |
 | Rate limiting | 30 msg/min and 20 invites/hr as `BEFORE INSERT` triggers in the database (every write path), plus fixed-window Edge Function counters in `rate_limit_events` for 10 AI calls/min and 60 moderation checks/min |
@@ -154,6 +156,8 @@ src/
     supabase/               browser + server clients
 supabase/
   functions/                ai-orchestrator, moderation-check, invite-consume
+    _shared/provider.ts     pure OpenRouter (OpenAI-compatible) translation
+                            layer — request builder + SSE decoder, unit-tested
   migrations/               versioned history — `supabase db push` applies these
 supabase_schema.sql         the complete, re-runnable snapshot of the database layer
 ```

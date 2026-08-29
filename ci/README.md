@@ -86,8 +86,14 @@ Notes learned the hard way (do not regress):
 The AI provider key is **not** a GitHub secret — it's a Supabase Edge Function secret:
 
 ```bash
-supabase secrets set AI_PROVIDER_API_KEY=sk-ant-...
+supabase secrets set OPENROUTER_API_KEY=sk-or-...
 ```
+
+The `ai-orchestrator` talks to OpenRouter's OpenAI-compatible Chat Completions
+API (`https://openrouter.ai/api/v1/chat/completions`, default model
+`anthropic/claude-sonnet-4.6`) through the pure, dependency-free
+`supabase/functions/_shared/provider.ts` translation layer, which is unit-tested
+by `tests/provider.test.ts` in the `npm test` job.
 
 Edge Function secrets that are **optional but worth setting before launch**:
 
