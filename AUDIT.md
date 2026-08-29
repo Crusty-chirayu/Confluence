@@ -85,8 +85,10 @@ secret). Both are documented in `SECURITY.md`.
 ## Security — verified
 
 See `SECURITY.md` for the full posture. Key verified points:
-- The AI provider key is read **only** server-side in Edge Functions
-  (`Deno.env.get(...)`); the browser sees only the public anon key.
+- The AI provider key (`OPENROUTER_API_KEY`) is read **only** server-side in
+  Edge Functions (`Deno.env.get(...)`); the browser sees only the public anon
+  key. The orchestrator speaks OpenRouter's OpenAI-compatible Chat Completions
+  API through the pure, unit-tested `_shared/provider.ts` translation layer.
 - `SUPABASE_SERVICE_ROLE_KEY` is used **only** inside Edge Functions (bypasses
   RLS by design); never shipped to the client.
 - RLS is enabled on every user-accessible table; membership enforced by
@@ -136,7 +138,7 @@ These are blocked on owner-held credentials or a `workflows`-permission push
 2. **Release secrets**: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`,
    `SUPABASE_DB_PASSWORD`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
    `VERCEL_PROJECT_ID` (see `ci/README.md`).
-3. **AI provider key**: `supabase secrets set AI_PROVIDER_API_KEY=sk-...`
+3. **AI provider key**: `supabase secrets set OPENROUTER_API_KEY=sk-or-...`
    (server-side).
 4. **Run the load test** against a live deploy and record numbers in
    `load/k6/README.md` (do not treat the thresholds as results). Note the

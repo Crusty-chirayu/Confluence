@@ -5,7 +5,7 @@ on the current `main`, so claims are verifiable rather than assumed.
 
 ## Secrets
 
-- The AI provider key (`AI_PROVIDER_API_KEY`) is **server-only**. It is read in
+- The AI provider key (`OPENROUTER_API_KEY`) is **server-only**. It is read in
   the Edge Functions via `Deno.env.get(...)` and never logged or returned. The
   browser only ever sees `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`
   (the public anon key, safe to expose).
@@ -14,9 +14,9 @@ on the current `main`, so claims are verifiable rather than assumed.
   it bypasses RLS by design and is never shipped to the client.
 - Client-side `.env*` files are gitignored; only `.env.example` (placeholders)
   is committed.
-- A repository-wide scan for `sk-ant-`, `service_role`, `BEGIN ... PRIVATE KEY`,
-  JWTs and hardcoded keys found **no committed real secrets** — only
-  documentation placeholders and a synthetic test fixture in
+- A repository-wide scan for `sk-ant-`, `sk-or-`, `service_role`,
+  `BEGIN ... PRIVATE KEY`, JWTs and hardcoded keys found **no committed real
+  secrets** — only documentation placeholders and a synthetic test fixture in
   `tests/moderation-fail-closed.test.ts` (which exercises the credential-leak
   classifier on purpose).
 
@@ -79,9 +79,7 @@ on the current `main`, so claims are verifiable rather than assumed.
 ## Secrets in outbound requests
 
 - The only outbound credentialed call is the orchestrator's request to the
-  model provider, using `AI_PROVIDER_API_KEY` read via `Deno.env.get` at module
-  scope. If the provider returns an error, its body is logged server-side and
-  **not** forwarded — upstream error text can echo request headers.
+
 - `TRAINING_PIPELINE_TOKEN` and `MODERATION_WEBHOOK_TOKEN` are optional and
   read the same way; the training sink is a no-op unless
   `TRAINING_PIPELINE_URL` is set and every member has opted in.
@@ -130,7 +128,7 @@ workflow-permitted push. The first two were re-verified on 2026-08-28.
 3. **Release secrets.** `release.yml` fails until the owner sets
    `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`,
    `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` (see `ci/README.md`).
-4. **AI provider key.** `supabase secrets set AI_PROVIDER_API_KEY=sk-...`
+4. **AI provider key.** `supabase secrets set OPENROUTER_API_KEY=sk-or-...`
    (server-side, never in source control).
 5. **CORS on the Edge Functions.** `ALLOWED_ORIGINS` defaults to `*`. The
    functions require a Bearer JWT (stored in `localStorage`, not a cookie, so

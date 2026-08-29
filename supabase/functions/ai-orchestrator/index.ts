@@ -6,10 +6,10 @@
 //   2. Rate limit (ai_invocations_per_min).
 //   3. Pre-moderation on the triggering user message (fail closed).
 //   4. Build context window from recent conversation history.
-//   5. Stream from Anthropic Messages API -> SSE to client, while
-//      progressively updating a placeholder AI message row (status
-//      'streaming') so other group members see the same stream via
-//      postgres_changes.
+//   5. Stream from OpenRouter (OpenAI-compatible Chat Completions API)
+//      -> SSE to client, while progressively updating a placeholder AI
+//      message row (status 'streaming') so other group members see the
+//      same stream via postgres_changes.
 //   6. Post-moderation on the completed output (fail closed -> row
 //      becomes status 'blocked' and the text is redacted).
 //   7. Log tokens/latency to ai_usage_log.
@@ -18,11 +18,16 @@ import { preflight, corsHeaders, json } from "../_shared/cors.ts";
 import { requireUser, adminClient, HttpError } from "../_shared/supabase.ts";
 import { enforceRateLimit } from "../_shared/ratelimit.ts";
 import { moderate, logModeration } from "../_shared/moderation.ts";
+import {
+  buildProviderRequest,
+  ProviderSSEDecoder,
+  type ProviderStreamEvent,
+} from "../_shared/provider.ts";
 
-const MODEL = Deno.env.get("AI_MODEL") ?? "claude-sonnet-4-20250514";
+const MODEL = Deno.env.get("AI_MODEL") ?? "anthropic/claude-sonnet-4.6";
 const MAX_TOKENS = Number(Deno.env.get("AI_MAX_TOKENS") ?? 2048);
 const HISTORY_LIMIT = Number(Deno.env.get("AI_HISTORY_LIMIT") ?? 30);
-const API_KEY = Deno.env.get("AI_PROVIDER_API_KEY")!;
+const API_KEY = Deno.env.get("OPENROUTER_API_KEY")!;
 
 const BLOCKED_TEXT =
   "_This response was withheld by the safety filter._";
@@ -223,7 +228,9 @@ Deno.serve(async (req) => {
             : `${nameById.get(m.sender_id!) ?? "Someone"}: ${m.content}`,
       }));
 
-    // Anthropic requires the first message to be from `user`.
+    // OpenAI-compatible providers accept an assistant-first message, but
+    // keep the previous behavior of leading with a user turn so the
+    // provider's context starts on a request, not a reply.
     while (providerMessages.length && providerMessages[0].role === "assistant") {
       providerMessages.shift();
     }
@@ -232,26 +239,19 @@ Deno.serve(async (req) => {
     }
 
     const started = Date.now();
-    const upstream = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
-        stream: true,
-        system: systemPrompt({
-          isGroup,
-          roomName: conversation.name,
-          topic: conversation.topic,
-          members: (memberProfiles ?? []).map((p) => p.display_name),
-        }),
-        messages: providerMessages,
+    const { url, init } = buildProviderRequest({
+      model: MODEL,
+      maxTokens: MAX_TOKENS,
+      system: systemPrompt({
+        isGroup,
+        roomName: conversation.name,
+        topic: conversation.topic,
+        members: (memberProfiles ?? []).map((p) => p.display_name),
       }),
+      messages: providerMessages,
+      apiKey: API_KEY,
     });
+    const upstream = await fetch(url, init);
 
     if (!upstream.ok || !upstream.body) {
       // Log upstream detail server-side (function logs) but never return it:
@@ -268,7 +268,6 @@ Deno.serve(async (req) => {
 
     // --- 7. stream to client + persist progressively -------------------------
     const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
     const msgId = aiMessageId;
 
     const stream = new ReadableStream({
@@ -281,7 +280,6 @@ Deno.serve(async (req) => {
         let full = "";
         let inTok = 0;
         let outTok = 0;
-        let buffer = "";
         let lastPersist = 0;
 
         const persist = async (final = false) => {
@@ -293,43 +291,46 @@ Deno.serve(async (req) => {
 
         try {
           const reader = upstream.body!.getReader();
+          const textDecoder = new TextDecoder();
+          const providerDecoder = new ProviderSSEDecoder();
+
+          const handleEvent = async (evt: ProviderStreamEvent) => {
+            if (evt.kind === "delta") {
+              full += evt.text;
+              send("delta", { text: evt.text });
+              await persist();
+            } else if (evt.kind === "usage") {
+              // OpenRouter reports usage on the final accounting frame
+              // (prompt_tokens / completion_tokens).
+              inTok = evt.inputTokens;
+              outTok = evt.outputTokens;
+            } else if (evt.kind === "error") {
+              // Mid-stream provider failure. Log the provider message
+              // server-side only — it can echo request headers, which
+              // carry the provider key. Fail the stream with a generic
+              // error the caller may see.
+              console.error(
+                "ai-orchestrator: provider_stream_error",
+                evt.message.slice(0, 500),
+              );
+              throw new Error("provider_stream_error");
+            }
+            // kind === "done": `data: [DONE]` — just stop emitting events;
+            // the read loop ends when the upstream body closes.
+          };
+
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-
-            const chunks = buffer.split("\n\n");
-            buffer = chunks.pop() ?? "";
-
-            for (const chunk of chunks) {
-              const line = chunk.split("\n").find((l) => l.startsWith("data: "));
-              if (!line) continue;
-              const payload = line.slice(6);
-              if (payload === "[DONE]") continue;
-
-              let evt: Record<string, unknown>;
-              try {
-                evt = JSON.parse(payload);
-              } catch {
-                continue;
-              }
-
-              if (evt.type === "content_block_delta") {
-                const delta = evt.delta as { text?: string } | undefined;
-                if (delta?.text) {
-                  full += delta.text;
-                  send("delta", { text: delta.text });
-                  await persist();
-                }
-              } else if (evt.type === "message_start") {
-                const usage = (evt.message as { usage?: { input_tokens?: number } })?.usage;
-                inTok = usage?.input_tokens ?? 0;
-              } else if (evt.type === "message_delta") {
-                const usage = evt.usage as { output_tokens?: number } | undefined;
-                outTok = usage?.output_tokens ?? outTok;
-              }
-            }
+            // Feed decoded text through the SSE decoder, which skips
+            // OpenRouter keep-alive comment lines (`: OPENROUTER
+            // PROCESSING`) and only emits events for complete frames.
+            const events = providerDecoder.push(
+              textDecoder.decode(value, { stream: true }),
+            );
+            for (const evt of events) await handleEvent(evt);
           }
+          for (const evt of providerDecoder.flush()) await handleEvent(evt);
 
           // --- 8. post-moderation (fail closed) ---------------------------
           const post = await moderate(full);
