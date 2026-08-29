@@ -61,8 +61,23 @@ export function CommandPalette({
   const [cursor, setCursor] = React.useState(0);
   const [mounted, setMounted] = React.useState(false);
   const listRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  // The element that had focus before ⌘K opened the palette, so closing it
+  // hands focus back instead of dropping it on <body>.
+  const restoreTo = React.useRef<HTMLElement | null>(null);
 
   React.useEffect(() => setMounted(true), []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    restoreTo.current = document.activeElement as HTMLElement | null;
+    const frame = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => {
+      cancelAnimationFrame(frame);
+      const target = restoreTo.current;
+      if (target && document.contains(target)) target.focus();
+    };
+  }, [open]);
 
   React.useEffect(() => {
     if (!open) {
@@ -266,6 +281,7 @@ export function CommandPalette({
             <div className="flex items-center gap-2.5 border-b border-[--border-default] px-4">
               <Search className="h-4 w-4 shrink-0 text-[--text-secondary]" />
               <input
+                ref={inputRef}
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}

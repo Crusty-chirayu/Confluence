@@ -32,6 +32,8 @@ export interface ConversationMember {
   role: MemberRole;
   joined_at: string;
   last_read_at: string | null;
+  /** §3 pinned conversations — a per-member preference. NULL = not pinned. */
+  pinned_at: string | null;
   profile?: Profile;
 }
 
@@ -47,6 +49,17 @@ export interface Message {
   created_at: string;
   edited_at: string | null;
   deleted_at: string | null;
+  /** Attachments attached to this message (private, member-scoped). */
+  attachments?: MessageAttachment[];
+}
+
+export interface MessageAttachment {
+  id: string;
+  message_id: string;
+  storage_path: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
 }
 
 export interface Reaction {
@@ -71,6 +84,8 @@ export interface ConversationSummary extends Conversation {
   member_count: number;
   last_message: Pick<Message, "content" | "created_at" | "sender_type"> | null;
   unread: number;
+  /** Mirrors the caller's conversation_members.pinned_at. */
+  pinned_at: string | null;
 }
 
 export interface SearchHit {

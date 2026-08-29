@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { DEMO_MODE } from "@/lib/env";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { demo } from "@/lib/data/demo-store";
+import { safeInternalPath } from "@/lib/utils";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email address."),
@@ -21,7 +22,9 @@ const schema = z.object({
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") ?? "/app";
+  // `next` is attacker-controllable (it comes from the query string), so it
+  // is collapsed to a same-origin path before it ever reaches router.push().
+  const next = safeInternalPath(params.get("next"));
   const toast = useToast();
 
   const [email, setEmail] = useState(DEMO_MODE ? "you@example.com" : "");
@@ -66,7 +69,7 @@ function LoginForm() {
       footer={
         <>
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-medium text-[--accent] hover:underline">
+          <Link href="/signup" className="font-medium text-[--accent-text] hover:underline">
             Create one
           </Link>
         </>
@@ -103,7 +106,7 @@ function LoginForm() {
         <div className="flex justify-end">
           <Link
             href="/forgot-password"
-            className="text-[12.5px] font-medium text-[--fg-muted] hover:text-[--accent]"
+            className="text-[12.5px] font-medium text-[--fg-muted] hover:text-[--accent-text]"
           >
             Forgot password?
           </Link>

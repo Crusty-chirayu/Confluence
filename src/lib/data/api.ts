@@ -15,11 +15,13 @@ import type {
   ConversationSummary,
   Invite,
   Message,
+  MessageAttachment,
   Profile,
   Reaction,
   SearchHit,
 } from "@/lib/types";
 import { plainPreview } from "@/lib/utils";
+import { attachmentStoragePath, validateAttachmentFile } from "@/lib/attachments";
 
 /* ------------------------------------------------------------------ */
 /* Session                                                             */
@@ -90,6 +92,7 @@ export async function listConversations(): Promise<ConversationSummary[]> {
           : 0;
         return {
           ...c,
+          pinned_at: mem.pinned_at ?? null,
           member_count: db.members.filter((m) => m.conversation_id === c.id).length,
           last_message: last
             ? { content: last.content, created_at: last.created_at, sender_type: last.sender_type }
@@ -111,12 +114,13 @@ export async function listConversations(): Promise<ConversationSummary[]> {
 
   const { data: memberships } = await supa
     .from("conversation_members")
-    .select("conversation_id, last_read_at, conversations(*)")
+    .select("conversation_id, last_read_at, pinned_at, conversations(*)")
     .eq("user_id", auth.user.id);
 
   const rows = (memberships ?? []) as unknown as Array<{
     conversation_id: string;
     last_read_at: string | null;
+    pinned_at: string | null;
     conversations: Conversation;
   }>;
   if (rows.length === 0) return [];
@@ -144,6 +148,7 @@ export async function listConversations(): Promise<ConversationSummary[]> {
         : 0;
       return {
         ...r.conversations,
+        pinned_at: r.pinned_at ?? null,
         member_count: (counts ?? []).filter((c) => c.conversation_id === r.conversation_id).length,
         last_message: last
           ? { content: last.content, created_at: last.created_at, sender_type: last.sender_type }
@@ -303,17 +308,28 @@ export async function listMessages(conversationId: string): Promise<Message[]> {
     return demo
       .db()
       .messages.filter((m) => m.conversation_id === conversationId && !m.deleted_at)
-      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+      .map((m) => ({
+        ...m,
+        attachments: m.attachments ?? [...demoAttachments.values()].filter((a) => a.message_id === m.id),
+      }));
   }
   const supa = getSupabaseBrowser()!;
   const { data } = await supa
     .from("messages")
-    .select("*")
+    .select("*, message_attachments(*)")
     .eq("conversation_id", conversationId)
     .is("deleted_at", null)
     .order("created_at", { ascending: true })
     .limit(500);
-  return (data ?? []) as Message[];
+  // Flatten the joined attachment rows onto each message.
+  return (data ?? []).map((row: Message & { message_attachments?: MessageAttachment[] }) => {
+    const { message_attachments, ...msg } = row;
+    const attachments = (message_attachments ?? []).sort((a, b) =>
+      a.created_at.localeCompare(b.created_at),
+    );
+    return { ...msg, attachments } as Message;
+  });
 }
 
 export async function sendMessage(conversationId: string, content: string): Promise<Message> {
@@ -341,6 +357,81 @@ export async function sendMessage(conversationId: string, content: string): Prom
     .single();
   if (error) throw error;
   return data as Message;
+}
+
+/* ------------------------------------------------------------------ */
+/* Attachments (private, member-scoped — §19/§35)                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Demo-mode attachment URL cache. Real mode mints Supabase signed URLs (the
+ * bucket is private and RLS-visible only to conversation members); these are
+ * browser object URLs so the demo preview works with no upload round-trip.
+ */
+const demoAttachments = new Map<string, MessageAttachment & { url?: string }>();
+
+type DemoAttachment = MessageAttachment & { url?: string };
+
+/** Resolve the display/download URL for a stored attachment (demo or real). */
+export async function attachmentUrl(storagePath: string): Promise<string | null> {
+  if (DEMO_MODE) {
+    return demoAttachments.get(storagePath)?.url ?? null;
+  }
+  const supa = getSupabaseBrowser()!;
+  const { data, error } = await supa.storage
+    .from("attachments")
+    .createSignedUrl(storagePath, 60 * 60 * 24); // 24h, member-scoped by RLS
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+/**
+ * Upload a file and record it on a message. Validates, writes to the private
+ * `attachments` bucket at `{conversation_id}/{message_id}/{filename}`, then
+ * inserts the `message_attachments` row. Returns the persisted attachment.
+ */
+export async function uploadAttachment(
+  conversationId: string,
+  messageId: string,
+  file: File,
+): Promise<MessageAttachment> {
+  const verdict = validateAttachmentFile(file);
+  if (!verdict.ok) throw new Error(verdict.error);
+
+  const storage_path = attachmentStoragePath(conversationId, messageId, file.name);
+
+  if (DEMO_MODE) {
+    const att: DemoAttachment = {
+      id: uuid(),
+      message_id: messageId,
+      storage_path,
+      mime_type: verdict.mime,
+      size_bytes: verdict.size,
+      created_at: new Date().toISOString(),
+      url: URL.createObjectURL(file),
+    };
+    demoAttachments.set(storage_path, att);
+    return att;
+  }
+
+  const supa = getSupabaseBrowser()!;
+  const { error: upErr } = await supa.storage
+    .from("attachments")
+    .upload(storage_path, file, { contentType: verdict.mime, upsert: false });
+  if (upErr) throw upErr;
+
+  const { data, error } = await supa
+    .from("message_attachments")
+    .insert({
+      message_id: messageId,
+      storage_path,
+      mime_type: verdict.mime,
+      size_bytes: verdict.size,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as MessageAttachment;
 }
 
 export async function editMessage(id: string, content: string): Promise<void> {
@@ -429,6 +520,35 @@ export async function toggleReaction(messageId: string, emoji: string): Promise<
   }
 }
 
+/**
+ * §3 pinned conversations. The pin lives on the caller's membership row,
+ * so it is a per-user sidebar preference — pinning a room changes nobody
+ * else's list. RLS (`members_update_self`) allows the write and pins
+ * `role`, so this cannot be used to escalate privileges.
+ */
+export async function setPinned(conversationId: string, pinned: boolean): Promise<void> {
+  const value = pinned ? new Date().toISOString() : null;
+
+  if (DEMO_MODE) {
+    const m = demo
+      .db()
+      .members.find((x) => x.conversation_id === conversationId && x.user_id === DEMO_USER_ID);
+    if (m) m.pinned_at = value;
+    demo.commit();
+    return;
+  }
+
+  const supa = getSupabaseBrowser()!;
+  const { data: auth } = await supa.auth.getUser();
+  if (!auth.user) throw new Error("not authenticated");
+  const { error } = await supa
+    .from("conversation_members")
+    .update({ pinned_at: value })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", auth.user.id);
+  if (error) throw error;
+}
+
 /* ------------------------------------------------------------------ */
 /* Invites                                                             */
 /* ------------------------------------------------------------------ */
@@ -487,6 +607,7 @@ export async function consumeInvite(code: string): Promise<{ conversation: Conve
         role: "member",
         joined_at: new Date().toISOString(),
         last_read_at: null,
+        pinned_at: null,
       });
       inv.uses += 1;
     }

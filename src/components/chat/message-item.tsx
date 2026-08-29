@@ -17,7 +17,10 @@ import { Avatar, AiAvatar, AiPill } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Markdown } from "./markdown";
+import { AttachmentChip } from "./attachment-chip";
 import type { Message, Profile, Reaction } from "@/lib/types";
+import type { ReadReceipt } from "@/lib/read-receipts";
+import { readReceiptLabel } from "@/lib/read-receipts";
 import { cn, clockTime } from "@/lib/utils";
 import { messageIn, popIn, popover, SPRING, tEnter } from "@/lib/motion";
 
@@ -34,6 +37,7 @@ export interface MessageItemProps {
   currentUserId: string;
   highlighted?: boolean;
   canRegenerate: boolean;
+  readReceipt?: ReadReceipt | null;
   onReact: (emoji: string) => void;
   onEdit: (content: string) => void;
   onDelete: () => void;
@@ -51,6 +55,7 @@ export const MessageItem = React.memo(function MessageItem({
   currentUserId,
   highlighted,
   canRegenerate,
+  readReceipt,
   onReact,
   onEdit,
   onDelete,
@@ -191,7 +196,7 @@ export const MessageItem = React.memo(function MessageItem({
              sender identity. AI = teal, own = brand accent, others = neutral. */
           <div
             className={cn(
-              "inline-block max-w-full rounded-[--r-lg] px-3 py-2 text-[14px] leading-5",
+              "bubble inline-block max-w-full rounded-[--r-lg] px-3 py-2 text-[14px] leading-5",
               message.status === "superseded" && "opacity-45",
               isAi
                 ? "bg-[--bubble-ai-bg] text-[--bubble-ai-fg]"
@@ -218,6 +223,25 @@ export const MessageItem = React.memo(function MessageItem({
           </div>
         )}
 
+        {/* attachments — private, member-scoped (§19/§35) */}
+        {message.attachments && message.attachments.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {message.attachments.map((a) => (
+              <AttachmentChip key={a.id} attachment={a} />
+            ))}
+          </div>
+        )}
+
+        {/* read receipt — only for the sender's own human messages in a room */}
+        {readReceipt && (
+          <div className="mt-1 flex items-center gap-1 pl-1" aria-live="polite">
+            <Check className="h-3 w-3 text-[--info]" aria-hidden />
+            <span className="text-[10.5px] text-[--fg-subtle]">
+              {readReceiptLabel(readReceipt) || "Sent"}
+            </span>
+          </div>
+        )}
+
         {/* reactions */}
         {grouped.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1">
@@ -233,7 +257,7 @@ export const MessageItem = React.memo(function MessageItem({
                   className={cn(
                     "flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] transition-colors duration-[--d-micro]",
                     info.mine
-                      ? "border-[--accent] bg-[--accent-subtle] text-[--accent]"
+                      ? "border-[--accent] bg-[--accent-subtle] text-[--accent-text]"
                       : "border-[--border] bg-[--surface] text-[--fg-muted] hover:border-[--border-strong]",
                   )}
                 >

@@ -23,6 +23,8 @@ import { HeroDemo } from "@/components/landing/hero-demo";
 import { Reveal, RevealItem, SectionHeading } from "@/components/landing/section";
 import { Logo } from "@/components/logo";
 import { riseIn, staggerParent, tEnter } from "@/lib/motion";
+// Shared with the standalone /pricing route so the two cannot drift.
+import { PLANS as PRICING } from "@/lib/pricing";
 import { DEMO_MODE } from "@/lib/env";
 
 const FEATURES = [
@@ -104,42 +106,6 @@ const SECURITY = [
   },
 ];
 
-const PRICING = [
-  {
-    name: "Free",
-    price: "$0",
-    cadence: "forever",
-    blurb: "For trying the whole thing out.",
-    features: ["Unlimited 1:1 AI chats", "3 group rooms", "30-day history", "Community support"],
-    cta: "Start free",
-    highlight: false,
-  },
-  {
-    name: "Team",
-    price: "$12",
-    cadence: "per user / month",
-    blurb: "For groups that actually ship together.",
-    features: [
-      "Unlimited rooms & members",
-      "Full history + global search",
-      "File attachments",
-      "Admin analytics",
-      "Priority model access",
-    ],
-    cta: "Start 14-day trial",
-    highlight: true,
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    cadence: "annual",
-    blurb: "For when procurement gets involved.",
-    features: ["SSO / SAML", "Audit log export", "Data residency", "Custom moderation policy", "99.9% SLA"],
-    cta: "Talk to us",
-    highlight: false,
-  },
-];
-
 export default function LandingPage() {
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -154,6 +120,9 @@ export default function LandingPage() {
     <div className="min-h-dvh bg-[--bg]">
       <LandingNav />
 
+      {/* Every page needs one <main>: it is the landmark a screen-reader
+          user jumps to in order to skip the nav (§4 / WCAG 2.4.1). */}
+      <main>
       {/* ---------------- HERO ---------------- */}
       <section ref={heroRef} className="relative overflow-hidden px-5 pb-20 pt-32 sm:pt-40">
         {/* aurora backdrop */}
@@ -178,7 +147,7 @@ export default function LandingPage() {
           className="mx-auto max-w-3xl text-center"
         >
           <motion.div variants={riseIn}>
-            <span className="inline-flex items-center gap-2 rounded-full border border-[--accent-border] bg-[--accent-subtle] px-3.5 py-1.5 text-[12.5px] font-medium text-[--accent]">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[--accent-border] bg-[--accent-subtle] px-3.5 py-1.5 text-[12.5px] font-medium text-[--accent-text]">
               <Sparkles className="h-3.5 w-3.5" />
               v2.0 — group rooms with opt-in AI
             </span>
@@ -207,17 +176,13 @@ export default function LandingPage() {
             variants={riseIn}
             className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
           >
-            <Link href="/signup" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto">
-                Start chatting free
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/app" className="w-full sm:w-auto">
-              <Button size="lg" variant="secondary" className="w-full sm:w-auto">
-                {DEMO_MODE ? "Explore the demo" : "Open the app"}
-              </Button>
-            </Link>
+            <Button asChild href="/signup" size="lg" className="w-full sm:w-auto">
+              Start chatting free
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button asChild href="/app" size="lg" variant="secondary" className="w-full sm:w-auto">
+              {DEMO_MODE ? "Explore the demo" : "Open the app"}
+            </Button>
           </motion.div>
 
           <motion.p variants={riseIn} className="mt-4 text-[12.5px] text-[--fg-subtle]">
@@ -252,7 +217,7 @@ export default function LandingPage() {
                   transition={tEnter(0.2)}
                   className="group h-full rounded-[--r-lg] border border-[--border] bg-[--surface] p-6 shadow-[--e1] transition-colors duration-[--d-standard] hover:border-[--border-strong] hover:shadow-[--e2]"
                 >
-                  <span className="mb-4 inline-grid h-10 w-10 place-items-center rounded-[--r-md] bg-[--accent-subtle] text-[--accent]">
+                  <span className="mb-4 inline-grid h-10 w-10 place-items-center rounded-[--r-md] bg-[--accent-subtle] text-[--accent-text]">
                     <f.icon className="h-5 w-5" />
                   </span>
                   <h3 className="text-[15px] font-semibold tracking-tight">{f.title}</h3>
@@ -277,7 +242,7 @@ export default function LandingPage() {
             {STEPS.map((s) => (
               <RevealItem key={s.n}>
                 <div className="flex gap-5">
-                  <span className="font-mono text-[13px] font-semibold tabular-nums text-[--accent]">
+                  <span className="font-mono text-[13px] font-semibold tabular-nums text-[--accent-text]">
                     {s.n}
                   </span>
                   <div className="min-w-0">
@@ -325,6 +290,18 @@ export default function LandingPage() {
       <section className="border-t border-[--border] bg-[--bg-subtle] px-5 py-24 sm:py-32">
         <Reveal id="pricing" className="mx-auto max-w-5xl">
           <SectionHeading eyebrow="Pricing" title="Priced per person, not per token" />
+          <RevealItem>
+            <p className="-mt-8 mb-12 text-center text-[13.5px] text-[--fg-muted]">
+              Full plan details, limits and the awkward questions live on{" "}
+              <Link
+                href="/pricing"
+                className="font-medium text-[--accent-text] hover:underline"
+              >
+                the pricing page
+              </Link>
+              .
+            </p>
+          </RevealItem>
           <div className="mt-14 grid gap-5 lg:grid-cols-3">
             {PRICING.map((p) => (
               <RevealItem key={p.name}>
@@ -354,11 +331,14 @@ export default function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link href="/signup" className="mt-7">
-                    <Button variant={p.highlight ? "primary" : "secondary"} className="w-full">
-                      {p.cta}
-                    </Button>
-                  </Link>
+                  <Button
+                    asChild
+                    href="/signup"
+                    variant={p.highlight ? "primary" : "secondary"}
+                    className="mt-7 w-full"
+                  >
+                    {p.cta}
+                  </Button>
                 </div>
               </RevealItem>
             ))}
@@ -381,21 +361,19 @@ export default function LandingPage() {
           </RevealItem>
           <RevealItem>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link href="/signup" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto">
-                  Create your account
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/app" className="w-full sm:w-auto">
-                <Button size="lg" variant="secondary" className="w-full sm:w-auto">
-                  Open the app
-                </Button>
-              </Link>
+              <Button asChild href="/signup" size="lg" className="w-full sm:w-auto">
+                Create your account
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+              <Button asChild href="/app" size="lg" variant="secondary" className="w-full sm:w-auto">
+                Open the app
+              </Button>
             </div>
           </RevealItem>
         </Reveal>
       </section>
+
+      </main>
 
       {/* ---------------- FOOTER ---------------- */}
       <footer className="border-t border-[--border] px-5 py-12">
@@ -405,10 +383,13 @@ export default function LandingPage() {
             <span className="text-[13.5px] font-semibold">Confluence</span>
             <span className="text-[12.5px] text-[--fg-subtle]">v2.0</span>
           </div>
-          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] text-[--fg-muted]">
+          <nav
+            aria-label="Footer"
+            className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] text-[--fg-muted]"
+          >
             <a href="#features" className="hover:text-[--fg]">Features</a>
             <a href="#security" className="hover:text-[--fg]">Security</a>
-            <a href="#pricing" className="hover:text-[--fg]">Pricing</a>
+            <Link href="/pricing" className="hover:text-[--fg]">Pricing</Link>
             <Link href="/changelog" className="hover:text-[--fg]">Changelog</Link>
             <Link href="/login" className="hover:text-[--fg]">Sign in</Link>
           </nav>

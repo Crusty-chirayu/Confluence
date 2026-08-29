@@ -99,7 +99,7 @@ export default function SignupPage() {
         sent ? null : (
           <>
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-[--accent] hover:underline">
+            <Link href="/login" className="font-medium text-[--accent-text] hover:underline">
               Sign in
             </Link>
           </>

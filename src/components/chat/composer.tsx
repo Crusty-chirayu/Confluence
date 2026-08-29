@@ -2,12 +2,18 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUp, ShieldAlert, Sparkles, Square } from "lucide-react";
+import { ArrowUp, Paperclip, ShieldAlert, Sparkles, Square, X } from "lucide-react";
 import { Avatar, AiAvatar } from "@/components/ui/avatar";
 import { classifyLocal, MAX_MESSAGE_LENGTH } from "@/lib/data/moderation-local";
 import type { ConversationMember } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { formatFileSize, validateAttachmentFile } from "@/lib/attachments";
 import { popover, SPRING, tEnter, tExit } from "@/lib/motion";
+
+/** The mention popup's listbox id, referenced by the combobox. */
+const MENTION_LISTBOX_ID = "composer-mention-listbox";
+const MENTION_OPTION_PREFIX = "composer-mention-option-";
+const mentionOptionId = (index: number) => `${MENTION_OPTION_PREFIX}${index}`;
 
 interface MentionOption {
   id: string;
@@ -32,18 +38,25 @@ export function Composer({
   aiMode: string;
   streaming: boolean;
   disabled?: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string, files: File[]) => void;
   onStop: () => void;
   onTyping?: () => void;
 }) {
   const [value, setValue] = React.useState("");
   const [mentionQuery, setMentionQuery] = React.useState<string | null>(null);
   const [cursor, setCursor] = React.useState(0);
+  const [files, setFiles] = React.useState<File[]>([]);
+  const [fileError, setFileError] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const ref = React.useRef<HTMLTextAreaElement>(null);
 
   const verdict = React.useMemo(() => classifyLocal(value), [value]);
   const tooLong = value.length > MAX_MESSAGE_LENGTH;
-  const canSend = value.trim().length > 0 && verdict.verdict === "pass" && !disabled;
+  const canSend =
+    value.trim().length > 0 &&
+    verdict.verdict === "pass" &&
+    !disabled &&
+    fileError === null;
 
   const options = React.useMemo<MentionOption[]>(() => {
     const base: MentionOption[] = [];
@@ -99,10 +112,25 @@ export function Composer({
     });
   };
 
+  const addFiles = (list: FileList | null) => {
+    if (!list) return;
+    setFileError(null);
+    for (const file of Array.from(list)) {
+      const v = validateAttachmentFile(file);
+      if (!v.ok) {
+        setFileError(v.error);
+        continue;
+      }
+      setFiles((prev) => (prev.some((f) => f.name + f.size === file.name + file.size) ? prev : [...prev, file]));
+    }
+  };
+
   const send = () => {
     if (!canSend) return;
-    onSend(value.trim());
+    onSend(value.trim(), files);
     setValue("");
+    setFiles([]);
+    setFileError(null);
     setMentionQuery(null);
   };
 
@@ -134,65 +162,82 @@ export function Composer({
     }
   };
 
+  // The popup is "open" for ARIA purposes only while it has options — an
+  // `aria-expanded="true"` with nothing to expand to is worse than false.
+  const mentionOpen = mentionQuery !== null && options.length > 0;
+
   const willInvokeAi =
     aiMode === "auto" || (aiMode === "mention_only" && /@ai\b/i.test(value));
 
   return (
     <div className="relative border-t border-[--border] bg-[--bg] px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
-      {/* moderation pre-warning */}
-      <AnimatePresence initial={false}>
-        {verdict.verdict !== "pass" && (
-          <motion.div
-            initial={{ opacity: 0, y: 6, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: "auto" }}
-            exit={{ opacity: 0, height: 0, transition: tExit() }}
-            transition={tEnter()}
-            className="mb-2 overflow-hidden"
-          >
-            <div className="flex items-start gap-2 rounded-[--r-md] border border-[--warning]/30 bg-[--warning-subtle] px-3 py-2 text-[12.5px] text-[--warning]">
-              <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>
-                <strong className="font-semibold">{verdict.label}.</strong>{" "}
-                {tooLong
-                  ? `Trim it to ${MAX_MESSAGE_LENGTH.toLocaleString()} characters or fewer.`
-                  : "This won't pass moderation, so it can't be sent."}
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* @mention autocomplete — scales+fades from the caret area */}
-      <AnimatePresence>
-        {mentionQuery !== null && options.length > 0 && (
-          <motion.div
-            variants={popover}
-            initial="hidden"
-            animate="show"
-            exit="exit"
-            style={{ transformOrigin: "bottom left" }}
-            className="absolute bottom-full left-3 z-30 mb-2 w-[min(20rem,calc(100%-1.5rem))] overflow-hidden rounded-[--r-md] border border-[--border] bg-[--surface-raised] shadow-[--e3] sm:left-4"
-          >
-            {options.map((o, i) => (
-              <button
-                key={o.id}
-                onMouseEnter={() => setCursor(i)}
-                onClick={() => applyMention(o)}
-                className={cn(
-                  "flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors duration-[--d-micro]",
-                  i === cursor ? "bg-[--bg-hover]" : "hover:bg-[--bg-hover]",
-                )}
-              >
-                {o.isAi ? <AiAvatar size="xs" /> : <Avatar name={o.sub} url={o.avatarUrl} size="xs" />}
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium">@{o.label}</span>
-                  <span className="block truncate text-[11.5px] text-[--fg-muted]">{o.sub}</span>
+      {/*
+        moderation pre-warning.
+        The live region is rendered unconditionally and only its contents
+        change: a `role="status"` node inserted *with* its text already in
+        it is missed by some screen readers, so the container has to be in
+        the DOM before the warning appears.
+      */}
+      <div role="status" aria-live="polite" className="empty:hidden">
+        <AnimatePresence initial={false}>
+          {verdict.verdict !== "pass" && (
+            <motion.div
+              initial={{ opacity: 0, y: 6, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: "auto" }}
+              exit={{ opacity: 0, height: 0, transition: tExit() }}
+              transition={tEnter()}
+              className="mb-2 overflow-hidden"
+            >
+              <div className="flex items-start gap-2 rounded-[--r-md] border border-[--warning]/30 bg-[--warning-subtle] px-3 py-2 text-[12.5px] text-[--warning]">
+                <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  <strong className="font-semibold">{verdict.label}.</strong>{" "}
+                  {tooLong
+                    ? `Trim it to ${MAX_MESSAGE_LENGTH.toLocaleString()} characters or fewer.`
+                    : "This won't pass moderation, so it can't be sent."}
                 </span>
-              </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* pending attachments */}
+      <AnimatePresence>
+        {files.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0, transition: tExit() }}
+            transition={tEnter(0.16)}
+            className="mb-2 flex flex-wrap gap-1.5 overflow-hidden"
+          >
+            {files.map((f, i) => (
+              <span
+                key={`${f.name}-${f.size}-${i}`}
+                className="flex max-w-[15rem] items-center gap-1.5 rounded-full border border-[--border] bg-[--surface] py-1 pl-2.5 pr-1 text-[12px] font-medium text-[--fg]"
+              >
+                <Paperclip className="h-3 w-3 text-[--fg-muted]" />
+                <span className="truncate">{f.name}</span>
+                <span className="shrink-0 text-[10.5px] text-[--fg-subtle]">{formatFileSize(f.size)}</span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${f.name}`}
+                  onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                  className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[--fg-subtle] transition-colors hover:bg-[--bg-active] hover:text-[--fg]"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
             ))}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Same reasoning as the warning above: the region exists first. */}
+      <div role="alert" className="empty:hidden">
+        {fileError && <p className="mb-2 text-[12px] font-medium text-[--danger]">{fileError}</p>}
+      </div>
 
       <div
         className={cn(
@@ -202,29 +247,125 @@ export function Composer({
           verdict.verdict !== "pass" ? "border-[--warning]/50" : "border-[--border]",
         )}
       >
-        <textarea
-          ref={ref}
-          rows={1}
-          value={value}
-          disabled={disabled}
+        {/*
+          WAI-ARIA combobox (ARIA 1.2). The role lives on the wrapper, not on
+          the textarea: `role="combobox"` is only defined for text *inputs*,
+          and axe flags it on a <textarea>. A combobox owns its textbox and,
+          when expanded, its listbox — hence both live inside this element.
+
+          Without this a screen-reader user gets no indication that @mention
+          suggestions exist, and the highlighted one is never announced
+          (WCAG 4.1.2).
+        */}
+        <div
+          role="combobox"
+          aria-haspopup="listbox"
+          aria-expanded={mentionOpen}
+          // Only set while the popup exists: an aria-controls pointing at an
+          // id that is not in the DOM is itself a validity error.
+          aria-controls={mentionOpen ? MENTION_LISTBOX_ID : undefined}
+          aria-label="Message"
+          className="relative min-w-0 flex-1"
+        >
+          <textarea
+            ref={ref}
+            rows={1}
+            value={value}
+            disabled={disabled}
+            data-testid="composer-input"
+            aria-autocomplete="list"
+            aria-activedescendant={
+              mentionOpen && options[cursor] ? mentionOptionId(cursor) : undefined
+            }
+            onChange={(e) => {
+              setValue(e.target.value);
+              detectMention(e.target.value, e.target.selectionStart);
+              onTyping?.();
+            }}
+            onKeyDown={onKeyDown}
+            onClick={(e) => detectMention(value, e.currentTarget.selectionStart)}
+            placeholder={
+              disabled
+                ? "You can't post in this conversation."
+                : isGroup
+                  ? aiMode === "off"
+                    ? "Message the room…"
+                    : "Message the room… type @ai to bring in the assistant"
+                  : "Ask anything…"
+            }
+            className="max-h-[200px] min-h-[24px] w-full resize-none bg-transparent py-1 text-[14px] leading-relaxed text-[--fg] outline-none placeholder:text-[--fg-subtle] disabled:opacity-60"
+          />
+
+          {/* @mention autocomplete — scales+fades up from the input */}
+          <AnimatePresence>
+            {mentionOpen && (
+              <motion.div
+                id={MENTION_LISTBOX_ID}
+                role="listbox"
+                aria-label="Mention suggestions"
+                variants={popover}
+                initial="hidden"
+                animate="show"
+                exit="exit"
+                style={{ transformOrigin: "bottom left" }}
+                className="absolute bottom-full left-0 z-30 mb-2 w-[min(20rem,100%)] overflow-hidden rounded-[--r-md] border border-[--border] bg-[--surface-raised] shadow-[--e3]"
+              >
+                {options.map((o, i) => (
+                  <button
+                    key={o.id}
+                    id={mentionOptionId(i)}
+                    role="option"
+                    aria-selected={i === cursor}
+                    // The options are driven with the arrow keys from the
+                    // textarea (aria-activedescendant); a stray Tab would
+                    // move focus out of the popup and desync the cursor.
+                    tabIndex={-1}
+                    onMouseEnter={() => setCursor(i)}
+                    onClick={() => applyMention(o)}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors duration-[--d-micro]",
+                      i === cursor ? "bg-[--bg-hover]" : "hover:bg-[--bg-hover]",
+                    )}
+                  >
+                    {o.isAi ? (
+                      <AiAvatar size="xs" />
+                    ) : (
+                      <Avatar name={o.sub} url={o.avatarUrl} size="xs" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-medium">@{o.label}</span>
+                      <span className="block truncate text-[11.5px] text-[--fg-muted]">
+                        {o.sub}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* attach a file (private, member-scoped) */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          hidden
+          data-testid="attachment-input"
           onChange={(e) => {
-            setValue(e.target.value);
-            detectMention(e.target.value, e.target.selectionStart);
-            onTyping?.();
+            addFiles(e.target.files);
+            e.target.value = "";
           }}
-          onKeyDown={onKeyDown}
-          onClick={(e) => detectMention(value, e.currentTarget.selectionStart)}
-          placeholder={
-            disabled
-              ? "You can't post in this conversation."
-              : isGroup
-                ? aiMode === "off"
-                  ? "Message the room…"
-                  : "Message the room… type @ai to bring in the assistant"
-                : "Ask anything…"
-          }
-          className="max-h-[200px] min-h-[24px] flex-1 resize-none bg-transparent py-1 text-[14px] leading-relaxed text-[--fg] outline-none placeholder:text-[--fg-subtle] disabled:opacity-60"
         />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={disabled}
+          aria-label="Attach a file"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] text-[--fg-muted] transition-colors hover:bg-[--bg-active] hover:text-[--fg] disabled:opacity-60"
+        >
+          <Paperclip className="h-4 w-4" />
+        </button>
 
         <AnimatePresence mode="wait" initial={false}>
           {streaming ? (
@@ -276,7 +417,7 @@ export function Composer({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0 }}
               transition={tEnter(0.12)}
-              className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-[--accent]"
+              className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-[--accent-text]"
             >
               <Sparkles className="h-3 w-3" />
               AI will reply

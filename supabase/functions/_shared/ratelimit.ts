@@ -5,6 +5,7 @@ export const LIMITS: Record<string, { max: number; windowSec: number }> = {
   messages_per_min: { max: 30, windowSec: 60 },
   ai_invocations_per_min: { max: 10, windowSec: 60 },
   invites_per_hour: { max: 20, windowSec: 3600 },
+  moderation_checks_per_min: { max: 60, windowSec: 60 },
 };
 
 /**

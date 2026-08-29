@@ -53,7 +53,7 @@ export function AuthShell({
             className="rounded-[--r-lg] border border-[--border] bg-[--surface] p-6 shadow-[--e2]"
           >
             {DEMO_MODE && (
-              <div className="mb-5 rounded-[--r-md] border border-[--accent-border] bg-[--accent-subtle] px-3.5 py-3 text-[12.5px] leading-relaxed text-[--accent]">
+              <div className="mb-5 rounded-[--r-md] border border-[--accent-border] bg-[--accent-subtle] px-3.5 py-3 text-[12.5px] leading-relaxed text-[--accent-text]">
                 <strong className="font-semibold">Demo mode.</strong> Supabase isn&apos;t configured,
                 so any details below will sign you into a local sandbox with seeded conversations.
               </div>

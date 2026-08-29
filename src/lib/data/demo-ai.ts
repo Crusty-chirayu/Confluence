@@ -53,7 +53,7 @@ export function composeDemoReply(prompt: string, isGroup: boolean, roomName?: st
         h >> 3,
       )}`,
       ``,
-      `> Running in **demo mode** — this reply is generated locally. Connect Supabase and set \`AI_PROVIDER_API_KEY\` to stream from the real model.`,
+      `> Running in **Demo mode** — this reply is generated locally. Connect Supabase and set \`OPENROUTER_API_KEY\` to stream from the real model.`,
     ].join("\n");
   }
 

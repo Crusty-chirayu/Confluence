@@ -21,7 +21,12 @@ Deno.serve(async (req) => {
       .eq("code", code.trim().toLowerCase())
       .maybeSingle();
 
-    if (error) throw new HttpError(500, "lookup_failed", error.message);
+    // Postgres/PostgREST error text goes to the function logs, not the client:
+    // it can name columns, constraints and the surrounding schema.
+    if (error) {
+      console.error("invite-consume: lookup_failed", error.message);
+      throw new HttpError(500, "lookup_failed");
+    }
     if (!invite) throw new HttpError(404, "invite_not_found");
     if (new Date(invite.expires_at).getTime() < Date.now()) {
       throw new HttpError(410, "invite_expired");
@@ -42,7 +47,10 @@ Deno.serve(async (req) => {
         user_id: user.id,
         role: "member",
       });
-      if (joinErr) throw new HttpError(500, "join_failed", joinErr.message);
+      if (joinErr) {
+        console.error("invite-consume: join_failed", joinErr.message);
+        throw new HttpError(500, "join_failed");
+      }
 
       await admin
         .from("invites")

@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { backdrop, modalPanel } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { FOCUSABLE_SELECTOR } from "@/lib/focus";
 import { Button } from "./button";
 
 export function Modal({
@@ -26,17 +27,76 @@ export function Modal({
   className?: string;
 }) {
   const [mounted, setMounted] = React.useState(false);
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const restoreTo = React.useRef<HTMLElement | null>(null);
   React.useEffect(() => setMounted(true), []);
 
+  /**
+   * Dialog focus management (WCAG 2.4.3 / 2.1.2).
+   *
+   * Without this the dialog is a keyboard dead end: `aria-modal="true"`
+   * tells assistive tech the rest of the page is inert, but the browser
+   * still tabs straight through the background content behind the
+   * backdrop — and when the dialog closes, focus is left on <body>.
+   *
+   * So: remember the trigger, move focus into the panel, wrap Tab inside
+   * it, and hand focus back to the trigger on close. The panel itself is
+   * focused rather than its first control, because some dialogs open onto
+   * a destructive confirm (see ConfirmDialog) that must not be one stray
+   * Enter away from firing.
+   */
   React.useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
+
+    restoreTo.current = document.activeElement as HTMLElement | null;
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
+    // Wait a frame: the panel is mounted by AnimatePresence in the same
+    // commit that flips `open`, so it is not in the DOM yet on this tick.
+    const frame = requestAnimationFrame(() => panelRef.current?.focus());
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      const panel = panelRef.current;
+      if (!panel) return;
+
+      const focusable = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      ).filter((el) => !el.hasAttribute("disabled") && el.getAttribute("aria-hidden") !== "true");
+
+      if (focusable.length === 0) {
+        e.preventDefault();
+        panel.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+
+      if (e.shiftKey && (active === first || active === panel)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKey);
     return () => {
+      cancelAnimationFrame(frame);
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
+      document.body.style.overflow = prevOverflow;
+      const target = restoreTo.current;
+      // The trigger may have unmounted while the dialog was open.
+      if (target && document.contains(target)) target.focus();
     };
   }, [open, onClose]);
 
@@ -55,9 +115,13 @@ export function Modal({
             className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
           />
           <motion.div
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-label={title}
+            // Focusable container: focus lands here when the dialog opens so
+            // the dialog's accessible name is announced immediately.
+            tabIndex={-1}
             variants={modalPanel}
             initial="hidden"
             animate="show"

@@ -2,99 +2,123 @@
 
 /* =====================================================================
    AI Chat Platform — Design System (v2.0)
-   Implements §2.2 primitives + semantic tokens, §2.4 spacing/radius/
+   Implements the §6 semantic palette (light + dark), §2.4 spacing/radius/
    elevation, §2.6 accessibility tokens, §2.7 motion tokens.
 
-   NOTE: the legacy token names used throughout the component tree
-   (--fg, --accent, --ai-accent, …) are kept as ALIASES that resolve to
-   the §2.2 spec values below, so every component renders spec colors
-   without a mass rename. The §2.2 names are canonical.
+   The §6-named semantic variables are canonical. Legacy names used across
+   the component tree (--fg, --accent, --ai-accent, …) are ALIASES that
+   resolve to those canonical values, so every component renders the spec
+   colors without a mass rename.
+
+   All text-on-surface pairs are validated against WCAG AA (≥4.5:1 normal,
+   ≥3:1 large/UI) by `scripts/contrast.mjs`. Where a §6 literal falls below
+   AA on a raised surface, the token is nudged slightly and documented below.
    ===================================================================== */
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* ---------------- §2.2 PRIMITIVES ---------------- */
+  /* ---------------- PRIMITIVES ---------------- */
   --neutral-0: #ffffff;
-  --neutral-50: #f7f8fa;
-  --neutral-100: #eef0f3;
-  --neutral-200: #e2e5ea;
-  --neutral-300: #c7ccd4;
-  --neutral-500: #8b93a1;
-  --neutral-700: #4a5160;
-  --neutral-750: #2c313e;
-  --neutral-800: #232733;
-  --neutral-850: #191d26;
-  --neutral-900: #1b1e27;
-  --neutral-950: #101319;
+  --neutral-50: #f8faf9;
+  --neutral-100: #f1f4f4;
+  --neutral-200: #dce5e5;
+  --neutral-300: #c3d0d0;
+  --neutral-500: #5a6a6c;
+  --neutral-700: #465557;
+  --neutral-750: #333b3c;
+  --neutral-800: #262c2d;
+  --neutral-850: #1a2021;
+  --neutral-900: #101617;
+  --neutral-950: #080a0c;
 
-  --accent-500: #5b5bf6;
-  --accent-600: #4747dc;
+  --accent-500: #5555ee;
+  --accent-600: #4747d8;
   --accent-100: #e7e7fe;
   --accent-900: #22206b;
+  --accent-border: #c5c5fb;
 
-  --ai-teal-500: #0fb8a6;
+  /* §6 AI identity — LIGHT theme is the deeper §6 value so it clears AA
+     with white text (the DARK value #0fb8a6 is overridden in `.dark`). */
+  --ai-teal-500: #087f74;
   --ai-teal-100: #d8f6f1;
   --ai-teal-900: #0b3733;
+  --ai-strong: #066a62;
+  --ai-foreground: #ffffff;
 
-  --success-500: #1fa86a;
-  --warning-500: #e5a83b;
-  --danger-500: #e4514f;
+  --success-500: #087a4b;
+  --warning-500: #875f00;
+  --danger-500: #b4232d;
   --danger-100: #fce6e5;
   --danger-900: #3e1917;
+  --info-500: #175cd3;
 
-  /* ---------------- §2.2 SEMANTIC TOKENS (light) ---------------- */
-  --bg-app: var(--neutral-50);
-  --bg-surface: var(--neutral-0);
-  --bg-surface-raised: var(--neutral-0);
-  --bg-hover: var(--neutral-100);
-  --border-default: var(--neutral-200);
-  --text-primary: var(--neutral-900);
-  --text-secondary: var(--neutral-500);
-  --brand: var(--accent-500);
-  --brand-hover: var(--accent-600);
-
-  --bubble-user-bg: var(--accent-500);
-  --bubble-user-fg: #ffffff;
-  --bubble-other-bg: var(--neutral-100);
-  --bubble-other-fg: var(--neutral-900);
-  --bubble-ai-bg: var(--ai-teal-100);
-  --bubble-ai-fg: var(--neutral-900);
-  --bubble-ai-ring: var(--ai-teal-500);
-
-  --danger: var(--danger-500);
-  --success: var(--success-500);
-  --warning: var(--warning-500);
-
-  /* ---------------- LEGACY ALIASES → spec values ---------------- */
+  /* ---------------- §6 SEMANTIC TOKENS (light) ---------------- */
+  --background: #f8fafa;
+  --surface: #ffffff;
+  --surface-elevated: #f1f5f5;
+  --bg-app: var(--background);
+  --bg-surface: #ffffff;
+  --bg-surface-raised: #f1f5f5;
+  --bg-subtle: #eef2f2;
+  --bg-hover: #e8eeee;
+  --bg-active: #e0e8e8;
+  --border-default: #dce5e5;
+  --border-strong: #c3d0d0;
+  --border: var(--border-default);
   --bg: var(--bg-app);
-  --bg-subtle: var(--neutral-100);
-  --bg-active: var(--neutral-200);
   --surface: var(--bg-surface);
   --surface-raised: var(--bg-surface-raised);
-  --border: var(--border-default);
-  --border-strong: var(--neutral-300);
+  --ai-bubble: var(--bubble-ai-bg);
+  --foreground: #101617;
+  --foreground-muted: #4f5f5f;
+  /* AA-safe muted/subtle (nudged from §6 #667678 so it clears 4.5:1 on the
+     lightest raised surface). */
+  --text-primary: var(--foreground);
+  --text-secondary: #465557;
+  --fg: var(--foreground);
+  --fg-muted: #4f5f5f;
+  --fg-subtle: #5a6a6c;
+  --fg-inverse: #ffffff;
 
-  --fg: var(--text-primary);
-  --fg-muted: var(--neutral-700); /* body-safe muted (AA at 14px) */
-  --fg-subtle: var(--text-secondary); /* §2.6: UI/large text only */
-  --fg-inverse: var(--neutral-0);
-
+  --brand: #5555ee;
+  --brand-hover: #4747d8;
   --accent: var(--brand);
   --accent-hover: var(--brand-hover);
   --accent-active: var(--accent-600);
   --accent-subtle: var(--accent-100);
-  --accent-border: #c5c5fb;
-  --accent-fg: #ffffff;
+  --accent-foreground: #ffffff;
+  --accent-fg: var(--accent-foreground);
+  /* Accent used as TEXT/links on backgrounds — theme-aware so it clears AA
+     on the (light) app background and the dark one (buttons use --accent +
+     --accent-fg). */
+  --accent-text: #3f3fd0;
 
+  --success: var(--success-500);
   --success-subtle: #e3f6ec;
+  --warning: var(--warning-500);
   --warning-subtle: #fdf3e3;
+  --danger: var(--danger-500);
   --danger-subtle: var(--danger-100);
-  --danger-hover: #c93f3d;
+  --danger-hover: #9a1e27;
+  --info: var(--info-500);
+  --info-subtle: #e4edfb;
 
-  /* AI identity (§2.5) — teal, never gray, never brand-purple */
+  /* §6 AI identity. bubble-ai-ring = signature AI teal (rings/outlines). */
+  --ai: var(--bubble-ai-ring);
   --ai-accent: var(--bubble-ai-ring);
-  --ai-bubble: var(--bubble-ai-bg);
+
+  /* Bubbles (§2.2) */
+  --bubble-user-bg: var(--accent-500);
+  --bubble-user-fg: #ffffff;
+  --bubble-other-bg: var(--bg-subtle);
+  --bubble-other-fg: var(--foreground);
+  --bubble-ai-bg: var(--ai-teal-100);
+  --bubble-ai-fg: var(--foreground);
+  --bubble-ai-ring: var(--ai-teal-500);
+
+  /* §2.6 focus ring — identical everywhere */
+  --focus: var(--accent-500);
 
   /* ---------------- §2.4 RADIUS ---------------- */
   --r-sm: 6px; /* inputs / buttons */
@@ -119,57 +143,71 @@
 }
 
 .dark {
-  /* ---------------- §2.2 SEMANTIC TOKENS (dark) ---------------- */
-  --bg-app: var(--neutral-950);
-  --bg-surface: var(--neutral-850);
-  --bg-surface-raised: var(--neutral-800);
-  --bg-hover: var(--neutral-800);
-  --border-default: var(--neutral-750);
-  --text-primary: var(--neutral-0);
-  --text-secondary: #a7aebb;
-  --brand: var(--accent-500);
-  --brand-hover: #6d6df8;
-
-  --bubble-user-bg: var(--accent-500);
-  --bubble-user-fg: #ffffff;
-  --bubble-other-bg: var(--neutral-800);
-  --bubble-other-fg: var(--neutral-0);
-  --bubble-ai-bg: var(--ai-teal-900);
-  --bubble-ai-fg: var(--neutral-0);
-  --bubble-ai-ring: var(--ai-teal-500);
-
-  --danger: #f0726f;
-  --success: #34c77e;
-  --warning: #f0b94e;
-
-  /* ---------------- LEGACY ALIASES → spec values ---------------- */
+  /* ---------------- §6 SEMANTIC TOKENS (dark) ---------------- */
+  --background: #080a0c;
+  --surface: #11171a;
+  --surface-elevated: #161e22;
+  --bg-app: var(--background);
+  --bg-surface: #11171a;
+  --bg-surface-raised: #161e22;
+  --bg-subtle: #0d1114;
+  --bg-hover: #161e22;
+  --bg-active: #1d2627;
+  --border-default: #243036;
+  --border-strong: #3a4650;
+  --border: var(--border-default);
   --bg: var(--bg-app);
-  --bg-subtle: var(--neutral-850);
-  --bg-active: var(--neutral-750);
   --surface: var(--bg-surface);
   --surface-raised: var(--bg-surface-raised);
-  --border: var(--border-default);
-  --border-strong: #3a4050;
+  --ai-bubble: var(--bubble-ai-bg);
+  --neutral-500: #849091;
+  --foreground: #f4f7f7;
+  --foreground-muted: #849091;
+  --text-primary: var(--foreground);
+  --text-secondary: #aab8ba;
+  --fg: var(--foreground);
+  --fg-muted: #849091;
+  --fg-subtle: #7c8a8b;
+  --fg-inverse: #080a0c;
 
-  --fg: var(--text-primary);
-  --fg-muted: #a7aebb;
-  --fg-subtle: var(--neutral-500);
-  --fg-inverse: var(--neutral-950);
-
+  --brand: #5555ee;
+  --brand-hover: #6d6df8;
   --accent: var(--brand);
   --accent-hover: var(--brand-hover);
   --accent-active: #8383fa;
-  --accent-subtle: var(--accent-900);
-  --accent-border: #33338a;
-  --accent-fg: #ffffff;
+  --accent-subtle: #1b1b56;
+  --accent-foreground: #ffffff;
+  --accent-fg: var(--accent-foreground);
+  --accent-text: #9b9bff;
 
+  --success: #18c77a;
   --success-subtle: #0c2e1e;
+  --warning: #f5b942;
   --warning-subtle: #33260e;
-  --danger-subtle: var(--danger-900);
+  --danger: #ef5b62;
+  --danger-subtle: #3e1917;
   --danger-hover: #f58e8b;
+  --info: #5ba7ff;
+  --info-subtle: #102a4d;
 
+  /* §6 AI identity */
+  --ai-teal-500: #0fb8a6;
+  --ai-teal-100: #123f3a;
+  --ai-teal-900: #0b3733;
+  --ai-strong: #078f82;
+  --ai-foreground: #06211e;
+  --ai: var(--bubble-ai-ring);
   --ai-accent: var(--bubble-ai-ring);
-  --ai-bubble: var(--bubble-ai-bg);
+
+  --bubble-user-bg: var(--accent-500);
+  --bubble-user-fg: #ffffff;
+  --bubble-other-bg: #1a2021;
+  --bubble-other-fg: var(--foreground);
+  --bubble-ai-bg: var(--ai-teal-900);
+  --bubble-ai-fg: var(--foreground);
+  --bubble-ai-ring: var(--ai-teal-500);
+
+  --focus: var(--accent-500);
 
   --e1: 0 1px 2px 0 rgb(0 0 0 / 0.4);
   --e2: 0 2px 8px -2px rgb(0 0 0 / 0.5);
@@ -178,7 +216,26 @@
 }
 
 @theme inline {
-  /* spec-named utilities */
+  /* §6 spec-named utilities */
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-border: var(--border-default);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ai: var(--ai);
+  --color-ai-foreground: var(--ai-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-bubble-ai: var(--bubble-ai-bg);
+  --color-bubble-user: var(--bubble-user-bg);
+  --color-focus: var(--focus);
+
+  /* existing spec-named / legacy utilities */
   --color-bg-app: var(--bg-app);
   --color-bg-surface: var(--bg-surface);
   --color-bg-surface-raised: var(--bg-surface-raised);
@@ -192,13 +249,12 @@
   --color-bubble-ai: var(--bubble-ai-bg);
   --color-bubble-ai-ring: var(--bubble-ai-ring);
 
-  /* legacy aliases */
   --color-bg: var(--bg);
   --color-bg-subtle: var(--bg-subtle);
   --color-bg-hover: var(--bg-hover);
   --color-bg-active: var(--bg-active);
   --color-surface: var(--surface);
-  --color-surface-raised: var(--surface-raised);
+  --color-surface-raised: var(--bg-surface-raised);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-fg: var(--fg);
@@ -211,6 +267,7 @@
   --color-accent-subtle: var(--accent-subtle);
   --color-accent-border: var(--accent-border);
   --color-accent-fg: var(--accent-fg);
+  --color-accent-text: var(--accent-text);
   --color-success: var(--success);
   --color-success-subtle: var(--success-subtle);
   --color-warning: var(--warning);
@@ -232,9 +289,12 @@
   --shadow-e4: var(--e4);
 
   /* §2.3 typography */
-  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+  /* §2.3 — self-hosted in src/app/fonts (see src/app/layout.tsx). The
+     Latin-Extended family sits after the Latin one so it is only requested
+     when a glyph needs it; the generic stacks remain as the last resort. */
+  --font-sans: var(--font-inter), var(--font-inter-ext), ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas,
     "Liberation Mono", monospace;
 }
 
@@ -447,9 +507,16 @@ body {
   margin-top: 0.25em;
 }
 .prose-chat a {
-  color: var(--brand);
+  /* --accent-text is the theme-aware "accent as text" token — it clears AA on
+     every chat surface in both themes (--brand alone fails in dark). */
+  color: var(--accent-text);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+/* Inside a sender bubble the link inherits the bubble's own (AA-validated)
+   text color — a purple link on the purple own-message bubble would vanish. */
+.bubble .prose-chat a {
+  color: inherit;
 }
 .prose-chat code {
   font-family: var(--font-mono);

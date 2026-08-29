@@ -81,6 +81,32 @@ export function plainPreview(md: string): string {
     .trim();
 }
 
+export interface PinnedPartition<T> {
+  pinned: T[];
+  rest: T[];
+}
+
+/**
+ * Split a conversation list into the pinned group and everything else.
+ *
+ * Pinned rows float to the top of the sidebar, ordered by when they were
+ * pinned (most recent first) rather than by recency — a pin is a deliberate
+ * placement, so it should hold still while other conversations move under
+ * it. Unpinned rows keep the order the caller already sorted them into.
+ */
+export function partitionPinned<T extends { pinned_at?: string | null }>(
+  items: readonly T[],
+): PinnedPartition<T> {
+  const pinned: T[] = [];
+  const rest: T[] = [];
+  for (const item of items) {
+    if (item.pinned_at) pinned.push(item);
+    else rest.push(item);
+  }
+  pinned.sort((a, b) => (b.pinned_at ?? "").localeCompare(a.pinned_at ?? ""));
+  return { pinned, rest };
+}
+
 export const MENTION_RE = /@ai\b/i;
 
 export function mentionsAi(text: string): boolean {
@@ -91,4 +117,47 @@ export function shouldInvokeAi(text: string, aiMode: string): boolean {
   if (aiMode === "off") return false;
   if (aiMode === "auto") return true;
   return mentionsAi(text);
+}
+
+/**
+ * Sanitise a `?next=` style redirect target down to a safe in-app path.
+ *
+ * Login, signup and the OAuth callback all echo a caller-supplied `next`
+ * back into `router.push()` / `NextResponse.redirect()`. Without this,
+ * `/login?next=https://evil.example` turns the login form into an open
+ * redirect — a convincing phishing hop, because the victim starts on the
+ * real domain.
+ *
+ * Rejects anything that is not a single-slash, same-origin path: absolute
+ * URLs, protocol-relative `//host`, backslash variants (`/\host`, which
+ * browsers normalise to `//host`), embedded schemes, and control
+ * characters (including their percent-encoded forms).
+ */
+export function safeInternalPath(
+  value: string | null | undefined,
+  fallback = "/app",
+): string {
+  if (!value) return fallback;
+
+  let candidate = value.trim();
+  if (candidate.length === 0) return fallback;
+
+  // Decode once so `%2f%2fevil.example` cannot smuggle a protocol-relative
+  // host past the checks below.
+  try {
+    candidate = decodeURIComponent(candidate);
+  } catch {
+    // Malformed percent-encoding — not a path we want to honour.
+    return fallback;
+  }
+
+  if (!candidate.startsWith("/")) return fallback;
+  // Protocol-relative host, or `/\host` (browsers rewrite `\` to `/`).
+  if (/^\/[/\\]/.test(candidate)) return fallback;
+  // Any embedded scheme anywhere in the value.
+  if (candidate.includes("://")) return fallback;
+  // Control characters / newlines (header + log injection).
+  if (/[\u0000-\u001f\u007f]/.test(candidate)) return fallback;
+
+  return candidate;
 }

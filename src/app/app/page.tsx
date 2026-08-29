@@ -64,7 +64,7 @@ export default function AppHomePage() {
             disabled={busy}
             className="group flex items-start gap-3 rounded-[--r-lg] border border-[--border] bg-[--surface] p-4 text-left shadow-[--e1] transition-all duration-[--d-standard] hover:-translate-y-0.5 hover:border-[--border-strong] hover:shadow-[--e2] disabled:opacity-60"
           >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[--r-md] bg-[--accent-subtle] text-[--accent]">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[--r-md] bg-[--accent-subtle] text-[--accent-text]">
               <MessagesSquare className="h-[18px] w-[18px]" />
             </span>
             <span className="min-w-0">
@@ -135,7 +135,7 @@ export default function AppHomePage() {
           <motion.div
             variants={riseIn}
             transition={tEnter()}
-            className="mt-8 rounded-[--r-md] border border-[--accent-border] bg-[--accent-subtle] px-4 py-3 text-center text-[12.5px] leading-relaxed text-[--accent]"
+            className="mt-8 rounded-[--r-md] border border-[--accent-border] bg-[--accent-subtle] px-4 py-3 text-center text-[12.5px] leading-relaxed text-[--accent-text]"
           >
             <strong className="font-semibold">Demo mode.</strong> Data lives in your browser and the
             assistant is simulated locally. Add your Supabase keys to{" "}

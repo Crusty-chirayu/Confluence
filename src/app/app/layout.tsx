@@ -9,10 +9,12 @@ import { NewConversationModal } from "@/components/layout/new-conversation-modal
 import { JoinModal } from "@/components/layout/join-modal";
 import { SearchModal } from "@/components/layout/search-modal";
 import { CommandPalette } from "@/components/layout/command-palette";
+import { OfflineBanner } from "@/components/offline-banner";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { useSession } from "@/components/session-provider";
-import { listConversations } from "@/lib/data/api";
+import { useToast } from "@/components/ui/toast";
+import { listConversations, setPinned } from "@/lib/data/api";
 import { DEMO_MODE } from "@/lib/env";
 import { demo } from "@/lib/data/demo-store";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
@@ -25,6 +27,7 @@ export const AppDataContext = React.createContext<{ refreshConversations: () => 
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const toast = useToast();
   const { profile, loading: sessionLoading } = useSession();
 
   const [conversations, setConversations] = React.useState<ConversationSummary[]>([]);
@@ -42,6 +45,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
   }, []);
+
+  // §3 pinned conversations — the pin is stored on the caller's membership
+  // row, so the refresh simply re-reads it from the server (or demo store).
+  const togglePin = React.useCallback(
+    async (conversationId: string, pinned: boolean) => {
+      // Optimistic: the sidebar reorders immediately, then reconciles.
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === conversationId
+            ? { ...c, pinned_at: pinned ? new Date().toISOString() : null }
+            : c,
+        ),
+      );
+      try {
+        await setPinned(conversationId, pinned);
+      } catch (e) {
+        toast.push({
+          kind: "error",
+          title: pinned ? "Couldn't pin" : "Couldn't unpin",
+          description: String(e),
+        });
+      } finally {
+        await refresh();
+      }
+    },
+    [refresh, toast],
+  );
 
   // auth guard
   React.useEffect(() => {
@@ -114,6 +144,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       onSearch={() => setSearchOpen(true)}
       onPalette={() => setPaletteOpen(true)}
       onNavigate={() => setDrawerOpen(false)}
+      onTogglePin={(id, pinned) => void togglePin(id, pinned)}
     />
   );
 
@@ -151,6 +182,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
 
         <div className="flex min-w-0 flex-1 flex-col">
+          <OfflineBanner />
+
           {/* mobile top bar */}
           <div className="flex h-14 shrink-0 items-center gap-2 border-b border-[--border] px-3 lg:hidden">
             <Button
