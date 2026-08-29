@@ -39,8 +39,12 @@ so the release can be executed against a real deployment.
 Set in Supabase, never in source control or the browser:
 
 ```bash
-supabase secrets set AI_PROVIDER_API_KEY=sk-ant-...   # Anthropic Messages key
+supabase secrets set OPENROUTER_API_KEY=sk-or-...   # OpenRouter key (openrouter.ai/keys)
 ```
+
+The orchestrator calls OpenRouter's OpenAI-compatible Chat Completions API
+(`https://openrouter.ai/api/v1/chat/completions`); default model is
+`anthropic/claude-sonnet-4.6` (override per environment with `AI_MODEL`).
 
 Optional, for the training pipeline (unanimous-consent gate):
 ```bash
@@ -139,6 +143,7 @@ supabase functions deploy ai-orchestrator moderation-check invite-consume
 |---|---|---|
 | `NEXT_PUBLIC_GITHUB_REPO` | frontend build | repo whose Releases feed `/changelog` (defaults to `Crusty-chirayu/Group-Chatbot`) |
 | `GITHUB_TOKEN` | frontend build, **server only** | raises the GitHub API rate limit for `/changelog`. The page falls back to a static entry if it is unset |
+| `AI_MODEL` | Supabase Edge Function secret | OpenRouter model slug; defaults to `anthropic/claude-sonnet-4.6` |
 | `ALLOWED_ORIGINS` | Supabase Edge Function secret | comma-separated allowlist for the functions' CORS. Defaults to `*` — set it to your real origins before launch |
 
 ## 6. Verify production

@@ -136,7 +136,7 @@ taken from previous reports.
 |---|---|---|
 | Shared `conversation` model | ✅ | |
 | `ai_mode` OFF/MENTION_ONLY/AUTO | ✅ | |
-| Key only via `Deno.env.get("AI_PROVIDER_API_KEY")` | ✅ | one read, never logged, never in a response |
+| Key only via `Deno.env.get("OPENROUTER_API_KEY")` | ✅ | one read, never logged, never in a response |
 | **Moderation fails closed, both stages** | ✅ | try/catch → `error_failed_closed`; tested |
 | Orchestrator flow (§7 steps 1–7) | ✅ | incl. `superseded` on regenerate |
 | Streaming delivery | ✅ | intentional deviation from §6, ratified — see Interpretation calls |

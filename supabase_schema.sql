@@ -701,7 +701,7 @@ group by 1, 2;
 -- END OF SCHEMA
 -- After running this file:
 --   1. In Supabase Dashboard > Authentication, enable Email + Google providers.
---   2. Run: supabase secrets set AI_PROVIDER_API_KEY=sk-ant-...
+--   2. Run: supabase secrets set OPENROUTER_API_KEY=sk-or-...
 --   3. Deploy edge functions: supabase functions deploy ai-orchestrator
 --      moderation-check invite-consume
 --   4. Confirm RLS is ON for every table above (Dashboard > Table Editor
