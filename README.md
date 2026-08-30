@@ -1,25 +1,71 @@
-# Confluence — AI Chat Platform (v2.0)
+<div align="center">
 
-A ChatGPT/Discord hybrid: **private 1:1 AI chat** plus **opt-in AI participation inside multi-user group rooms**, sharing a single conversation model.
+# 🌌 Confluence
+### The AI Chat Platform — Where 1:1 Conversations Meet Group Intelligence
 
-Built per the v2.0 master build prompt: Next.js 16 (App Router) + TypeScript + Tailwind v4 on the front, Supabase (Postgres, Auth, Realtime, Storage, Edge Functions) on the back, OpenRouter's OpenAI-compatible Chat Completions API for streaming inference.
+**A ChatGPT × Discord hybrid.** Private 1:1 AI chat and opt-in AI participation inside multi-user rooms — one conversation model, two experiences.
+
+<br/>
+
+![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind-v4-38BDF8?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%7C%20Auth%20%7C%20Realtime-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
+![OpenRouter](https://img.shields.io/badge/OpenRouter-Streaming%20Inference-8A2BE2?style=for-the-badge)
+
+![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)
+![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)
+![Status](https://img.shields.io/badge/status-active--development-orange?style=flat-square)
+
+<br/>
+
+**[🚀 Quick Start](#-quick-start) · [🏗 Architecture](#-architecture) · [🔐 Security](#-security-model) · [🎬 Motion System](#-motion-system) · [📄 Pages](#-page-inventory) · [🧪 CI/CD](#-cicd--push-everything-release-policy)**
+
+</div>
+
+<br/>
+
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║   No env vars? No problem. Confluence boots straight into DEMO MODE  ║
+║   — a fully seeded, in-browser experience. Every screen, every       ║
+║   animation, every streaming reply — explorable with zero backend.   ║
+╚══════════════════════════════════════════════════════════════════════╝
+```
 
 ---
 
-## Quick start
+## ✨ Why Confluence
+
+| | |
+|---|---|
+| 💬 **Unified conversation model** | 1:1 chats and group rooms share the same schema — the AI is just another participant |
+| ⚡ **True shared streaming** | One `messages` row updates in place — every member of a room watches the *same* tokens land at the *same* moment |
+| 🔒 **Key never leaves the server** | The OpenRouter provider key lives only in an Edge Function's environment — the browser never sees it |
+| 🛡 **Fail-closed moderation** | Two-stage (pre + post) checks; a classifier *error* blocks publication rather than silently passing it |
+| 🎛 **Row-Level Security everywhere** | Every table's access rule is a Postgres policy, not app-layer trust |
+| 🎨 **A real motion system** | Every animation traces back to one token file — nothing ad hoc, nothing per-component |
+| 🧪 **Demo-first** | The entire product is explorable without ever touching a database |
+
+---
+
+## 🚀 Quick Start
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000
+npm run dev          # → http://localhost:3000
 ```
 
-With no environment variables set, the app boots into **demo mode** — an in-browser store with seeded conversations and a locally simulated streaming assistant. Every screen is explorable without a backend.
+With no environment variables set, the app boots into **demo mode** — an in-browser store with seeded conversations and a locally simulated streaming assistant.
 
-### Connecting a real Supabase project
+<details>
+<summary><b>🔌 Connecting a real Supabase project</b></summary>
 
-1. Create a project at [supabase.com](https://supabase.com).
-2. Run [`supabase_schema.sql`](./supabase_schema.sql) in the SQL Editor (or `supabase db push`).
-3. Dashboard → Authentication → enable **Email** and **Google** providers.
+<br/>
+
+1. Create a project at [supabase.com](https://supabase.com)
+2. Run [`supabase_schema.sql`](./supabase_schema.sql) in the SQL Editor (or `supabase db push`)
+3. Dashboard → **Authentication** → enable **Email** and **Google** providers
 4. Set the frontend keys:
 
    ```bash
@@ -34,93 +80,180 @@ With no environment variables set, the app boots into **demo mode** — an in-br
    supabase functions deploy ai-orchestrator moderation-check invite-consume
    ```
 
-6. Confirm RLS is ON for every table (shield icon in the Table Editor) before going to production.
+6. **Confirm RLS is ON** for every table (shield icon in the Table Editor) before going to production.
+
+</details>
 
 ---
 
-## Architecture
+## 🏗 Architecture
 
+```mermaid
+flowchart TB
+    subgraph Client["🌐 Browser"]
+        UI["Next.js 16 App Router\nReact · TypeScript · Tailwind v4"]
+    end
+
+    subgraph Vercel["▲ Vercel"]
+        UI
+    end
+
+    subgraph Supabase["🟢 Supabase Platform"]
+        PG[("Postgres\nRLS-enforced membership")]
+        RT["Realtime\npostgres_changes + broadcast"]
+        ST["Storage\navatars (public) · attachments (private)"]
+
+        subgraph Edge["Edge Functions (Deno)"]
+            AO["ai-orchestrator\nholds the provider key"]
+            MC["moderation-check"]
+            IC["invite-consume\nservice_role"]
+        end
+    end
+
+    OR["🔮 OpenRouter\nOpenAI-compatible Chat Completions API\n(streaming)"]
+
+    UI -- "@supabase/ssr" --> PG
+    UI --- RT
+    UI --- ST
+    UI -- "fetch (SSE)" --> AO
+    AO --> MC
+    AO -- "_shared/provider.ts\ntranslation layer" --> OR
+    IC -.-> PG
+
+    style Client fill:#0f172a,stroke:#38bdf8,color:#e2e8f0
+    style Supabase fill:#052e1f,stroke:#3ecf8e,color:#e2e8f0
+    style Edge fill:#1e1b3a,stroke:#8a2be2,color:#e2e8f0
+    style OR fill:#2d0f3a,stroke:#c084fc,color:#e2e8f0
 ```
-Browser ──▶ Next.js (Vercel)
-              │
-              ├── @supabase/ssr ──▶ Postgres  ← RLS enforces membership
-              │                     Realtime  ← postgres_changes + broadcast
-              │                     Storage   ← avatars (public) / attachments (private)
-              │
-              └── fetch(SSE) ────▶ Edge Functions (Deno)
-                                    ├── ai-orchestrator   ← holds the provider key
-                                    ├── moderation-check
-                                    └── invite-consume    ← service_role
-                                          │
-                                          └──▶ OpenRouter Chat Completions API
-                                               (OpenAI-compatible, streaming)
-                                               ← _shared/provider.ts translation layer
+
+> **The AI provider key never reaches the browser.** The client calls `ai-orchestrator`, which streams SSE back while progressively updating one `messages` row — so every member of a group room watches the same answer appear at the same moment.
+
+### 🔄 Streaming lifecycle (data flow)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as Client (Next.js)
+    participant DB as Postgres (RLS)
+    participant AO as ai-orchestrator (Edge Fn)
+    participant MOD as moderation-check
+    participant OR as OpenRouter
+
+    U->>C: Sends message
+    C->>DB: INSERT human message
+    Note over DB: RLS: must be a member,\nsender_type='human',\nsender_id=auth.uid()
+    C->>AO: Invoke (SSE)
+    AO->>DB: Verify membership + rate limit
+    AO->>MOD: Pre-moderate trigger message
+    MOD-->>AO: pass / fail
+    AO->>DB: INSERT placeholder AI row (status: streaming)
+    AO->>OR: Stream chat completion
+    loop every ~400ms
+        OR-->>AO: SSE delta
+        AO-->>C: Forward delta
+        AO->>DB: Flush row content
+    end
+    AO->>MOD: Post-moderate finished output
+    alt moderation passes
+        AO->>DB: status → 'sent'
+    else moderation fails
+        AO->>DB: content redacted, status → 'blocked'
+    end
+    AO->>DB: Log tokens + latency → ai_usage_log
+    DB-->>C: Realtime broadcast to all room members
 ```
 
-**The AI provider key never reaches the browser.** The client calls `ai-orchestrator`, which streams SSE back while progressively updating one `messages` row — so every member of a group room watches the same answer appear at the same moment.
-
-### Streaming lifecycle
-
-1. Client inserts the human message (RLS: must be a member, `sender_type = 'human'`, `sender_id = auth.uid()`).
-2. Client calls `ai-orchestrator`.
-3. Function verifies membership → rate limits → **pre-moderates** the trigger message.
-4. Inserts a placeholder AI row with `status: 'streaming'`.
-5. Streams from OpenRouter; forwards SSE deltas to the caller and flushes the row every ~400ms.
-6. **Post-moderates** the finished output. Pass → `status: 'sent'`. Fail → content redacted, `status: 'blocked'`.
-7. Logs tokens and latency to `ai_usage_log`.
-
-`regenerate()` reruns step 3 onward with `supersedes_id` set; the previous answer becomes `status: 'superseded'` and drops out of the view without being destroyed.
+`regenerate()` reruns from step 3 onward with `supersedes_id` set — the previous answer becomes `status: 'superseded'` and drops out of the view **without being destroyed.**
 
 ---
 
-## Security model
+## 🔐 Security Model
+
+```mermaid
+flowchart LR
+    A["Who can read\na conversation?"] -->|"RLS: is_conversation_member()"| B["conversations · messages ·\nreactions · message_attachments"]
+    C["Who can administer\na room?"] -->|"RLS: is_conversation_admin()"| D["owner / admin only"]
+    E["Audit tables"] -->|"RLS enabled,\nzero policies"| F["unreachable from anon/authenticated\n→ service_role only"]
+    G["Invite redemption"] -->|"invite-consume\n(service_role)"| H["no RLS path to an\nunjoined room's invite"]
+```
 
 | Concern | Enforcement |
-| --- | --- |
-| Who can read a conversation | RLS `is_conversation_member()` on `conversations`, `messages`, `reactions`, `message_attachments` |
-| Who can administer a room | RLS `is_conversation_admin()` — owner/admin only |
-| Audit tables | RLS **enabled with zero policies** → unreachable from `anon`/`authenticated`; only `service_role` |
-| AI provider key | `OPENROUTER_API_KEY` — only ever in the Edge Function environment |
-| Invite redemption | `invite-consume` (service_role) — the client has no RLS path to an invite for a room it hasn't joined |
-| Moderation | Two stages (`pre`, `post`), **fails closed** — a classifier error blocks publication |
-| Rate limiting | 30 msg/min and 20 invites/hr as `BEFORE INSERT` triggers in the database (every write path), plus fixed-window Edge Function counters in `rate_limit_events` for 10 AI calls/min and 60 moderation checks/min |
-| Attachments | Private bucket, storage policies call the same membership check |
-| Training data | `profiles.training_opt_in`, off by default; routing requires **unanimous** opt-in |
-| Redirect targets | `?next=` is collapsed to a same-origin path by `safeInternalPath()` — no open redirects |
+|---|---|
+| 📖 Who can read a conversation | RLS `is_conversation_member()` on `conversations`, `messages`, `reactions`, `message_attachments` |
+| 👑 Who can administer a room | RLS `is_conversation_admin()` — owner/admin only |
+| 🕵️ Audit tables | RLS **enabled with zero policies** → unreachable from `anon`/`authenticated`; only `service_role` |
+| 🔑 AI provider key | `OPENROUTER_API_KEY` — only ever in the Edge Function environment |
+| 🎟 Invite redemption | `invite-consume` (service_role) — the client has no RLS path to an invite for a room it hasn't joined |
+| 🚧 Moderation | Two stages (`pre`, `post`), **fails closed** — a classifier error blocks publication |
+| ⏱ Rate limiting | 30 msg/min & 20 invites/hr as `BEFORE INSERT` triggers (every write path), plus fixed-window Edge Function counters — 10 AI calls/min, 60 moderation checks/min |
+| 📎 Attachments | Private bucket, storage policies call the same membership check |
+| 🧠 Training data | `profiles.training_opt_in`, off by default; routing requires **unanimous** opt-in |
+| ↪️ Redirect targets | `?next=` collapsed to a same-origin path by `safeInternalPath()` — no open redirects |
 
-The client-side classifier in `src/lib/data/moderation-local.ts` is a **UX affordance only** — it warns before you send. The authoritative check always runs server-side.
+> ⚠️ The client-side classifier in `src/lib/data/moderation-local.ts` is a **UX affordance only** — it warns before you send. The authoritative check always runs server-side.
 
 ---
 
-## Typography (§2.3)
+## 🎨 Typography <sub>§2.3</sub>
 
-Inter and JetBrains Mono are **self-hosted**: variable woff2 files live in
-[`src/app/fonts/`](./src/app/fonts) (both SIL OFL 1.1 licences committed alongside them) and are
-wired through `next/font/local`, which derives adjusted fallback metrics so the system-font
-fallback no longer shifts layout on first paint. No request goes to a font CDN.
+Inter and JetBrains Mono are **self-hosted** — variable `.woff2` files live in [`src/app/fonts/`](./src/app/fonts) (SIL OFL 1.1 licences committed alongside them), wired through `next/font/local`, which derives adjusted fallback metrics so the system-font fallback doesn't shift layout on first paint. **No request ever leaves for a font CDN.**
 
-## Motion system (§2.7)
+---
+
+## 🎬 Motion System <sub>§2.7</sub>
 
 Every animation is driven by tokens in [`src/lib/motion.ts`](./src/lib/motion.ts) — no ad hoc per-component timings.
 
-- **Durations** — `120ms` micro, `200ms` standard, `320ms` emphasis, `480ms` hero.
-- **Easing** — `cubic-bezier(0.16, 1, 0.3, 1)` entering, `cubic-bezier(0.7, 0, 0.84, 0)` exiting.
-- **Transform/opacity only** — never `width`/`height`/`top`/`left`.
-- **Exit is always faster than entry.**
-- **`prefers-reduced-motion`** collapses every animation to an instant cut (not a slower version) via a global override in `globals.css`.
+<table>
+<tr><td>
 
-Highlights: staggered scroll reveals on the landing page, hero parallax, blurred-glass nav after 40px, `layout` animation for conversation-list reordering, streaming reveal with a blinking caret (no per-token effects — that's visually noisy at speed), staggered-pulse typing dots, reactions popping in on an overshoot spring, sun↔moon rotate-and-fade theme morph with a 200ms surface crossfade, skeleton shimmer wherever content has a predictable shape (spinners only where it doesn't), toasts with a visible shrinking dismissal bar, and an accessible offline / reconnecting / restored banner that collapses to an instant cut under `prefers-reduced-motion`.
+**Durations**
+- `120ms` micro
+- `200ms` standard
+- `320ms` emphasis
+- `480ms` hero
 
-Destructive confirms use a **debounce with a visual tell** — clicking the confirm button within 450ms of the dialog opening shakes it instead of silently swallowing the click.
+</td><td>
+
+**Easing**
+- Entering → `cubic-bezier(0.16, 1, 0.3, 1)`
+- Exiting → `cubic-bezier(0.7, 0, 0.84, 0)`
+
+</td><td>
+
+**Rules**
+- Transform / opacity **only** — never `width`/`height`/`top`/`left`
+- Exit is **always** faster than entry
+
+</td></tr>
+</table>
+
+`prefers-reduced-motion` collapses every animation to an **instant cut** (not a slower version) via a global override in `globals.css`.
+
+**Highlights:**
+
+- 🌀 Staggered scroll reveals on the landing page + hero parallax
+- 🪟 Blurred-glass nav after 40px scroll
+- 📋 `layout` animation for conversation-list reordering
+- ⌨️ Streaming reveal with a blinking caret — *no per-token effects* (visually noisy at speed)
+- 💬 Staggered-pulse typing dots
+- 🎉 Reactions pop in on an overshoot spring
+- 🌗 Sun ↔ moon rotate-and-fade theme morph with a 200ms surface crossfade
+- 💀 Skeleton shimmer wherever content has a predictable shape (spinners only where it doesn't)
+- 🔔 Toasts with a visible shrinking dismissal bar
+- 📡 Accessible offline / reconnecting / restored banner — collapses to an instant cut under `prefers-reduced-motion`
+
+> 🛑 **Destructive confirms** use a debounce with a visual tell — clicking confirm within **450ms** of the dialog opening *shakes it* instead of silently swallowing the click.
 
 ---
 
-## Page inventory
+## 📄 Page Inventory
 
 | Route | Purpose |
-| --- | --- |
+|---|---|
 | `/` | Landing — hero with a live animated demo, features, how-it-works, security, pricing teaser |
-| `/pricing` | Standalone pricing — the full plan table, FAQ, and the limits behind each tier |
+| `/pricing` | Standalone pricing — full plan table, FAQ, limits behind each tier |
 | `/login`, `/signup` | Email + Google auth, inline validation, password strength, in-place success states |
 | `/forgot-password`, `/reset-password` | Recovery flow |
 | `/auth/callback` | OAuth / magic-link code exchange |
@@ -130,106 +263,105 @@ Destructive confirms use a **debounce with a visual tell** — clicking the conf
 | `/app/settings` | Profile, appearance, privacy & data (incl. JSON export), account |
 | `/join/[code]` | Invite redemption |
 
-Room settings (name, topic, AI mode, members, roles, invites, danger zone) live in a modal on the chat surface.
+> Room settings (name, topic, AI mode, members, roles, invites, danger zone) live in a modal on the chat surface.
 
 ---
 
-## Project layout
+## 🗂 Project Layout
 
 ```
 src/
-  app/                      routes (App Router)
-  components/
-    ui/                     button, input, modal, toast, avatar, skeleton
-    chat/                   chat-view, composer, message-item, markdown, room-settings
-    layout/                 sidebar, search / join / new-conversation modals
-    landing/                nav, hero-demo, section primitives
-    theme-provider.tsx      light/dark/system + morphing toggle
-    session-provider.tsx    auth state, works in both modes
-    network-provider.tsx    online/offline/reconnecting state (§27)
-    offline-banner.tsx      accessible offline / restored banner
-  app/fonts/               self-hosted Inter + JetBrains Mono (OFL licences)
-  lib/
-    motion.ts               §2.7 motion tokens — single source of truth
-    data/api.ts             unified data layer (Supabase ⟷ demo)
-    data/demo-store.ts      in-browser Supabase stand-in
-    supabase/               browser + server clients
+├── app/                      routes (App Router)
+├── components/
+│   ├── ui/                   button, input, modal, toast, avatar, skeleton
+│   ├── chat/                 chat-view, composer, message-item, markdown, room-settings
+│   ├── layout/                sidebar, search / join / new-conversation modals
+│   ├── landing/               nav, hero-demo, section primitives
+│   ├── theme-provider.tsx     light/dark/system + morphing toggle
+│   ├── session-provider.tsx   auth state, works in both modes
+│   └── network-provider.tsx   online/offline/reconnecting state (§27)
+├── app/fonts/                self-hosted Inter + JetBrains Mono (OFL licences)
+└── lib/
+    ├── motion.ts              §2.7 motion tokens — single source of truth
+    ├── data/api.ts            unified data layer (Supabase ⟷ demo)
+    ├── data/demo-store.ts     in-browser Supabase stand-in
+    └── supabase/              browser + server clients
+
 supabase/
-  functions/                ai-orchestrator, moderation-check, invite-consume
-    _shared/provider.ts     pure OpenRouter (OpenAI-compatible) translation
-                            layer — request builder + SSE decoder, unit-tested
-  migrations/               versioned history — `supabase db push` applies these
-supabase_schema.sql         the complete, re-runnable snapshot of the database layer
+├── functions/
+│   ├── ai-orchestrator
+│   ├── moderation-check
+│   ├── invite-consume
+│   └── _shared/provider.ts    pure OpenRouter translation layer — unit-tested
+└── migrations/                versioned history — `supabase db push` applies these
+
+supabase_schema.sql            complete, re-runnable snapshot of the database layer
 ```
 
 ---
 
-## CI/CD — "push everything" release policy (§1)
+## 🧪 CI/CD — "push everything" release policy <sub>§1</sub>
 
-- **[`.github/workflows/ci.yml`](./.github/workflows/ci.yml)** — live; on every push/PR: typecheck, lint, unit tests, build, plus `deno check` on all three Edge Functions, the moderation fail-closed integration test, and a gitleaks secret scan.
+```mermaid
+flowchart LR
+    A[Push / PR] --> B["ci.yml\ntypecheck · lint · unit tests · build\ndeno check (3 Edge Fns)\nmoderation fail-closed test\ngitleaks secret scan"]
+    C["Push to main"] --> D["release.yml"]
+    D --> E["1️⃣ migrations"] --> F["2️⃣ Edge Functions"] --> G["3️⃣ frontend"]
+    G -.->|"partial deploy = failed deploy"| D
+```
 
-  ⚠️ **The Playwright `e2e` job and the token-contrast step are NOT in this file yet.** The
-  `e2e/` suite (31 tests) and `scripts/contrast.mjs` are committed and run locally, but the
-  commit that adds them to `ci.yml` cannot be pushed by the agent's GitHub App credential
-  (GitHub rejects workflow writes server-side without the `workflows` permission — re-verified
-  2026-08-28). The exact diff ships in the repo as
-  [`ci/patches/ci-playwright-and-contrast.patch`](./ci/patches/ci-playwright-and-contrast.patch);
-  see [`RELEASING.md` §3](./RELEASING.md) for the one-time owner action.
-- **[`.github/workflows/release.yml`](./.github/workflows/release.yml)** — live; on push to `main`, in strict dependency order: **migrations → Edge Functions → frontend**. A partial deploy is treated as a failed deploy.
+- **[`.github/workflows/ci.yml`](./.github/workflows/ci.yml)** — ✅ live
+- **[`.github/workflows/release.yml`](./.github/workflows/release.yml)** — ✅ live, strict dependency order: **migrations → Edge Functions → frontend**
 
-> Both workflows were initially shipped under [`ci/`](./ci) (the original push credential
-> lacked the `workflows` permission) and were activated into `.github/workflows/` once
-> that was resolved. They now live **only** there — [`ci/README.md`](./ci/README.md) is
-> the documentation for them (jobs, Deno configuration contract, required secrets).
+> ⚠️ **The Playwright `e2e` job and the token-contrast step are NOT in `ci.yml` yet.** The `e2e/` suite (31 tests) and `scripts/contrast.mjs` are committed and run locally, but the commit that adds them to `ci.yml` can't be pushed by the agent's GitHub App credential (GitHub rejects workflow writes server-side without the `workflows` permission — re-verified 2026-08-28). The diff ships as [`ci/patches/ci-playwright-and-contrast.patch`](./ci/patches/ci-playwright-and-contrast.patch) — see [`RELEASING.md` §3](./RELEASING.md) for the one-time owner action.
 
-Edge Function type-checking uses two synchronized Deno configs — the root
-[`deno.json`](./deno.json) (applied when CI runs `deno` from the repo root; provisions
-npm deps from the committed [`deno.lock`](./deno.lock)) and
-[`supabase/functions/deno.json`](./supabase/functions/deno.json) (applied when the
-Supabase CLI bundles functions for deploy). Their `imports` must stay identical; see
-the contract note in each file and in [`ci/README.md`](./ci/README.md).
+Both workflows were initially shipped under [`ci/`](./ci) (the original push credential lacked the `workflows` permission) and activated into `.github/workflows/` once resolved. They now live **only** there — [`ci/README.md`](./ci/README.md) documents jobs, the Deno configuration contract, and required secrets.
 
-Required repository secrets are listed in [`.env.example`](./.env.example) and [`ci/README.md`](./ci/README.md).
+Edge Function type-checking uses two synchronized Deno configs — root [`deno.json`](./deno.json) (CI, provisions npm deps from [`deno.lock`](./deno.lock)) and [`supabase/functions/deno.json`](./supabase/functions/deno.json) (Supabase CLI bundling). Their `imports` must stay identical.
 
-Audit & release docs:
-- [`SECURITY.md`](./SECURITY.md) — secrets, RLS/authorization, input/output handling (XSS, fail-closed moderation, unanimous training consent), and the owner/config follow-ups.
-- [`AUDIT.md`](./AUDIT.md) — the verifiable security / performance / accessibility audit (measurable numbers, nothing fabricated).
-- [`RELEASING.md`](./RELEASING.md) — the owner-run release checklist (server secrets, CI activation + action bumps, release secrets, db push + function deploy, verification).
+**Audit & release docs:**
+
+| Doc | Covers |
+|---|---|
+| [`SECURITY.md`](./SECURITY.md) | Secrets, RLS/authorization, XSS handling, fail-closed moderation, unanimous training consent, owner/config follow-ups |
+| [`AUDIT.md`](./AUDIT.md) | Verifiable security / performance / accessibility audit — measurable numbers, nothing fabricated |
+| [`RELEASING.md`](./RELEASING.md) | Owner-run release checklist — server secrets, CI activation + action bumps, release secrets, db push + function deploy, verification |
 
 ---
 
-## Scripts
+## 📜 Scripts
 
 ```bash
-npm run dev      # dev server
-npm run build    # production build
-npm run start    # serve the build
-npm run lint     # eslint
-npx tsc --noEmit # typecheck
-npm test         # unit + component + a11y (axe-core) suites
-npm run test:a11y  # vitest axe-core accessibility suite (jsdom, structural)
-npm run test:edge  # Deno moderation fail-closed integration test (needs the Deno runtime)
-npm run test:contrast  # WCAG AA token contrast against globals.css (no browser)
-npm run test:e2e       # Playwright E2E + browser axe audit (needs Chromium)
-npm run test:e2e:install  # download Chromium for the E2E suite
+npm run dev             # dev server
+npm run build           # production build
+npm run start            # serve the build
+npm run lint             # eslint
+npx tsc --noEmit          # typecheck
+npm test                 # unit + component + a11y (axe-core) suites
+npm run test:a11y        # vitest axe-core accessibility suite (jsdom, structural)
+npm run test:edge        # Deno moderation fail-closed integration test (needs Deno runtime)
+npm run test:contrast    # WCAG AA token contrast against globals.css (no browser)
+npm run test:e2e         # Playwright E2E + browser axe audit (needs Chromium)
+npm run test:e2e:install # download Chromium for the E2E suite
 ```
 
-### End-to-end / browser accessibility
+### 🖥 End-to-end / browser accessibility
 
-The Playwright suite (`e2e/`) runs the app in **demo mode** and covers the
-critical journeys: AI chat streaming + persistence, group rooms, @ai mention
-and moderation, ⌘K command palette, history, and a real-browser **axe-core
-audit (light + dark, WCAG AA — not disabled)**. It targets stable selectors
-(roles, labels, `data-testid`), emulates `prefers-reduced-motion`, and
-produces a report + traces on failure.
+The Playwright suite (`e2e/`) runs the app in **demo mode** and covers the critical journeys: AI chat streaming + persistence, group rooms, `@ai` mention and moderation, ⌘K command palette, history, and a real-browser **axe-core audit (light + dark, WCAG AA — not disabled)**. It targets stable selectors (roles, labels, `data-testid`), emulates `prefers-reduced-motion`, and produces a report + traces on failure.
 
 ```bash
 npx playwright install --with-deps chromium  # one-time
 npm run test:e2e
 ```
 
-The token contrast script parses `src/app/globals.css`, resolves the semantic
-tokens for both themes, and asserts every text-on-surface pair meets 4.5:1
-(normal) / 3:1 (large & UI) — 54 pairs, both themes. It is runnable locally
-today (`npm run test:contrast`); wiring it into CI is part of
-`ci/patches/ci-playwright-and-contrast.patch`.
+The token contrast script parses `src/app/globals.css`, resolves the semantic tokens for both themes, and asserts every text-on-surface pair meets **4.5:1 (normal) / 3:1 (large & UI)** — 54 pairs, both themes. Runnable locally today (`npm run test:contrast`); CI wiring is part of `ci/patches/ci-playwright-and-contrast.patch`.
+
+---
+
+<div align="center">
+
+### Built with Next.js 16 · Supabase · OpenRouter
+
+<sub>Demo mode: zero backend required · Production mode: RLS on every table, key on the server, moderation fails closed</sub>
+
+</div>
