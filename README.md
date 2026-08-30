@@ -1,6 +1,14 @@
 <div align="center">
 
-# 🌌 Confluence
+```
+   ██████╗ ██████╗ ███╗   ██╗███████╗██╗     ██╗   ██╗███████╗███╗   ██╗ ██████╗███████╗
+  ██╔════╝██╔═══██╗████╗  ██║██╔════╝██║     ██║   ██║██╔════╝████╗  ██║██╔════╝██╔════╝
+  ██║     ██║   ██║██╔██╗ ██║█████╗  ██║     ██║   ██║█████╗  ██╔██╗ ██║██║     █████╗
+  ██║     ██║   ██║██║╚██╗██║██╔══╝  ██║     ██║   ██║██╔══╝  ██║╚██╗██║██║     ██╔══╝
+  ╚██████╗╚██████╔╝██║ ╚████║██║     ███████╗╚██████╔╝███████╗██║ ╚████║╚██████╗███████╗
+   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝     ╚══════╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝ ╚═════╝╚══════╝
+```
+
 ### The AI Chat Platform — Where 1:1 Conversations Meet Group Intelligence
 
 **A ChatGPT × Discord hybrid.** Private 1:1 AI chat and opt-in AI participation inside multi-user rooms — one conversation model, two experiences.
@@ -16,10 +24,12 @@
 ![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)
 ![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)
 ![Status](https://img.shields.io/badge/status-active--development-orange?style=flat-square)
+[![Stars](https://img.shields.io/github/stars/Crusty-chirayu/Group-Chatbot?style=flat-square&color=8A2BE2)](https://github.com/Crusty-chirayu/Group-Chatbot/stargazers)
+[![Last Commit](https://img.shields.io/github/last-commit/Crusty-chirayu/Group-Chatbot?style=flat-square&color=3ECF8E)](https://github.com/Crusty-chirayu/Group-Chatbot/commits/main)
 
 <br/>
 
-**[🚀 Quick Start](#-quick-start) · [🏗 Architecture](#-architecture) · [🔐 Security](#-security-model) · [🎬 Motion System](#-motion-system) · [📄 Pages](#-page-inventory) · [🧪 CI/CD](#-cicd--push-everything-release-policy)**
+**[🚀 Quick Start](#-quick-start) · [🏗 Architecture](#-architecture) · [🔐 Security](#-security-model) · [🎬 Motion System](#-motion-system) · [📄 Pages](#-page-inventory) · [📊 By the Numbers](#-by-the-numbers) · [🆚 How It's Different](#-how-its-different) · [🧪 CI/CD](#-cicd--push-everything-release-policy) · [❓ FAQ](#-faq)**
 
 </div>
 
@@ -32,6 +42,43 @@
 ║   animation, every streaming reply — explorable with zero backend.   ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ```
+
+---
+
+## 📊 By the Numbers
+
+<div align="center">
+
+| 🧩 Edge Functions | 🧪 E2E Tests | 🎨 Contrast Pairs Verified | ⏱ Rate-Limit Triggers | 📄 App Routes | 🌗 Themes |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| **3** | **31** | **54** | **BEFORE INSERT ×2** | **10** | **light / dark / system** |
+
+| ⚡ Streaming Flush | 🚦 AI Call Ceiling | 🛡 Moderation Stages | 🔑 Keys in Browser | 🕵️ Audit Table Policies |
+|:---:|:---:|:---:|:---:|:---:|
+| **~400ms** | **10 calls/min** | **2 (pre + post)** | **0** | **0 (service_role only)** |
+
+</div>
+
+These aren't aspirational — every number above is pulled straight from the schema, the Edge Functions, and the test suites already committed in this repo (see [Security Model](#-security-model) and [CI/CD](#-cicd--push-everything-release-policy) for the source of each).
+
+---
+
+## 🆚 How It's Different
+
+Most "AI + chat" projects pick a lane: either a private assistant thread, or a bot bolted onto an existing group-chat app. Confluence treats both as the *same primitive*.
+
+| | Typical AI chat app | Typical group chat app | **Confluence** |
+|---|:---:|:---:|:---:|
+| 1:1 AI conversation | ✅ | ❌ | ✅ |
+| Multi-user rooms | ❌ | ✅ | ✅ |
+| AI as an opt-in room participant, not a bolted-on bot | ❌ | ⚠️ plugin-style | ✅ native |
+| Every member sees the *same* streamed tokens land live | — | ❌ (bots usually post once, finished) | ✅ |
+| Provider key ever touches the browser | ⚠️ varies | — | ❌ never |
+| Explorable with zero backend | ❌ | ❌ | ✅ full demo mode |
+| Moderation fails **closed** on classifier error | ⚠️ varies | ⚠️ varies | ✅ |
+| Row-Level Security on every table | ⚠️ varies | ⚠️ varies | ✅ |
+
+> The unifying idea: a `conversations` row doesn't care whether it has 2 members or 20, and a `messages` row doesn't care whether its author is a human or the AI. Everything downstream — RLS, streaming, moderation, realtime — inherits from that one decision.
 
 ---
 
@@ -355,6 +402,40 @@ npm run test:e2e
 ```
 
 The token contrast script parses `src/app/globals.css`, resolves the semantic tokens for both themes, and asserts every text-on-surface pair meets **4.5:1 (normal) / 3:1 (large & UI)** — 54 pairs, both themes. Runnable locally today (`npm run test:contrast`); CI wiring is part of `ci/patches/ci-playwright-and-contrast.patch`.
+
+---
+
+## ❓ FAQ
+
+<details>
+<summary><b>Do I need a Supabase project just to try it out?</b></summary>
+<br/>
+No. Running <code>npm install && npm run dev</code> with no environment variables boots the app straight into demo mode — a fully seeded, in-browser experience with a locally simulated streaming assistant. Every screen and animation is explorable with zero backend.
+</details>
+
+<details>
+<summary><b>Can the browser ever see the OpenRouter API key?</b></summary>
+<br/>
+No — by design. <code>OPENROUTER_API_KEY</code> lives only in the <code>ai-orchestrator</code> Edge Function's environment. The client calls the function over SSE and never receives, stores, or has any code path that could leak the raw key.
+</details>
+
+<details>
+<summary><b>What happens if the moderation classifier itself errors out?</b></summary>
+<br/>
+Publication is blocked. Moderation in Confluence is fail-closed, not fail-open — an infrastructure error in the classifier is treated the same as a failed check, not treated as a pass.
+</details>
+
+<details>
+<summary><b>Why aren't the Playwright and contrast checks running in CI yet?</b></summary>
+<br/>
+They're fully written and pass locally (31 E2E tests, 54 contrast pairs), but the commit that wires them into <code>ci.yml</code> requires GitHub's <code>workflows</code> permission, which the automated push credential used during development doesn't have. The diff is committed as a ready-to-apply patch — see <a href="#-cicd--push-everything-release-policy">CI/CD</a> for the one-line owner action that activates it.
+</details>
+
+<details>
+<summary><b>Is this production-ready?</b></summary>
+<br/>
+The security model (RLS on every table, server-only keys, fail-closed moderation, rate limiting) and CI/release pipeline are built for production use — see <code>SECURITY.md</code>, <code>AUDIT.md</code>, and <code>RELEASING.md</code> for the exact checklist an owner runs before flipping the switch.
+</details>
 
 ---
 
