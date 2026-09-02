@@ -446,3 +446,5 @@ The security model (RLS on every table, server-only keys, fail-closed moderation
 <sub>Demo mode: zero backend required · Production mode: RLS on every table, key on the server, moderation fails closed</sub>
 
 </div>
+
+Deployed at: https://group-chatbot.onrender.com/
