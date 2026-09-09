@@ -9,7 +9,7 @@
    ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝     ╚══════╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝ ╚═════╝╚══════╝
 ```
 
-### The AI Chat Platform — Where 1:1 Conversations Meet Group Intelligence
+### The AI Chat Platform — Where 1:1 Conversations Meet Group Intelligence.
 
 **A ChatGPT × Discord hybrid.** Private 1:1 AI chat and opt-in AI participation inside multi-user rooms — one conversation model, two experiences.
 
