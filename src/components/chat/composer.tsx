@@ -170,7 +170,12 @@ export function Composer({
     aiMode === "auto" || (aiMode === "mention_only" && /@ai\b/i.test(value));
 
   return (
-    <div className="relative border-t border-[--border] bg-[--bg] px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
+    // A floating glass tray rather than a flat bar with a hard top rule —
+    // `.glass-subtle` (globals.css) supplies its own translucent fill,
+    // hairline border and inset top highlight, so the composer reads as
+    // a distinct material resting just above the conversation rather than
+    // a bolted-on toolbar.
+    <div className="glass-subtle relative px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
       {/*
         moderation pre-warning.
         The live region is rendered unconditionally and only its contents
@@ -188,7 +193,7 @@ export function Composer({
               transition={tEnter()}
               className="mb-2 overflow-hidden"
             >
-              <div className="flex items-start gap-2 rounded-[--r-md] border border-[--warning]/30 bg-[--warning-subtle] px-3 py-2 text-[12.5px] text-[--warning]">
+              <div className="flex items-start gap-2 rounded-[--r-md] border border-[--warning]/30 bg-[--warning-subtle]/85 px-3 py-2 text-[12.5px] text-[--warning] shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,var(--e1)] backdrop-blur-sm">
                 <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span>
                   <strong className="font-semibold">{verdict.label}.</strong>{" "}
@@ -215,7 +220,7 @@ export function Composer({
             {files.map((f, i) => (
               <span
                 key={`${f.name}-${f.size}-${i}`}
-                className="flex max-w-[15rem] items-center gap-1.5 rounded-full border border-[--border] bg-[--surface] py-1 pl-2.5 pr-1 text-[12px] font-medium text-[--fg]"
+                className="flex max-w-[15rem] items-center gap-1.5 rounded-full border border-[--border]/80 bg-[--surface]/90 py-1 pl-2.5 pr-1 text-[12px] font-medium text-[--fg] shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,var(--e1)] backdrop-blur-sm transition-colors duration-[--d-micro]"
               >
                 <Paperclip className="h-3 w-3 text-[--fg-muted]" />
                 <span className="truncate">{f.name}</span>
@@ -224,7 +229,7 @@ export function Composer({
                   type="button"
                   aria-label={`Remove ${f.name}`}
                   onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
-                  className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[--fg-subtle] transition-colors hover:bg-[--bg-active] hover:text-[--fg]"
+                  className="press-fluid grid h-5 w-5 shrink-0 place-items-center rounded-full text-[--fg-subtle] transition-colors hover:bg-[--bg-active] hover:text-[--fg] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -241,10 +246,10 @@ export function Composer({
 
       <div
         className={cn(
-          "flex items-end gap-2 rounded-[--r-lg] border bg-[--surface] px-3 py-2 shadow-[--e1]",
-          "transition-[border-color,box-shadow] duration-[--d-micro]",
-          "focus-within:border-[--accent] focus-within:ring-4 focus-within:ring-[--accent]/12",
-          verdict.verdict !== "pass" ? "border-[--warning]/50" : "border-[--border]",
+          "relative flex items-end gap-2 rounded-[--r-lg] border bg-[--surface]/90 px-3 py-2 shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,var(--e1)] backdrop-blur-sm",
+          "transition-[border-color,box-shadow,background-color] duration-[--d-standard] ease-[--ease-fluid]",
+          "focus-within:border-[--accent] focus-within:bg-[--surface]/95 focus-within:shadow-[0_1px_0_0_rgba(255,255,255,0.08)_inset,var(--e2)] focus-within:ring-4 focus-within:ring-[--accent]/12",
+          verdict.verdict !== "pass" ? "border-[--warning]/50" : "border-[--border]/80",
         )}
       >
         {/*
@@ -293,7 +298,7 @@ export function Composer({
                     : "Message the room… type @ai to bring in the assistant"
                   : "Ask anything…"
             }
-            className="max-h-[200px] min-h-[24px] w-full resize-none bg-transparent py-1 text-[14px] leading-relaxed text-[--fg] outline-none placeholder:text-[--fg-subtle] disabled:opacity-60"
+            className="max-h-[200px] min-h-[24px] w-full resize-none bg-transparent py-1 text-[14px] leading-relaxed tracking-[-0.003em] text-[--fg] outline-none placeholder:text-[--fg-subtle] disabled:opacity-60"
           />
 
           {/* @mention autocomplete — scales+fades up from the input */}
@@ -308,7 +313,7 @@ export function Composer({
                 animate="show"
                 exit="exit"
                 style={{ transformOrigin: "bottom left" }}
-                className="absolute bottom-full left-0 z-30 mb-2 w-[min(20rem,100%)] overflow-hidden rounded-[--r-md] border border-[--border] bg-[--surface-raised] shadow-[--e3]"
+                className="absolute bottom-full left-0 z-30 mb-2 w-[min(20rem,100%)] overflow-hidden rounded-[--r-md] border border-[--border]/80 bg-[--surface-raised]/95 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,var(--e3)] backdrop-blur-md"
               >
                 {options.map((o, i) => (
                   <button
@@ -362,7 +367,7 @@ export function Composer({
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled}
           aria-label="Attach a file"
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] text-[--fg-muted] transition-colors hover:bg-[--bg-active] hover:text-[--fg] disabled:opacity-60"
+          className="press-fluid grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] text-[--fg-muted] transition-colors hover:bg-[--bg-active] hover:text-[--fg] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50"
         >
           <Paperclip className="h-4 w-4" />
         </button>
@@ -374,10 +379,12 @@ export function Composer({
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.85 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.92 }}
               transition={SPRING}
               onClick={onStop}
               aria-label="Stop generating"
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] bg-[--bg-active] text-[--fg] transition-colors hover:bg-[--border-strong]"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] bg-[--bg-active] text-[--fg] shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,var(--e1)] transition-colors hover:bg-[--border-strong] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50"
             >
               <Square className="h-3 w-3 fill-current" />
             </motion.button>
@@ -387,15 +394,16 @@ export function Composer({
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.85 }}
+              whileHover={canSend ? { scale: 1.05 } : undefined}
               whileTap={canSend ? { scale: 0.92 } : undefined}
               transition={SPRING}
               onClick={send}
               disabled={!canSend}
               aria-label="Send message"
               className={cn(
-                "grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] transition-colors duration-[--d-micro]",
+                "grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] transition-[background-color,box-shadow] duration-[--d-micro] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50",
                 canSend
-                  ? "bg-[--accent] text-[--accent-fg] hover:bg-[--accent-hover]"
+                  ? "bg-[--accent] text-[--accent-fg] shadow-[0_1px_0_0_rgba(255,255,255,0.12)_inset,var(--e1)] hover:bg-[--accent-hover] hover:shadow-[0_1px_0_0_rgba(255,255,255,0.12)_inset,var(--e2)]"
                   : "bg-[--bg-active] text-[--fg-subtle]",
               )}
             >

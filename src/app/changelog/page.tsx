@@ -84,7 +84,15 @@ export default async function ChangelogPage() {
   const { releases, live } = await getReleases();
 
   return (
-    <div className="min-h-dvh bg-[--bg-app]">
+    <div className="relative min-h-dvh bg-[--bg-app]">
+      {/* faint atmosphere so the page doesn't sit on flat, un-lit background */}
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
+        <div
+          className="absolute left-1/2 top-[-14rem] h-[30rem] w-[44rem] -translate-x-1/2 rounded-full opacity-[0.08] blur-[110px]"
+          style={{ background: "radial-gradient(circle, var(--accent), transparent 62%)" }}
+        />
+      </div>
+
       <LandingNav />
 
       <main className="px-5 pb-24 pt-32 sm:pt-40">
@@ -99,18 +107,20 @@ export default async function ChangelogPage() {
             <RevealItem>
               <p className="mx-auto mt-8 max-w-xl rounded-[--r-lg] border border-[--border-default] bg-[--bg-surface] px-4 py-3 text-center text-[12.5px] leading-relaxed text-[--text-secondary]">
                 Showing the bundled release notes — no published GitHub Releases were found for{" "}
-                <code className="font-mono">{REPO}</code>. Tag a version and this page fills in
-                automatically.
+                <code className="rounded-[--r-sm] border border-[--border-default] bg-[--bg-hover] px-1.5 py-0.5 font-mono">
+                  {REPO}
+                </code>
+                . Tag a version and this page fills in automatically.
               </p>
             </RevealItem>
           )}
 
-          <div className="mt-14 space-y-10">
+          <div className="mt-14 space-y-2">
             {releases.map((r) => (
               <RevealItem key={r.id}>
-                <article className="relative border-l-2 border-[--border-default] pl-6 sm:pl-8">
+                <article className="group relative rounded-[--r-lg] border-l-2 border-[--border-default] py-6 pl-6 transition-colors duration-[--d-standard] hover:bg-[--bg-hover]/40 sm:pl-8">
                   <span
-                    className="absolute -left-[7px] top-1.5 grid h-3 w-3 place-items-center rounded-full bg-[--brand] ring-4 ring-[--bg-app]"
+                    className="absolute -left-[9px] top-[26px] grid h-4 w-4 place-items-center rounded-full bg-[--brand] ring-4 ring-[--bg-app]"
                     aria-hidden
                   />
 
@@ -119,7 +129,7 @@ export default async function ChangelogPage() {
                       <h2 className="text-[18px] font-semibold tracking-tight text-[--text-primary]">
                         {r.name || r.tag_name}
                       </h2>
-                      <span className="inline-flex items-center gap-1 rounded-[--r-pill] bg-[--bg-hover] px-2 py-0.5 font-mono text-[11px] text-[--text-secondary]">
+                      <span className="inline-flex items-center gap-1 rounded-[--r-pill] border border-[--border-default] bg-[--bg-hover] px-2 py-0.5 font-mono text-[11px] text-[--text-secondary]">
                         <Tag className="h-3 w-3" />
                         {r.tag_name}
                       </span>
@@ -130,7 +140,7 @@ export default async function ChangelogPage() {
                       )}
                     </div>
                     <time
-                      className="mt-1 block text-[12.5px] text-[--text-secondary]"
+                      className="mt-1.5 block text-[12.5px] text-[--text-secondary]"
                       dateTime={r.published_at ?? undefined}
                     >
                       {formatDate(r.published_at)}
@@ -150,7 +160,7 @@ export default async function ChangelogPage() {
                       href={r.html_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-4 inline-block text-[13px] font-medium text-[--accent-text] hover:underline"
+                      className="mt-4 inline-block text-[13px] font-medium text-[--accent-text] transition-colors duration-[--d-micro] hover:underline"
                     >
                       View on GitHub →
                     </a>
@@ -162,20 +172,23 @@ export default async function ChangelogPage() {
         </Reveal>
       </main>
 
-      <footer className="border-t border-[--border-default] px-5 py-12">
+      <footer className="relative border-t border-[--border-default] px-5 py-12">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
           <div className="flex items-center gap-2.5">
             <Logo className="h-6 w-6" />
             <span className="text-[13.5px] font-semibold">Confluence</span>
           </div>
           <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] text-[--text-secondary]">
-            <Link href="/" className="hover:text-[--text-primary]">
+            <Link href="/" className="transition-colors duration-[--d-micro] hover:text-[--text-primary]">
               Home
             </Link>
-            <Link href="/changelog" className="hover:text-[--text-primary]">
+            <Link
+              href="/changelog"
+              className="transition-colors duration-[--d-micro] hover:text-[--text-primary]"
+            >
               Changelog
             </Link>
-            <Link href="/login" className="hover:text-[--text-primary]">
+            <Link href="/login" className="transition-colors duration-[--d-micro] hover:text-[--text-primary]">
               Sign in
             </Link>
           </nav>

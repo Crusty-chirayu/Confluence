@@ -292,11 +292,29 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
   const canRegenerate = !streamingId;
 
   return (
-    <div className="flex h-full flex-col">
-      {/* ---------- header ---------- */}
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[--border] bg-[--bg] px-4">
+    <div className="relative flex h-full flex-col">
+      {/* ambient conversation atmosphere — extremely restrained, purely decorative */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div
+          className="absolute left-1/2 top-[-14rem] h-[26rem] w-[38rem] -translate-x-1/2 rounded-full opacity-[0.05] blur-[110px]"
+          style={{ background: "radial-gradient(circle, var(--accent), transparent 65%)" }}
+        />
+        {!isGroup && (
+          <div
+            className="absolute bottom-[-12rem] right-[-6rem] h-[22rem] w-[26rem] rounded-full opacity-[0.05] blur-[110px]"
+            style={{ background: "radial-gradient(circle, var(--ai-accent, var(--accent)), transparent 65%)" }}
+          />
+        )}
+      </div>
+
+      {/* ---------- header ----------
+          A translucent tray rather than an opaque bar with a hard rule —
+          it lets the ambient field behind the shell read through faintly
+          while still separating the chrome from the message canvas via
+          its own soft border + shadow (see .glass-subtle in globals.css). */}
+      <header className="glass-subtle relative z-10 flex h-14 shrink-0 items-center gap-3 px-4">
         {isGroup ? (
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] bg-[--bg-active] text-[--fg-muted]">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] border border-[--border]/60 bg-[--bg-active] text-[--fg-muted]">
             <Hash className="h-4 w-4" />
           </span>
         ) : (
@@ -305,7 +323,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="truncate text-[14.5px] font-semibold">{title}</h1>
+            <h1 className="truncate text-[14.5px] font-semibold tracking-[-0.005em]">{title}</h1>
             <AiModeBadge mode={conversation.ai_mode} />
           </div>
           <p className="truncate text-[11.5px] text-[--fg-muted]">
@@ -338,6 +356,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
         <Button
           variant="ghost"
           size="icon"
+          className="press-fluid"
           onClick={() => setSettingsOpen(true)}
           aria-label={isGroup ? "Room settings" : "Conversation settings"}
         >
@@ -350,7 +369,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
         <div
           ref={scrollRef}
           onScroll={onScroll}
-          className="h-full overflow-y-auto overscroll-contain px-2 pb-4 sm:px-4"
+          className="h-full scroll-smooth overflow-y-auto overscroll-contain px-2 pb-6 sm:px-6"
         >
           {loading ? (
             <MessageListSkeleton />
@@ -358,7 +377,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
             <EmptyState isGroup={isGroup} aiMode={conversation.ai_mode} />
           ) : (
             <div
-              className="mx-auto max-w-3xl"
+              className="mx-auto max-w-4xl"
               role="log"
               aria-label={isGroup ? `Messages in ${title}` : "Conversation with the assistant"}
             >
@@ -383,7 +402,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
                   <React.Fragment key={m.id}>
                     {newDay && (
                       <div className="sticky top-2 z-10 my-4 flex justify-center">
-                        <span className="rounded-full border border-[--border] bg-[--surface] px-3 py-1 text-[11px] font-medium text-[--fg-muted] shadow-[--e1]">
+                        <span className="rounded-full border border-[--border]/70 bg-[--surface]/80 px-3 py-1 text-[11px] font-medium tracking-[-0.005em] text-[--fg-muted] shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,var(--e1)] backdrop-blur-sm">
                           {dayLabel(m.created_at)}
                         </span>
                       </div>
@@ -432,7 +451,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, transition: tExit() }}
                     transition={tEnter(0.2)}
-                    className="flex items-center gap-2 px-2 py-3"
+                    className="mt-1 flex w-fit items-center gap-2 rounded-full border border-[--border]/60 bg-[--surface]/60 px-3 py-1.5 backdrop-blur-sm"
                   >
                     <div className="flex w-8 justify-center">
                       {[0, 1, 2].map((d) => (
@@ -469,7 +488,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
                 setAtBottom(true);
                 scrollToBottom();
               }}
-              className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-[--border] bg-[--surface-raised] px-3.5 py-2 text-[12.5px] font-medium shadow-[--e3]"
+              className="press-fluid absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-[--border]/80 bg-[--surface-raised]/90 px-3.5 py-2 text-[12.5px] font-medium shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,var(--e3)] backdrop-blur-md transition-colors duration-[--d-micro] hover:border-[--border-strong] hover:bg-[--surface-raised]"
             >
               <ArrowDown className="h-3.5 w-3.5" />
               Jump to latest
@@ -517,10 +536,14 @@ function EmptyState({ isGroup, aiMode }: { isGroup: boolean; aiMode: string }) {
       transition={tEnter(0.32)}
       className="mx-auto flex h-full max-w-md flex-col items-center justify-center px-6 text-center"
     >
-      <span className="mb-4 grid h-14 w-14 place-items-center rounded-[--r-lg] bg-[--accent-subtle] text-[--accent-text]">
+      <span
+        className={`mb-4 grid h-14 w-14 place-items-center rounded-[--r-lg] border border-[--border]/50 bg-[--accent-subtle] text-[--accent-text] shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,var(--e2)] ${
+          isGroup ? "" : "glow-ai"
+        }`}
+      >
         {isGroup ? <Users className="h-6 w-6" /> : <Sparkles className="h-6 w-6" />}
       </span>
-      <h2 className="text-[16px] font-semibold">
+      <h2 className="text-[16px] font-semibold tracking-[-0.005em]">
         {isGroup ? "The room is quiet" : "What's on your mind?"}
       </h2>
       <p className="mt-2 text-pretty text-[13.5px] leading-relaxed text-[--fg-muted]">

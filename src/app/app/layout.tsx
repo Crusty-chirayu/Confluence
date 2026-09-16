@@ -121,12 +121,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (sessionLoading || !profile) {
     // no predictable shape yet -> spinner, per the motion spec
     return (
-      <div className="grid min-h-dvh place-items-center bg-[--bg]">
+      <div className="relative grid min-h-dvh place-items-center bg-[--bg]">
         <motion.div
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={tEnter()}
-          className="flex flex-col items-center gap-3"
+          className="glass-subtle flex flex-col items-center gap-3 rounded-[--r-xl] px-8 py-7"
         >
           <Logo className="h-9 w-9 animate-pulse" />
           <p className="text-[13px] text-[--fg-muted]">Checking your session…</p>
@@ -150,9 +150,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <AppDataContext.Provider value={{ refreshConversations: refresh }}>
-      <div className="flex h-dvh overflow-hidden bg-[--bg]">
-        {/* desktop sidebar */}
-        <aside className="hidden w-[17.5rem] shrink-0 border-r border-[--border] lg:block">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={tEnter()}
+        className="relative flex h-dvh overflow-hidden bg-[--bg]"
+      >
+        {/* desktop sidebar — a floating layered plane rather than a hard-
+            ruled rectangle: no flat border, just a soft gradient seam so
+            the sidebar reads as a distinct surface catching ambient light
+            from the shell behind it. Sidebar's own surface/glass treatment
+            is handled inside the Sidebar component itself. */}
+        <aside className="relative hidden w-[17.5rem] shrink-0 lg:block">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-4 right-0 w-px bg-gradient-to-b from-transparent via-[--border-strong]/70 to-transparent"
+          />
           {sidebar}
         </aside>
 
@@ -166,14 +179,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 animate="show"
                 exit="exit"
                 onClick={() => setDrawerOpen(false)}
-                className="absolute inset-0 bg-black/45"
+                className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
               />
               <motion.aside
                 initial={{ x: "-100%" }}
                 animate={{ x: 0 }}
                 exit={{ x: "-100%" }}
                 transition={tEnter(0.32)}
-                className="absolute inset-y-0 left-0 w-[17.5rem] border-r border-[--border] shadow-[--e4]"
+                className="glass-strong absolute inset-y-0 left-0 w-[17.5rem] overflow-hidden rounded-r-[--r-xl] shadow-[--e4]"
               >
                 {sidebar}
               </motion.aside>
@@ -181,11 +194,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
         </AnimatePresence>
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="relative flex min-w-0 flex-1 flex-col">
           <OfflineBanner />
 
-          {/* mobile top bar */}
-          <div className="flex h-14 shrink-0 items-center gap-2 border-b border-[--border] px-3 lg:hidden">
+          {/* mobile top bar — a soft glass tray instead of a hard-ruled
+              bar, so the shell keeps a single coherent material language
+              down to the smallest viewport. */}
+          <div className="glass-subtle relative z-10 flex h-14 shrink-0 items-center gap-2 px-3 lg:hidden">
             <Button
               variant="ghost"
               size="icon"
@@ -200,7 +215,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           <main className="min-h-0 flex-1">{children}</main>
         </div>
-      </div>
+      </motion.div>
 
       <NewConversationModal open={newOpen} onClose={() => setNewOpen(false)} onCreated={refresh} />
       <JoinModal open={joinOpen} onClose={() => setJoinOpen(false)} onJoined={refresh} />

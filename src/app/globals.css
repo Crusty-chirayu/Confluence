@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* =====================================================================
-   AI Chat Platform — Design System (v2.0)
+   AI Chat Platform — Design System (v3.0 "Liquid Display")
    Implements the §6 semantic palette (light + dark), §2.4 spacing/radius/
    elevation, §2.6 accessibility tokens, §2.7 motion tokens.
 
@@ -13,6 +13,14 @@
    All text-on-surface pairs are validated against WCAG AA (≥4.5:1 normal,
    ≥3:1 large/UI) by `scripts/contrast.mjs`. Where a §6 literal falls below
    AA on a raised surface, the token is nudged slightly and documented below.
+
+   v3.0 adds a "liquid display" visual layer — glass surfaces, depth,
+   ambient light, gradient borders and a fluid motion vocabulary — as a
+   pure ADDITIVE layer of new tokens + new utility classes. Nothing in the
+   v2.0 token/selector contract below was renamed, removed, or repurposed:
+   every existing variable, class, and keyframe still resolves exactly as
+   it did, so the app keeps compiling and rendering with zero component
+   changes. New material lives in the "LIQUID DISPLAY LAYER" section.
    ===================================================================== */
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -89,9 +97,6 @@
   --accent-subtle: var(--accent-100);
   --accent-foreground: #ffffff;
   --accent-fg: var(--accent-foreground);
-  /* Accent used as TEXT/links on backgrounds — theme-aware so it clears AA
-     on the (light) app background and the dark one (buttons use --accent +
-     --accent-fg). */
   --accent-text: #3f3fd0;
 
   --success: var(--success-500);
@@ -140,6 +145,57 @@
   --d-hero: 480ms;
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+
+  /* =================================================================
+     LIQUID DISPLAY LAYER — light theme
+     Purely additive tokens for glass surfaces, depth and ambient light.
+     Every value here is derived from the §6 palette above (accent-500 /
+     ai-teal-500 / neutral scale) so the material reads as "Confluence",
+     never a generic glassmorphism preset.
+     ================================================================= */
+
+  /* Glass surfaces: translucent, tinted by the surface it sits above so
+     it never looks like a flat white/grey pane. */
+  --glass-bg: color-mix(in oklab, var(--bg-surface) 72%, transparent);
+  --glass-bg-strong: color-mix(in oklab, var(--bg-surface) 88%, transparent);
+  --glass-bg-subtle: color-mix(in oklab, var(--bg-surface) 55%, transparent);
+  --glass-border: color-mix(in oklab, var(--neutral-0) 70%, var(--border-strong) 30%);
+  --glass-border-strong: color-mix(in oklab, var(--neutral-0) 40%, var(--accent-500) 20%);
+  --glass-blur: 18px;
+  --glass-blur-sm: 10px;
+  --glass-blur-lg: 28px;
+  --glass-highlight: rgb(255 255 255 / 0.55);
+  --glass-shadow: 0 1px 1px 0 rgb(16 19 25 / 0.04), 0 12px 32px -8px rgb(16 19 25 / 0.12),
+    inset 0 1px 0 0 var(--glass-highlight);
+
+  /* Ambient field: two soft, slow-moving light sources behind the app
+     shell. Kept at very low opacity — this is atmosphere, not wallpaper. */
+  --ambient-1: radial-gradient(
+    ellipse 60% 45% at 15% -8%,
+    color-mix(in oklab, var(--accent-500) 16%, transparent),
+    transparent 65%
+  );
+  --ambient-2: radial-gradient(
+    ellipse 55% 40% at 100% 10%,
+    color-mix(in oklab, var(--ai-teal-500) 14%, transparent),
+    transparent 65%
+  );
+  --ambient-grain-opacity: 0.02;
+
+  /* Gradient border material (double-background technique) */
+  --gradient-border-from: color-mix(in oklab, var(--accent-500) 55%, transparent);
+  --gradient-border-to: color-mix(in oklab, var(--ai-teal-500) 55%, transparent);
+
+  /* Glow rings — used sparingly, only on the active/focused/primary element */
+  --glow-accent: 0 0 0 1px color-mix(in oklab, var(--accent-500) 35%, transparent),
+    0 0 24px -4px color-mix(in oklab, var(--accent-500) 45%, transparent);
+  --glow-ai: 0 0 0 1px color-mix(in oklab, var(--ai-teal-500) 35%, transparent),
+    0 0 24px -4px color-mix(in oklab, var(--ai-teal-500) 45%, transparent);
+
+  /* Fluid easing for hover/press — slightly springier than --ease-enter,
+     reserved for small interactive surfaces (buttons, avatars, cards). */
+  --ease-fluid: cubic-bezier(0.22, 1, 0.36, 1);
+  --d-fluid: 260ms;
 }
 
 .dark {
@@ -213,6 +269,49 @@
   --e2: 0 2px 8px -2px rgb(0 0 0 / 0.5);
   --e3: 0 8px 24px -4px rgb(0 0 0 / 0.6);
   --e4: 0 24px 48px -12px rgb(0 0 0 / 0.7);
+
+  /* =================================================================
+     LIQUID DISPLAY LAYER — dark theme
+     Dark glass reads very differently from light glass: instead of a
+     bright highlight, the "wet" quality comes from a faint top edge of
+     light and a deeper, cooler shadow. Ambient glow is slightly stronger
+     here since dark surfaces need more signal to read as lit from within.
+     ================================================================= */
+
+  --glass-bg: color-mix(in oklab, var(--bg-surface) 66%, transparent);
+  --glass-bg-strong: color-mix(in oklab, var(--bg-surface) 84%, transparent);
+  --glass-bg-subtle: color-mix(in oklab, var(--bg-surface) 46%, transparent);
+  --glass-border: color-mix(in oklab, var(--neutral-0) 10%, var(--border-strong) 90%);
+  --glass-border-strong: color-mix(in oklab, var(--neutral-0) 14%, var(--accent-500) 30%);
+  --glass-blur: 18px;
+  --glass-blur-sm: 10px;
+  --glass-blur-lg: 28px;
+  --glass-highlight: rgb(255 255 255 / 0.06);
+  --glass-shadow: 0 1px 0 0 rgb(255 255 255 / 0.04), 0 16px 40px -10px rgb(0 0 0 / 0.55),
+    inset 0 1px 0 0 var(--glass-highlight);
+
+  --ambient-1: radial-gradient(
+    ellipse 60% 45% at 15% -8%,
+    color-mix(in oklab, var(--accent-500) 22%, transparent),
+    transparent 65%
+  );
+  --ambient-2: radial-gradient(
+    ellipse 55% 40% at 100% 10%,
+    color-mix(in oklab, var(--ai-teal-500) 20%, transparent),
+    transparent 65%
+  );
+  --ambient-grain-opacity: 0.035;
+
+  --gradient-border-from: color-mix(in oklab, var(--accent-500) 65%, transparent);
+  --gradient-border-to: color-mix(in oklab, var(--ai-teal-500) 65%, transparent);
+
+  --glow-accent: 0 0 0 1px color-mix(in oklab, var(--accent-500) 45%, transparent),
+    0 0 28px -4px color-mix(in oklab, var(--accent-500) 60%, transparent);
+  --glow-ai: 0 0 0 1px color-mix(in oklab, var(--ai-teal-500) 45%, transparent),
+    0 0 28px -4px color-mix(in oklab, var(--ai-teal-500) 60%, transparent);
+
+  --ease-fluid: cubic-bezier(0.22, 1, 0.36, 1);
+  --d-fluid: 260ms;
 }
 
 @theme inline {
@@ -319,6 +418,30 @@ body {
   /* §2.7: 200ms surface crossfade — theme switch never hard-flashes */
   transition: background-color var(--d-standard) var(--ease-enter),
     color var(--d-standard) var(--ease-enter);
+  position: relative;
+  min-height: 100vh;
+}
+
+/* Ambient field lives behind everything, fixed to the viewport so it never
+   scrolls with content and never repaints on scroll. Two soft radial
+   gradients only — no animated background, no noise loop. Disabled
+   entirely on touch/small screens (see responsive section) to protect
+   paint cost on constrained GPUs. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--ambient-1), var(--ambient-2);
+  background-repeat: no-repeat;
+}
+
+#__next,
+body > div:first-child,
+main {
+  position: relative;
+  z-index: 1;
 }
 
 ::selection {
@@ -326,10 +449,15 @@ body {
   color: var(--text-primary);
 }
 
-/* §2.6 focus ring: 2px accent-500, 2px offset, identical everywhere */
+/* §2.6 focus ring: 2px accent-500, 2px offset, identical everywhere.
+   The base outline is untouched (this is the accessibility contract);
+   we layer an additional soft glow so the ring reads as "lit" rather
+   than a flat CSS default, without changing its size or offset. */
 :focus-visible {
   outline: 2px solid var(--accent-500);
   outline-offset: 2px;
+  box-shadow: 0 0 0 5px color-mix(in oklab, var(--accent-500) 16%, transparent);
+  transition: box-shadow var(--d-micro) var(--ease-enter);
 }
 
 /* Scrollbars */
@@ -346,6 +474,10 @@ body {
   border-radius: var(--r-pill);
   border: 3px solid transparent;
   background-clip: content-box;
+  transition: background-color var(--d-standard) var(--ease-enter);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--border-strong) 60%, var(--accent-500) 40%);
 }
 *::-webkit-scrollbar-track {
   background: transparent;
@@ -558,6 +690,233 @@ body {
 }
 
 /* =====================================================================
+   LIQUID DISPLAY LAYER — utility classes
+   New, additive classes only. Nothing above this line was changed in
+   meaning. Components can opt into these incrementally in a later pass;
+   none are required for the app to keep working today.
+   ===================================================================== */
+
+/* --- Glass surfaces ---------------------------------------------------
+   Three weights (subtle/default/strong) for sidebar rails, popovers and
+   modals respectively. Each carries its own soft top highlight + shadow
+   so it reads as a pane of material, not a flat translucent rectangle.
+   backdrop-filter is isolated to its own declaration so it degrades
+   gracefully (falls back to the solid --glass-bg tint) on browsers/
+   devices without support. */
+.glass,
+.glass-subtle,
+.glass-strong {
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shadow);
+  border: 1px solid var(--glass-border);
+}
+.glass {
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.15);
+}
+.glass-subtle {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(1.1);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(1.1);
+}
+.glass-strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(1.2);
+}
+
+/* --- Gradient border ----------------------------------------------------
+   Double-background technique: a padding-box fill plus a border-box
+   gradient. One px only — a hairline of color at the seam, not a glowing
+   frame. Use on the single most important surface in a view (e.g. the
+   active/selected conversation card, the primary CTA), never everywhere. */
+.gradient-border {
+  position: relative;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(135deg, var(--gradient-border-from), var(--gradient-border-to)) border-box;
+  border: 1px solid transparent;
+}
+
+/* --- Elevated card ------------------------------------------------------
+   A resting surface that lifts fluidly on hover/focus. transform + box-
+   shadow only (no layout properties animate), so it stays cheap even on
+   long lists of cards. */
+.surface-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e1);
+  transition: transform var(--d-fluid) var(--ease-fluid),
+    box-shadow var(--d-fluid) var(--ease-fluid), border-color var(--d-standard) var(--ease-enter);
+}
+.surface-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--e3);
+  border-color: var(--border-strong);
+}
+.surface-card:active {
+  transform: translateY(0);
+  box-shadow: var(--e1);
+  transition-duration: var(--d-micro);
+}
+
+/* --- Ambient glow ring ---------------------------------------------------
+   Reserved for the one actively-streaming/selected element on screen
+   (e.g. the AI message currently generating, the active room in the
+   sidebar). Do not stack more than one glow per viewport. */
+.glow-accent {
+  box-shadow: var(--glow-accent);
+}
+.glow-ai {
+  box-shadow: var(--glow-ai);
+}
+
+/* --- Fluid hover illumination --------------------------------------------
+   A soft radial highlight that appears under the cursor's resting point
+   (center-anchored, since most interactive targets are small — full
+   pointer-tracking is reserved for hero/marketing surfaces only). */
+.hover-illuminate {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.hover-illuminate::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0;
+  background: radial-gradient(
+    circle at 50% 0%,
+    color-mix(in oklab, var(--accent-500) 16%, transparent),
+    transparent 70%
+  );
+  transition: opacity var(--d-standard) var(--ease-enter);
+}
+.hover-illuminate:hover::before {
+  opacity: 1;
+}
+
+/* --- Fluid press feedback -------------------------------------------------
+   A restrained scale-down for tappable surfaces (buttons, icon buttons,
+   message actions) so interaction feels physical without a bounce. */
+.press-fluid {
+  transition: transform var(--d-micro) var(--ease-fluid);
+}
+.press-fluid:active {
+  transform: scale(0.97);
+}
+
+/* --- Divider with gradient fade ------------------------------------------
+   Replaces a flat 1px border where a section boundary should feel soft
+   rather than ruled (e.g. between message groups, above the composer). */
+.divider-fade {
+  height: 1px;
+  border: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--border-strong) 20%,
+    var(--border-strong) 80%,
+    transparent
+  );
+}
+
+/* --- Composer / input glass shell ----------------------------------------
+   The message composer and modal panels are the two surfaces users stare
+   at longest — this variant tightens the blur radius (cheaper, sharper)
+   and pairs it with an inset top highlight for a "raised glass tray"
+   read rather than a floating pane. */
+.glass-tray {
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--e2), inset 0 1px 0 0 var(--glass-highlight);
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+  transition: box-shadow var(--d-standard) var(--ease-enter),
+    border-color var(--d-standard) var(--ease-enter);
+}
+.glass-tray:focus-within {
+  border-color: color-mix(in oklab, var(--accent-500) 45%, var(--glass-border));
+  box-shadow: var(--e2), var(--glow-accent), inset 0 1px 0 0 var(--glass-highlight);
+}
+
+/* --- Modal / dialog entrance ---------------------------------------------
+   Named animation (not a utility class) so existing dialog components
+   can opt in via `animation: modal-enter ...` without new markup. */
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes modal-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.modal-surface {
+  animation: modal-enter var(--d-emphasis) var(--ease-enter) both;
+}
+.modal-backdrop {
+  animation: modal-backdrop-enter var(--d-standard) var(--ease-enter) both;
+  background: color-mix(in oklab, var(--background) 55%, transparent);
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+}
+
+/* --- Ambient breathing glow ------------------------------------------
+   For the single "AI is thinking" surface only — an extremely slow,
+   low-amplitude pulse on box-shadow (never on blur or size, both of
+   which are expensive to animate). */
+@keyframes glowBreathe {
+  0%,
+  100% {
+    box-shadow: var(--glow-ai);
+  }
+  50% {
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--ai-teal-500) 50%, transparent),
+      0 0 32px -2px color-mix(in oklab, var(--ai-teal-500) 60%, transparent);
+  }
+}
+.glow-breathe {
+  animation: glowBreathe 2.4s ease-in-out infinite;
+}
+
+/* =====================================================================
+   RESPONSIVE — protect paint cost on smaller / lower-power devices.
+   Backdrop blur is the single most expensive property in this system;
+   it is progressively cut back rather than toggled all-or-nothing, so
+   large panels stay legible while cheap ones keep their full effect.
+   ===================================================================== */
+@media (max-width: 768px) {
+  :root,
+  .dark {
+    --glass-blur: 10px;
+    --glass-blur-lg: 14px;
+  }
+  /* The fixed ambient field is the largest painted area in the app and
+     the least noticeable when missing on a small, close-up viewport —
+     drop it first. */
+  body::before {
+    display: none;
+  }
+  .glow-breathe {
+    animation: none;
+    box-shadow: var(--glow-ai);
+  }
+}
+
+/* =====================================================================
    §2.7 REDUCED MOTION — every animation degrades to an INSTANT CUT,
    not a slower version.
    ===================================================================== */
@@ -572,5 +931,12 @@ body {
   }
   .skeleton::after {
     display: none;
+  }
+  .surface-card:hover,
+  .surface-card:active {
+    transform: none;
+  }
+  .press-fluid:active {
+    transform: none;
   }
 }

@@ -45,20 +45,25 @@ export function OfflineBanner() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, transition: tExit() }}
             transition={tEnter(0.2)}
-            className="sticky top-0 z-40 flex items-center justify-center gap-2 border-b border-[--warning]/30 bg-[--warning-subtle] px-4 py-1.5 text-[12.5px] font-medium text-[--warning]"
+            className="sticky top-0 z-40 border-b border-[--warning]/25 bg-[--warning-subtle]/70 backdrop-blur-md supports-[backdrop-filter]:bg-[--warning-subtle]/55"
           >
-            {status === "offline" ? (
-              <>
-                <CloudOff className="h-3.5 w-3.5 shrink-0" />
-                You&apos;re offline. Messages may not reach the server — they&apos;ll
-                be kept locally and you can retry once you reconnect.
-              </>
-            ) : (
-              <>
-                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-                Reconnecting…
-              </>
-            )}
+            <div className="flex items-center justify-center gap-2 px-4 py-1.5 text-[12.5px] font-medium tracking-[-0.005em] text-[--warning]">
+              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[--warning]/12">
+                {status === "offline" ? (
+                  <CloudOff className="h-3 w-3 shrink-0" />
+                ) : (
+                  <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
+                )}
+              </span>
+              {status === "offline" ? (
+                <span>
+                  You&apos;re offline. Messages may not reach the server — they&apos;ll
+                  be kept locally and you can retry once you reconnect.
+                </span>
+              ) : (
+                <span>Reconnecting…</span>
+              )}
+            </div>
           </motion.div>
         )}
 
@@ -70,10 +75,14 @@ export function OfflineBanner() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, transition: tExit() }}
             transition={tEnter(0.2)}
-            className="sticky top-0 z-40 flex items-center justify-center gap-2 border-b border-[--success]/30 bg-[--success-subtle] px-4 py-1.5 text-[12.5px] font-medium text-[--success]"
+            className="sticky top-0 z-40 border-b border-[--success]/25 bg-[--success-subtle]/70 backdrop-blur-md supports-[backdrop-filter]:bg-[--success-subtle]/55"
           >
-            <Wifi className="h-3.5 w-3.5 shrink-0" />
-            Back online
+            <div className="flex items-center justify-center gap-2 px-4 py-1.5 text-[12.5px] font-medium tracking-[-0.005em] text-[--success]">
+              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[--success]/12">
+                <Wifi className="h-3 w-3 shrink-0" />
+              </span>
+              <span>Back online</span>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

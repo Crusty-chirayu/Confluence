@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.112.4";
 import { HttpError } from "./supabase.ts";
 
 export const LIMITS: Record<string, { max: number; windowSec: number }> = {

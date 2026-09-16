@@ -119,15 +119,16 @@ export default function OnboardingPage() {
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Ada Lovelace"
                     autoFocus
+                    aria-invalid={Boolean(errors.name)}
                   />
                 </Field>
 
-                <label className="flex cursor-pointer items-start gap-3 rounded-[--r-md] border border-[--border] p-3.5 transition-colors hover:bg-[--bg-hover]">
+                <label className="flex cursor-pointer items-start gap-3 rounded-[--r-md] border border-[--border] p-3.5 transition-colors duration-[--d-micro] hover:bg-[--bg-hover] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[--accent]/50 has-[:focus-visible]:ring-offset-2">
                   <input
                     type="checkbox"
                     checked={trainingOptIn}
                     onChange={(e) => setTrainingOptIn(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 accent-[--accent]"
+                    className="mt-0.5 h-4 w-4 accent-[--accent] focus-visible:outline-none"
                   />
                   <span className="text-[13px] leading-relaxed">
                     <span className="font-medium text-[--fg]">
@@ -181,6 +182,7 @@ export default function OnboardingPage() {
                       onClick={() => setKind(o.v)}
                       className={cn(
                         "rounded-[--r-md] border p-4 text-left transition-colors duration-[--d-micro]",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50 focus-visible:ring-offset-2",
                         kind === o.v
                           ? "border-[--accent] bg-[--accent-subtle]"
                           : "border-[--border] hover:bg-[--bg-hover]",
@@ -213,6 +215,7 @@ export default function OnboardingPage() {
                           value={roomName}
                           onChange={(e) => setRoomName(e.target.value)}
                           placeholder="Launch war room"
+                          aria-invalid={Boolean(errors.roomName)}
                         />
                       </Field>
                       <Field

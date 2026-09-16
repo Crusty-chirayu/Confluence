@@ -276,9 +276,15 @@ export function CommandPalette({
             initial="hidden"
             animate="show"
             exit="exit"
-            className="relative w-full max-w-xl overflow-hidden rounded-[--r-xl] border border-[--border-default] bg-[--bg-surface-raised] shadow-[--e4]"
+            className="relative w-full max-w-xl overflow-hidden rounded-[--r-xl] border border-[--border-default]/70 bg-[--bg-surface-raised]/90 shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_24px_60px_-20px_rgba(0,0,0,0.55)] backdrop-blur-xl supports-[backdrop-filter]:bg-[--bg-surface-raised]/80"
           >
-            <div className="flex items-center gap-2.5 border-b border-[--border-default] px-4">
+            {/* ambient top sheen — purely decorative, non-interactive */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-[--text-primary]/[0.04] to-transparent"
+            />
+
+            <div className="relative flex items-center gap-2.5 border-b border-[--border-default]/70 px-4">
               <Search className="h-4 w-4 shrink-0 text-[--text-secondary]" />
               <input
                 ref={inputRef}
@@ -288,14 +294,14 @@ export function CommandPalette({
                 onKeyDown={onKeyDown}
                 placeholder="Type a command or jump to a conversation…"
                 aria-label="Command palette input"
-                className="h-12 flex-1 bg-transparent text-[14px] text-[--text-primary] outline-none placeholder:text-[--text-secondary]"
+                className="h-12 flex-1 bg-transparent text-[14px] tracking-[-0.005em] text-[--text-primary] outline-none placeholder:text-[--text-secondary]"
               />
-              <kbd className="hidden rounded border border-[--border-default] px-1.5 py-0.5 font-mono text-[10px] text-[--text-secondary] sm:block">
+              <kbd className="hidden rounded border border-[--border-default]/80 bg-[--bg-hover]/60 px-1.5 py-0.5 font-mono text-[10px] text-[--text-secondary] sm:block">
                 ESC
               </kbd>
             </div>
 
-            <div ref={listRef} className="max-h-[min(24rem,52vh)] overflow-y-auto p-2">
+            <div ref={listRef} className="relative max-h-[min(24rem,52vh)] overflow-y-auto p-2">
               {flat.length === 0 ? (
                 <p className="py-10 text-center text-[13px] text-[--text-secondary]">
                   No commands match <span className="font-medium text-[--text-primary]">{query}</span>.
@@ -317,8 +323,10 @@ export function CommandPalette({
                           onMouseEnter={() => setCursor(myIdx)}
                           onClick={() => void c.run()}
                           className={cn(
-                            "flex w-full items-center gap-2.5 rounded-[--r-sm] px-2 py-2 text-left transition-colors duration-[--d-micro]",
-                            active ? "bg-[--bg-hover]" : "hover:bg-[--bg-hover]",
+                            "flex w-full items-center gap-2.5 rounded-[--r-sm] border border-transparent px-2 py-2 text-left transition-all duration-[--d-micro]",
+                            active
+                              ? "border-[--border-default]/60 bg-[--bg-hover]"
+                              : "hover:bg-[--bg-hover]",
                           )}
                         >
                           <c.icon className="h-4 w-4 shrink-0 text-[--text-secondary]" />
@@ -341,13 +349,13 @@ export function CommandPalette({
               )}
             </div>
 
-            <div className="flex items-center gap-3 border-t border-[--border-default] px-4 py-2 text-[11px] text-[--text-secondary]">
+            <div className="relative flex items-center gap-3 border-t border-[--border-default]/70 px-4 py-2 text-[11px] text-[--text-secondary]">
               <span className="flex items-center gap-1">
-                <kbd className="rounded border border-[--border-default] px-1 font-mono">↑↓</kbd>
+                <kbd className="rounded border border-[--border-default]/80 px-1 font-mono">↑↓</kbd>
                 navigate
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="rounded border border-[--border-default] px-1 font-mono">↵</kbd>
+                <kbd className="rounded border border-[--border-default]/80 px-1 font-mono">↵</kbd>
                 run
               </span>
             </div>

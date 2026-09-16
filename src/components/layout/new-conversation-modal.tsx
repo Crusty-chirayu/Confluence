@@ -77,6 +77,7 @@ export function NewConversationModal({
       onClose={close}
       title="New conversation"
       description="A private thread with the assistant, or a room you can invite people to."
+      className="overflow-hidden border-[--border]/70 bg-[--bg-elevated] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_24px_60px_-20px_rgba(0,0,0,0.55)] backdrop-blur-xl supports-[backdrop-filter]:bg-[--bg-elevated]/85"
       footer={
         <>
           <Button variant="ghost" onClick={close}>
@@ -88,44 +89,58 @@ export function NewConversationModal({
         </>
       }
     >
-      <div className="space-y-5">
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            {
-              v: "direct_ai" as const,
-              icon: MessagesSquare,
-              title: "Chat with AI",
-              body: "Private, just you and the assistant.",
-            },
-            {
-              v: "group" as const,
-              icon: Users,
-              title: "Group room",
-              body: "Invite people; AI joins on your terms.",
-            },
-          ].map((o) => (
-            <button
-              key={o.v}
-              type="button"
-              onClick={() => setKind(o.v)}
-              className={cn(
-                "rounded-[--r-md] border p-4 text-left transition-colors duration-[--d-micro]",
-                kind === o.v
-                  ? "border-[--accent] bg-[--accent-subtle]"
-                  : "border-[--border] hover:bg-[--bg-hover]",
-              )}
-            >
-              <o.icon
-                className={cn("mb-2 h-5 w-5", kind === o.v ? "text-[--accent-text]" : "text-[--fg-muted]")}
-              />
-              <p className="text-[13.5px] font-semibold">{o.title}</p>
-              <p className="mt-1 text-[12px] leading-snug text-[--fg-muted]">{o.body}</p>
-            </button>
-          ))}
+      {/* ambient top sheen — purely decorative, non-interactive */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[--accent]/[0.06] to-transparent"
+      />
+
+      <div className="relative space-y-6">
+        <div>
+          <p className="mb-2 text-[13px] font-medium tracking-[-0.005em] text-[--fg]">
+            What are you creating?
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              {
+                v: "direct_ai" as const,
+                icon: MessagesSquare,
+                title: "Chat with AI",
+                body: "Private, just you and the assistant.",
+              },
+              {
+                v: "group" as const,
+                icon: Users,
+                title: "Group room",
+                body: "Invite people; AI joins on your terms.",
+              },
+            ].map((o) => (
+              <button
+                key={o.v}
+                type="button"
+                onClick={() => setKind(o.v)}
+                className={cn(
+                  "group relative overflow-hidden rounded-[--r-lg] border p-4 text-left transition-all duration-[--d-micro]",
+                  kind === o.v
+                    ? "border-[--accent]/60 bg-[--accent-subtle] shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset]"
+                    : "border-[--border] hover:border-[--border-strong] hover:bg-[--bg-hover]",
+                )}
+              >
+                <o.icon
+                  className={cn(
+                    "mb-2 h-5 w-5 transition-colors duration-[--d-micro]",
+                    kind === o.v ? "text-[--accent-text]" : "text-[--fg-muted] group-hover:text-[--fg]",
+                  )}
+                />
+                <p className="text-[13.5px] font-semibold text-[--fg]">{o.title}</p>
+                <p className="mt-1 text-[12px] leading-snug text-[--fg-muted]">{o.body}</p>
+              </button>
+            ))}
+          </div>
         </div>
 
         {kind === "group" && (
-          <div className="space-y-4">
+          <div className="space-y-5 rounded-[--r-lg] border border-[--border]/70 bg-[--bg-subtle]/40 p-4">
             <Field label="Room name" error={error} id="room-name">
               <Input
                 id="room-name"
@@ -151,7 +166,9 @@ export function NewConversationModal({
             </Field>
 
             <div>
-              <p className="mb-2 text-[13px] font-medium">AI participation</p>
+              <p className="mb-2 text-[13px] font-medium tracking-[-0.005em] text-[--fg]">
+                AI participation
+              </p>
               <div className="space-y-1.5">
                 {AI_MODES.map((m) => (
                   <button
@@ -159,22 +176,22 @@ export function NewConversationModal({
                     type="button"
                     onClick={() => setAiMode(m.v)}
                     className={cn(
-                      "flex w-full items-start gap-3 rounded-[--r-md] border p-3 text-left transition-colors duration-[--d-micro]",
+                      "flex w-full items-start gap-3 rounded-[--r-md] border p-3 text-left transition-all duration-[--d-micro]",
                       aiMode === m.v
-                        ? "border-[--accent] bg-[--accent-subtle]"
-                        : "border-[--border] hover:bg-[--bg-hover]",
+                        ? "border-[--accent]/60 bg-[--accent-subtle] shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset]"
+                        : "border-[--border] hover:border-[--border-strong] hover:bg-[--bg-hover]",
                     )}
                   >
                     <span
                       className={cn(
-                        "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border-2",
+                        "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 transition-colors duration-[--d-micro]",
                         aiMode === m.v ? "border-[--accent]" : "border-[--border-strong]",
                       )}
                     >
                       {aiMode === m.v && <span className="h-1.5 w-1.5 rounded-full bg-[--accent]" />}
                     </span>
                     <span className="min-w-0">
-                      <span className="block text-[13px] font-medium">{m.label}</span>
+                      <span className="block text-[13px] font-medium text-[--fg]">{m.label}</span>
                       <span className="block text-[12px] leading-snug text-[--fg-muted]">
                         {m.body}
                       </span>

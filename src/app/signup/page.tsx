@@ -99,7 +99,10 @@ export default function SignupPage() {
         sent ? null : (
           <>
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-[--accent-text] hover:underline">
+            <Link
+              href="/login"
+              className="font-medium text-[--accent-text] underline-offset-2 transition-colors duration-[--d-micro] hover:underline"
+            >
               Sign in
             </Link>
           </>
@@ -115,9 +118,9 @@ export default function SignupPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={tEnter()}
-            className="py-4 text-center"
+            className="py-5 text-center"
           >
-            <span className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-[--success-subtle] text-[--success]">
+            <span className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-[--success-subtle] text-[--success] ring-1 ring-inset ring-[--success]/20">
               <MailCheck className="h-6 w-6" />
             </span>
             <p className="text-[14px] leading-relaxed text-[--fg-muted]">
@@ -136,11 +139,14 @@ export default function SignupPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={tEnter()}
+            className="space-y-6"
           >
-            <OAuthButtons next="/onboarding" />
-            <OrDivider />
+            <div className="space-y-6">
+              <OAuthButtons next="/onboarding" />
+              <OrDivider />
+            </div>
 
-            <form onSubmit={submit} className="space-y-4" noValidate>
+            <form onSubmit={submit} className="space-y-5" noValidate>
               <Field label="Display name" error={errors.displayName} id="displayName">
                 <Input
                   id="displayName"
@@ -180,7 +186,7 @@ export default function SignupPage() {
                   aria-invalid={Boolean(errors.password)}
                 />
                 {password && (
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-2.5 flex items-center gap-2.5">
                     <div className="flex h-1 flex-1 gap-1">
                       {[0, 1, 2, 3, 4].map((i) => (
                         <motion.span
@@ -200,7 +206,7 @@ export default function SignupPage() {
                         />
                       ))}
                     </div>
-                    <span className="w-20 text-right text-[11.5px] text-[--fg-subtle]">
+                    <span className="w-20 shrink-0 text-right text-[11.5px] text-[--fg-subtle]">
                       {pw.label}
                     </span>
                   </div>
@@ -208,12 +214,12 @@ export default function SignupPage() {
               </Field>
 
               {/* §3 + §8: training-data opt-in, NEVER pre-checked. */}
-              <label className="flex cursor-pointer items-start gap-3 rounded-[--r-lg] border border-[--border-default] p-3.5 transition-colors hover:bg-[--bg-hover]">
+              <label className="flex cursor-pointer items-start gap-3 rounded-[--r-lg] border border-[--border-default] p-3.5 transition-colors duration-[--d-micro] hover:bg-[--bg-hover] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[--accent]/50 has-[:focus-visible]:ring-offset-2">
                 <input
                   type="checkbox"
                   checked={trainingOptIn}
                   onChange={(e) => setTrainingOptIn(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 accent-[--brand]"
+                  className="mt-0.5 h-4 w-4 accent-[--brand] focus-visible:outline-none"
                 />
                 <span className="text-[13px] leading-relaxed">
                   <span className="font-medium text-[--text-primary]">

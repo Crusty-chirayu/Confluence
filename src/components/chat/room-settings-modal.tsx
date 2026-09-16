@@ -139,7 +139,7 @@ export function RoomSettingsModal({
             ? "Name, topic, AI participation, members, and invites."
             : "Control how the assistant behaves in this thread."
         }
-        className="max-w-2xl"
+        className="max-w-2xl overflow-hidden border-[--border]/70 bg-[--bg-elevated] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_24px_60px_-20px_rgba(0,0,0,0.55)] backdrop-blur-xl supports-[backdrop-filter]:bg-[--bg-elevated]/85"
         footer={
           tab === "general" ? (
             <>
@@ -157,14 +157,21 @@ export function RoomSettingsModal({
           )
         }
       >
+        {/* ambient top sheen — purely decorative, non-interactive */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[--accent]/[0.06] to-transparent"
+        />
+
         {/* tabs */}
-        <div className="mb-5 flex gap-1 border-b border-[--border]">
+        <div className="relative mb-5 flex gap-1 border-b border-[--border]/80">
           {TABS.filter((t) => t.show).map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                "relative px-3 py-2 text-[13px] font-medium transition-colors duration-[--d-micro]",
+                "relative rounded-t-[--r-sm] px-3 py-2 text-[13px] font-medium tracking-[-0.005em] transition-colors duration-[--d-micro]",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[--bg-elevated]",
                 tab === t.id ? "text-[--fg]" : "text-[--fg-muted] hover:text-[--fg]",
               )}
             >
@@ -173,7 +180,7 @@ export function RoomSettingsModal({
                 <motion.span
                   layoutId="room-tab"
                   transition={SPRING}
-                  className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[--accent]"
+                  className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[--accent] shadow-[0_0_10px_-1px_var(--accent)]"
                 />
               )}
             </button>
@@ -191,9 +198,9 @@ export function RoomSettingsModal({
           >
             {/* ---------- GENERAL ---------- */}
             {tab === "general" && (
-              <div className="space-y-5">
+              <div className="space-y-6">
                 {isGroup && (
-                  <>
+                  <div className="space-y-5 rounded-[--r-lg] border border-[--border]/70 bg-[--bg-subtle]/40 p-4">
                     <Field label="Room name" id="rs-name">
                       <Input
                         id="rs-name"
@@ -216,11 +223,13 @@ export function RoomSettingsModal({
                         disabled={!isAdmin}
                       />
                     </Field>
-                  </>
+                  </div>
                 )}
 
                 <div>
-                  <p className="mb-2 text-[13px] font-medium">AI participation</p>
+                  <p className="mb-2 text-[13px] font-medium tracking-[-0.005em] text-[--fg]">
+                    AI participation
+                  </p>
                   <div className="space-y-1.5">
                     {AI_MODES.map((m) => {
                       const locked = !isGroup && m.v !== "auto";
@@ -231,16 +240,17 @@ export function RoomSettingsModal({
                           disabled={(isGroup && !isAdmin) || locked}
                           onClick={() => setAiMode(m.v)}
                           className={cn(
-                            "flex w-full items-start gap-3 rounded-[--r-md] border p-3 text-left transition-colors duration-[--d-micro]",
+                            "flex w-full items-start gap-3 rounded-[--r-md] border p-3 text-left transition-all duration-[--d-micro]",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[--bg-elevated]",
                             aiMode === m.v
-                              ? "border-[--accent] bg-[--accent-subtle]"
-                              : "border-[--border] hover:bg-[--bg-hover]",
+                              ? "border-[--accent]/60 bg-[--accent-subtle] shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset]"
+                              : "border-[--border] hover:border-[--border-strong] hover:bg-[--bg-hover]",
                             (locked || (isGroup && !isAdmin)) && "cursor-not-allowed opacity-45",
                           )}
                         >
                           <span
                             className={cn(
-                              "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border-2",
+                              "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 transition-colors duration-[--d-micro]",
                               aiMode === m.v ? "border-[--accent]" : "border-[--border-strong]",
                             )}
                           >
@@ -249,7 +259,9 @@ export function RoomSettingsModal({
                             )}
                           </span>
                           <span className="min-w-0">
-                            <span className="block text-[13px] font-medium">{m.label}</span>
+                            <span className="block text-[13px] font-medium text-[--fg]">
+                              {m.label}
+                            </span>
                             <span className="block text-[12px] leading-snug text-[--fg-muted]">
                               {locked ? "Not applicable to a 1:1 AI chat." : m.body}
                             </span>
@@ -277,7 +289,7 @@ export function RoomSettingsModal({
                   return (
                     <div
                       key={m.user_id}
-                      className="flex items-center gap-3 rounded-[--r-md] px-2 py-2 transition-colors hover:bg-[--bg-hover]"
+                      className="group flex items-center gap-3 rounded-[--r-md] px-2 py-2 transition-colors duration-[--d-micro] hover:bg-[--bg-hover]"
                     >
                       <Avatar
                         name={m.profile?.display_name ?? "?"}
@@ -285,22 +297,26 @@ export function RoomSettingsModal({
                         size="sm"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13.5px] font-medium">
+                        <p className="truncate text-[13.5px] font-medium text-[--fg]">
                           {m.profile?.display_name ?? "Unknown"}
-                          {isSelf && <span className="ml-1.5 text-[11px] text-[--fg-subtle]">you</span>}
+                          {isSelf && (
+                            <span className="ml-1.5 text-[11px] font-normal text-[--fg-subtle]">
+                              you
+                            </span>
+                          )}
                         </p>
                         <p className="text-[11.5px] text-[--fg-muted]">
                           Joined {relativeTime(m.joined_at)}
                         </p>
                       </div>
 
-                      <span className="flex items-center gap-1 rounded-full bg-[--bg-active] px-2 py-0.5 text-[11px] font-medium capitalize text-[--fg-muted]">
+                      <span className="flex items-center gap-1 rounded-full border border-[--border]/70 bg-[--bg-active] px-2 py-0.5 text-[11px] font-medium capitalize text-[--fg-muted]">
                         <Icon className="h-3 w-3" />
                         {m.role}
                       </span>
 
                       {isAdmin && !isSelf && m.role !== "owner" && (
-                        <div className="flex gap-0.5">
+                        <div className="flex gap-0.5 opacity-80 transition-opacity duration-[--d-micro] group-hover:opacity-100">
                           <Button
                             variant="ghost"
                             size="iconSm"
@@ -353,9 +369,12 @@ export function RoomSettingsModal({
                 </div>
 
                 {invites.length === 0 ? (
-                  <p className="py-10 text-center text-[13px] text-[--fg-subtle]">
-                    No invites yet. Create one to bring people in.
-                  </p>
+                  <div className="flex flex-col items-center gap-1 rounded-[--r-lg] border border-dashed border-[--border] py-10 text-center">
+                    <Link2 className="mb-1 h-4 w-4 text-[--fg-subtle]" />
+                    <p className="text-[13px] text-[--fg-subtle]">
+                      No invites yet. Create one to bring people in.
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-1.5">
                     {invites.map((inv) => {
@@ -366,11 +385,11 @@ export function RoomSettingsModal({
                         <div
                           key={inv.id}
                           className={cn(
-                            "flex items-center gap-3 rounded-[--r-md] border border-[--border] px-3 py-2.5",
+                            "flex items-center gap-3 rounded-[--r-md] border border-[--border] bg-[--bg-subtle]/30 px-3 py-2.5 transition-opacity duration-[--d-micro]",
                             dead && "opacity-50",
                           )}
                         >
-                          <code className="min-w-0 flex-1 truncate font-mono text-[12.5px]">
+                          <code className="min-w-0 flex-1 truncate font-mono text-[12.5px] text-[--fg]">
                             /join/{inv.code}
                           </code>
                           <span className="shrink-0 text-[11.5px] text-[--fg-muted]">
@@ -481,13 +500,19 @@ function DangerRow({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-[--r-md] border border-[--danger]/25 bg-[--danger-subtle]/40 p-4">
+    <div className="flex flex-col gap-3 rounded-[--r-lg] border border-[--danger]/20 bg-[--danger-subtle]/30 p-4 transition-colors duration-[--d-micro] hover:border-[--danger]/30 sm:flex-row sm:items-start">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[--danger]" />
       <div className="min-w-0 flex-1">
-        <p className="text-[13.5px] font-semibold">{title}</p>
+        <p className="text-[13.5px] font-semibold text-[--fg]">{title}</p>
         <p className="mt-0.5 text-[12.5px] leading-relaxed text-[--fg-muted]">{body}</p>
       </div>
-      <Button variant="danger" size="sm" onClick={onClick} disabled={disabled}>
+      <Button
+        variant="danger"
+        size="sm"
+        onClick={onClick}
+        disabled={disabled}
+        className="w-full shrink-0 sm:w-auto"
+      >
         {action}
       </Button>
     </div>

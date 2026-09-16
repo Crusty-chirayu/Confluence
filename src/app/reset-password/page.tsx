@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthShell title="Set a new password" subtitle="Choose something you haven't used before.">
-      <form onSubmit={submit} className="space-y-4" noValidate>
+      <form onSubmit={submit} className="space-y-5" noValidate>
         <Field label="New password" error={errors.password} id="password">
           <Input
             id="password"
@@ -62,6 +62,7 @@ export default function ResetPasswordPage() {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            aria-invalid={Boolean(errors.password)}
           />
         </Field>
         <Field label="Confirm password" error={errors.confirm} id="confirm">
@@ -71,6 +72,7 @@ export default function ResetPasswordPage() {
             autoComplete="new-password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
+            aria-invalid={Boolean(errors.confirm)}
           />
         </Field>
         <Button type="submit" className="w-full" loading={loading}>
