@@ -440,4 +440,5 @@ The security model (RLS on every table, server-only keys, fail-closed moderation
 
 </div>
 
+Alternative Deployment (in-case of Vercel failure).
 Deployed at: https://group-chatbot.onrender.com/
