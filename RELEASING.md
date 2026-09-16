@@ -143,7 +143,7 @@ supabase functions deploy ai-orchestrator moderation-check invite-consume
 |---|---|---|
 | `NEXT_PUBLIC_GITHUB_REPO` | frontend build | repo whose Releases feed `/changelog` (defaults to `Crusty-chirayu/Group-Chatbot`) |
 | `GITHUB_TOKEN` | frontend build, **server only** | raises the GitHub API rate limit for `/changelog`. The page falls back to a static entry if it is unset |
-| `AI_MODEL` | Supabase Edge Function secret | OpenRouter model slug; defaults to `anthropic/claude-sonnet-4.6` |
+
 | `ALLOWED_ORIGINS` | Supabase Edge Function secret | comma-separated allowlist for the functions' CORS. Defaults to `*` — set it to your real origins before launch |
 
 ## 6. Verify production

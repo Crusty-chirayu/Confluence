@@ -79,12 +79,7 @@ on the current `main`, so claims are verifiable rather than assumed.
 ## Secrets in outbound requests
 
 - The only outbound credentialed call is the orchestrator's request to the
-  model provider (OpenRouter's OpenAI-compatible Chat Completions API), using
-  `OPENROUTER_API_KEY` read via `Deno.env.get` at module scope. If the provider
-  returns an error, its body is logged server-side and **not** forwarded —
-  upstream error text can echo request headers. Mid-stream provider errors
-  (SSE `error` frames) are also logged server-side only; the client receives a
-  generic failure.
+
 - `TRAINING_PIPELINE_TOKEN` and `MODERATION_WEBHOOK_TOKEN` are optional and
   read the same way; the training sink is a no-op unless
   `TRAINING_PIPELINE_URL` is set and every member has opted in.

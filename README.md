@@ -335,14 +335,7 @@ src/
     └── supabase/              browser + server clients
 
 supabase/
-├── functions/
-│   ├── ai-orchestrator
-│   ├── moderation-check
-│   ├── invite-consume
-│   └── _shared/provider.ts    pure OpenRouter translation layer — unit-tested
-└── migrations/                versioned history — `supabase db push` applies these
 
-supabase_schema.sql            complete, re-runnable snapshot of the database layer
 ```
 
 ---
