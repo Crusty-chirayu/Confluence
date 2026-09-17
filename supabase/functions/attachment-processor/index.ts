@@ -11,7 +11,7 @@
 // =====================================================================
 
 import { preflight, corsHeaders, json } from "../_shared/cors.ts";
-import { adminClient, HttpError } from "../_shared/supabase.ts";
+import { requireUser, adminClient, HttpError, userClient } from "../_shared/supabase.ts";
 import {
   extractText,
   chunkText,
@@ -38,15 +38,11 @@ Deno.serve(async (req) => {
   const pf = preflight(req);
   if (pf) return pf;
 
-  const admin = adminClient();
-
   try {
-    // Only allow service_role to invoke this function directly
-    // Client-triggered processing would require proper authorization
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return json(req, { error: "unauthorized" }, 401);
-    }
+    // Authenticate the caller and verify they are a valid user
+    const { user, authHeader } = await requireUser(req);
+    const admin = adminClient();
+    const userSupa = userClient(authHeader);
 
     const body = (await req.json()) as Body;
     const attachmentId = body.attachment_id;
@@ -65,7 +61,7 @@ Deno.serve(async (req) => {
       throw new HttpError(404, "attachment_not_found");
     }
 
-    // 2. Get message to verify conversation access (via service_role, this bypasses RLS)
+    // 2. Get message to verify conversation access
     const { data: message, error: msgErr } = await admin
       .from("messages")
       .select("conversation_id")
@@ -74,6 +70,18 @@ Deno.serve(async (req) => {
 
     if (msgErr || !message) {
       throw new HttpError(404, "message_not_found");
+    }
+
+    // 3. Verify the caller is a member of the conversation (using user client to respect RLS)
+    const { data: member, error: memberErr } = await userSupa
+      .from("conversation_members")
+      .select("user_id")
+      .eq("conversation_id", message.conversation_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (memberErr || !member) {
+      throw new HttpError(403, "not_conversation_member");
     }
 
     // 3. Check if already processed (idempotency)

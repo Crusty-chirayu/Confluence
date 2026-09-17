@@ -11,6 +11,7 @@ import { getSupabaseBrowser } from "@/lib/supabase/client";
 /**
  * Trigger processing of an attachment via the attachment-processor Edge Function
  * This is called after a file is uploaded to initiate text extraction and chunking
+ * Note: The processor requires proper user authentication and conversation membership
  */
 export async function processAttachment(attachmentId: string): Promise<{
   success: boolean;
