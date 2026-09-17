@@ -2,7 +2,8 @@
 // extract — V3.0 secure text extraction for Supabase Edge Functions
 //
 // Handles extraction from common document formats with security constraints:
-// - No external dependencies beyond Deno std lib
+// - No external dependencies beyond Deno std lib for text formats
+// - PDF extraction using pdfjs-dist deno-compatible version
 // - Validates file types and sizes
 // - Treats extracted content as untrusted data
 // - Handles malformed files safely
@@ -23,7 +24,7 @@ export interface ExtractionResult {
 
 export interface ExtractionError {
   error: string;
-  code: string;
+ code: string;
   details?: string;
 }
 
@@ -114,12 +115,42 @@ export async function extractText(
       break;
 
     case "application/pdf":
-      // PDF extraction requires external libraries not available in Deno std lib
-      // For now, we'll return a placeholder indicating PDF support requires
-      // additional dependencies. In production, this would use a library
-      // like pdf-parse or call an external extraction service.
-      text = "[PDF extraction requires additional dependencies - file stored for later processing]";
-      pages = [{ pageNumber: 1, content: text }];
+      // PDF extraction using pdfjs-dist (Deno-compatible)
+      try {
+        const pdfData = new Uint8Array(buffer);
+        // Load pdfjs dynamically to avoid issues when not needed
+        const pdfjs = await import("npm:pdfjs-dist@4.8.69");
+        
+        // Set worker source to false for Deno compatibility
+        pdfjs.GlobalWorkerOptions.workerSrc = false;
+        
+        const loadingTask = pdfjs.getDocument({ data: pdfData });
+        const pdfDocument = await loadingTask.promise;
+        
+        const pageCount = pdfDocument.numPages;
+        const extractedPages: Array<{ pageNumber: number; content: string }> = [];
+        
+        for (let i = 1; i <= pageCount; i++) {
+          const page = await pdfDocument.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .map((item: any) => item.str)
+            .join(" ")
+            .trim();
+          
+          if (pageText) {
+            extractedPages.push({ pageNumber: i, content: pageText });
+          }
+        }
+        
+        pages = extractedPages;
+        text = extractedPages.map((p) => p.content).join("\n\n");
+      } catch (pdfError) {
+        console.error("PDF extraction failed:", pdfError);
+        // Fallback to placeholder if PDF extraction fails
+        text = "[PDF extraction failed - file stored for later processing]";
+        pages = [{ pageNumber: 1, content: text }];
+      }
       break;
 
     default:

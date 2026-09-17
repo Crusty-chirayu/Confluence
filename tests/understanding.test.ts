@@ -117,7 +117,9 @@ async function extractText(
       break;
 
     case "application/pdf":
-      text = "[PDF extraction requires additional dependencies - file stored for later processing]";
+      // PDF extraction requires external library
+      // For Node.js testing, we return a placeholder
+      text = "[PDF extraction requires pdfjs-dist library]";
       pages = [{ pageNumber: 1, content: text }];
       break;
 

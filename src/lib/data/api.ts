@@ -22,6 +22,7 @@ import type {
 } from "@/lib/types";
 import { plainPreview } from "@/lib/utils";
 import { attachmentStoragePath, validateAttachmentFile } from "@/lib/attachments";
+import { processAttachment } from "@/lib/understanding";
 
 /* ------------------------------------------------------------------ */
 /* Session                                                             */
@@ -431,6 +432,15 @@ export async function uploadAttachment(
     .select("*")
     .single();
   if (error) throw error;
+  
+  // Trigger attachment processing for text-based files (non-demo mode only)
+  if (!DEMO_MODE && (verdict.mime.startsWith("text/") || verdict.mime === "application/json" || verdict.mime === "application/pdf")) {
+    // Trigger processing asynchronously - don't await to avoid blocking upload
+    processAttachment(data.id).catch((err) => {
+      console.error("Failed to trigger attachment processing:", err);
+    });
+  }
+  
   return data as MessageAttachment;
 }
 
