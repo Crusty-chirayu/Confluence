@@ -694,7 +694,8 @@ export async function searchMessages(query: string): Promise<SearchHit[]> {
 export interface AiStreamCallbacks {
   onStart?: (messageId: string) => void;
   onDelta: (text: string) => void;
-  onDone: (full: string) => void;
+  /** Verified citations are supplied by the orchestrator, never the model. */
+  onDone: (full: string, citations?: unknown[]) => void;
   onBlocked?: (reason: string) => void;
   onError?: (message: string) => void;
 }
@@ -805,7 +806,10 @@ export async function invokeAi(
           else if (event === "delta") {
             full += payload.text as string;
             cb.onDelta(payload.text as string);
-          } else if (event === "done") cb.onDone((payload.content as string) ?? full);
+          } else if (event === "done") {
+            const citations = Array.isArray(payload.citations) ? payload.citations : [];
+            cb.onDone((payload.content as string) ?? full, citations);
+          }
           else if (event === "blocked") cb.onBlocked?.((payload.reason as string) ?? "policy");
           else if (event === "error") cb.onError?.((payload.message as string) ?? "stream_error");
         }

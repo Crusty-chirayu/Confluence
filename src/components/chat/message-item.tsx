@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Markdown } from "./markdown";
 import { AttachmentChip } from "./attachment-chip";
+import { CitationList } from "./citation-list";
 import type { Message, Profile, Reaction } from "@/lib/types";
 import type { ReadReceipt } from "@/lib/read-receipts";
 import { readReceiptLabel } from "@/lib/read-receipts";
@@ -224,6 +225,8 @@ export const MessageItem = React.memo(function MessageItem({
             ) : streaming ? (
               <span className="stream-caret" />
             ) : null}
+            {/* verified sources — server-derived, rendered only when present */}
+            {!streaming && <CitationList citations={message.citations} />}
           </div>
         )}
 

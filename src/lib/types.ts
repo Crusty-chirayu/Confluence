@@ -51,6 +51,18 @@ export interface Message {
   deleted_at: string | null;
   /** Attachments attached to this message (private, member-scoped). */
   attachments?: MessageAttachment[];
+  /** Server-verified attachment citations (empty when none). */
+  citations?: Citation[] | null;
+}
+
+/** Verified source citation derived server-side from retrieved chunks. */
+export interface Citation {
+  attachment_id: string;
+  filename: string;
+  label: string;
+  page: number | null;
+  chunk_index: number | null;
+  mime_type: string | null;
 }
 
 export interface MessageAttachment {
