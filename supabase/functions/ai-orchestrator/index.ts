@@ -23,6 +23,13 @@ import {
   ProviderSSEDecoder,
   type ProviderStreamEvent,
 } from "../_shared/provider.ts";
+import {
+  renderDocumentContext,
+  buildImageParts,
+  untrustedContentRules,
+  type ContextChunk,
+  type ImageRef,
+} from "../_shared/attachment-context.ts";
 
 const MODEL = Deno.env.get("AI_MODEL") ?? "anthropic/claude-sonnet-4.6";
 const MAX_TOKENS = Number(Deno.env.get("AI_MAX_TOKENS") ?? 2048);
@@ -71,6 +78,7 @@ function systemPrompt(opts: {
   roomName: string | null;
   topic: string | null;
   members: string[];
+  hasAttachments: boolean;
 }) {
   const base = [
     "You are the AI assistant embedded in a chat product.",
@@ -90,6 +98,12 @@ function systemPrompt(opts: {
       "Do not summarise the whole conversation unless asked. Answer the most recent request; stay out of the way otherwise.",
     );
   }
+
+  // Add untrusted content rules if attachments are present
+  if (opts.hasAttachments) {
+    base.push(untrustedContentRules());
+  }
+
   return base.filter(Boolean).join("\n");
 }
 
@@ -176,6 +190,44 @@ Deno.serve(async (req) => {
 
     const isGroup = conversation.type === "group";
 
+    // --- 4a. attachment context retrieval ------------------------------------
+    let attachmentContext: string | null = null;
+    let hasAttachments = false;
+
+    // Check for attachments in the conversation
+    const { data: attachments } = await admin
+      .from("message_attachments")
+      .select("id, storage_path, mime_type")
+      .in("message_id", ordered.map((m) => m.id));
+
+    if (attachments && attachments.length > 0) {
+      hasAttachments = true;
+      
+      // Retrieve relevant chunks for the current query
+      // Use the most recent human message as the query for retrieval
+      const lastHumanMessage = [...ordered].reverse().find((m) => m.sender_type === "human");
+      if (lastHumanMessage) {
+        const { data: retrievedChunks } = await admin.rpc("retrieve_attachment_chunks", {
+          p_conversation_id: conversationId,
+          p_query: lastHumanMessage.content.slice(0, 500), // Use first 500 chars as query
+          p_limit: 10,
+        });
+
+        if (retrievedChunks && retrievedChunks.length > 0) {
+          // Convert to ContextChunk format
+          const contextChunks: ContextChunk[] = retrievedChunks.map((chunk: any) => ({
+            attachment_id: chunk.attachment_id,
+            filename: attachments.find((a: any) => a.id === chunk.attachment_id)?.storage_path?.split("/").pop() || "unknown",
+            mime_type: attachments.find((a: any) => a.id === chunk.attachment_id)?.mime_type || "text/plain",
+            label: chunk.label,
+            content: chunk.content,
+          }));
+
+          attachmentContext = renderDocumentContext(contextChunks);
+        }
+      }
+    }
+
     // --- 4. pre-moderation ---------------------------------------------------
     const trigger =
       ordered.find((m) => m.id === body.trigger_message_id) ??
@@ -239,15 +291,23 @@ Deno.serve(async (req) => {
     }
 
     const started = Date.now();
+    const systemPromptText = systemPrompt({
+      isGroup,
+      roomName: conversation.name,
+      topic: conversation.topic,
+      members: (memberProfiles ?? []).map((p) => p.display_name),
+      hasAttachments,
+    });
+
+    // Append attachment context to system prompt if available
+    const finalSystemPrompt = attachmentContext 
+      ? systemPromptText + "\n\n" + attachmentContext 
+      : systemPromptText;
+
     const { url, init } = buildProviderRequest({
       model: MODEL,
       maxTokens: MAX_TOKENS,
-      system: systemPrompt({
-        isGroup,
-        roomName: conversation.name,
-        topic: conversation.topic,
-        members: (memberProfiles ?? []).map((p) => p.display_name),
-      }),
+      system: finalSystemPrompt,
       messages: providerMessages,
       apiKey: API_KEY,
     });
