@@ -50,12 +50,16 @@ export function SectionHeading({
   title,
   subtitle,
   className,
+  headingLevel = "h2",
 }: {
   eyebrow?: string;
   title: string;
   subtitle?: string;
   className?: string;
+  /** Render the section title as h1 on pages where it is the page title. */
+  headingLevel?: "h1" | "h2";
 }) {
+  const Heading = headingLevel;
   return (
     <div className={cn("mx-auto max-w-2xl text-center", className)}>
       {eyebrow && (
@@ -66,7 +70,7 @@ export function SectionHeading({
         </RevealItem>
       )}
       <RevealItem>
-        <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h2>
+        <Heading className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">{title}</Heading>
       </RevealItem>
       {subtitle && (
         <RevealItem>

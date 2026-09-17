@@ -98,6 +98,7 @@ export default async function ChangelogPage() {
       <main className="px-5 pb-24 pt-32 sm:pt-40">
         <Reveal className="mx-auto max-w-3xl">
           <SectionHeading
+            headingLevel="h1"
             eyebrow="Changelog"
             title="What's new"
             subtitle="Published automatically from GitHub Releases on every tagged version."

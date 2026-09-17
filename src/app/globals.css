@@ -386,15 +386,6 @@
   --shadow-e2: var(--e2);
   --shadow-e3: var(--e3);
   --shadow-e4: var(--e4);
-
-  /* §2.3 typography */
-  /* §2.3 — self-hosted in src/app/fonts (see src/app/layout.tsx). The
-     Latin-Extended family sits after the Latin one so it is only requested
-     when a glyph needs it; the generic stacks remain as the last resort. */
-  --font-sans: var(--font-inter), var(--font-inter-ext), ui-sans-serif, system-ui,
-    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas,
-    "Liberation Mono", monospace;
 }
 
 * {
@@ -409,6 +400,19 @@ html.dark {
 }
 
 body {
+  /* §2.3 typography — self-hosted in src/app/fonts (see src/app/layout.tsx).
+     Declared on `body`, not `:root`: next/font attaches the --font-inter /
+     --font-jetbrains-mono variables to <body>, and custom properties are
+     substituted at the element where they are declared — on :root the font
+     variables do not exist yet, so the stack would collapse to the fallback.
+     The Latin-Extended family sits after the Latin one so it is only
+     requested when a glyph needs it; the generic stacks remain the last
+     resort. */
+  --font-sans: var(--font-inter), var(--font-inter-ext), ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+
   background: var(--bg-app);
   color: var(--text-primary);
   font-family: var(--font-sans);

@@ -67,6 +67,7 @@ export default function PricingPage() {
 
           <Reveal className="mx-auto max-w-5xl">
             <SectionHeading
+              headingLevel="h1"
               eyebrow="Pricing"
               title="Priced per person, not per token"
               subtitle="Every plan includes streaming, moderation on both edges, private attachments and the full search index. The plan changes what you can create — never what you can read."
@@ -123,13 +124,11 @@ export default function PricingPage() {
             </h2>
             <dl className="mt-10 divide-y divide-[--border]">
               {PRICING_FAQ.map((item) => (
-                <RevealItem key={item.q}>
-                  <div className="py-5 first:pt-0 last:pb-0">
-                    <dt className="text-[14.5px] font-semibold">{item.q}</dt>
-                    <dd className="mt-1.5 text-pretty text-[13.5px] leading-relaxed text-[--fg-muted]">
-                      {item.a}
-                    </dd>
-                  </div>
+                <RevealItem key={item.q} className="py-5 first:pt-0 last:pb-0">
+                  <dt className="text-[14.5px] font-semibold">{item.q}</dt>
+                  <dd className="mt-1.5 text-pretty text-[13.5px] leading-relaxed text-[--fg-muted]">
+                    {item.a}
+                  </dd>
                 </RevealItem>
               ))}
             </dl>
