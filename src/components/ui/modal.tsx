@@ -44,6 +44,11 @@ export function Modal({
    * focused rather than its first control, because some dialogs open onto
    * a destructive confirm (see ConfirmDialog) that must not be one stray
    * Enter away from firing.
+   *
+   * NOTE: onClose is intentionally omitted from the dependency array.
+   * Callers pass inline arrow functions that change on every parent render,
+   * which would cause this effect to re-run and pull focus away from active
+   * inputs during typing. The effect only needs to run when open changes.
    */
   React.useEffect(() => {
     if (!open) return;
@@ -58,7 +63,12 @@ export function Modal({
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        // Only close if this is the topmost dialog
+        const allDialogs = document.querySelectorAll<HTMLElement>('[role="dialog"]');
+        const isTopmost = allDialogs.length > 0 && allDialogs[allDialogs.length - 1] === panelRef.current;
+        if (isTopmost) {
+          onClose();
+        }
         return;
       }
       if (e.key !== "Tab") return;
@@ -98,7 +108,8 @@ export function Modal({
       // The trigger may have unmounted while the dialog was open.
       if (target && document.contains(target)) target.focus();
     };
-  }, [open, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   if (!mounted) return null;
 

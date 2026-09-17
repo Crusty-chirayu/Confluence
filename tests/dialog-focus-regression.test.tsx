@@ -100,16 +100,16 @@ describe("dialog focus lifecycle — the typing regression", () => {
     await flushFrame();
     fireEvent.click(screen.getByRole("button", { name: /Group room/ }));
 
-    const off = screen.getByRole("radio", { name: /Off/ }) as HTMLInputElement;
+    const off = screen.getByRole("button", { name: /Off/ });
     fireEvent.click(off);
     await flushFrame();
-    expect(off.checked).toBe(true);
+    expect(off.className).toContain("border-[--accent]/60");
 
-    const auto = screen.getByRole("radio", { name: /Auto/ }) as HTMLInputElement;
+    const auto = screen.getByRole("button", { name: /Auto/ });
     fireEvent.click(auto);
     await flushFrame();
-    expect(auto.checked).toBe(true);
-    expect(off.checked).toBe(false);
+    expect(auto.className).toContain("border-[--accent]/60");
+    expect(off.className).not.toContain("border-[--accent]/60");
   });
 
   it("does not re-run its focus work when the parent re-renders mid-typing", async () => {
