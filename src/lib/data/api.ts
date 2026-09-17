@@ -28,14 +28,37 @@ import { processAttachment } from "@/lib/understanding";
 /* Session                                                             */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Set while a user-initiated sign-out is in flight. The /app auth guard
+ * consumes it once and skips its redirect, so the deliberate navigation to a
+ * public page is not fought by a bounce to /login?next=/app. Any successful
+ * session lookup clears it again.
+ */
+let deliberateSignOut = false;
+
+export function isDeliberateSignOut(): boolean {
+  return deliberateSignOut;
+}
+
+export function clearDeliberateSignOut(): void {
+  deliberateSignOut = false;
+}
+
 export async function getCurrentProfile(): Promise<Profile | null> {
-  if (DEMO_MODE) return demo.currentUser();
+  if (DEMO_MODE) {
+    const user = demo.currentUser();
+    if (user) deliberateSignOut = false;
+    return user;
+  }
   const supa = getSupabaseBrowser();
   if (!supa) return null;
   const { data: auth } = await supa.auth.getUser();
   if (!auth.user) return null;
   const { data } = await supa.from("profiles").select("*").eq("id", auth.user.id).maybeSingle();
-  if (data) return data as Profile;
+  if (data) {
+    deliberateSignOut = false;
+    return data as Profile;
+  }
   // trigger may not have fired yet — create it
   const fallback = {
     id: auth.user.id,
@@ -51,6 +74,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 }
 
 export async function signOut() {
+  deliberateSignOut = true;
   if (DEMO_MODE) return demo.signOut();
   await getSupabaseBrowser()?.auth.signOut();
 }

@@ -48,7 +48,13 @@ test("continuous typing, first-click selection, rename, pin and current-room del
   }
   await page.getByRole("button", { name: "More options for Engineering release room", exact: true }).click();
   await page.getByRole("menuitem", { name: "Delete room", exact: true }).click();
-  await page.getByRole("dialog", { name: "Delete conversation?" }).getByRole("button", { name: "Delete", exact: true }).click();
+  const confirmDialog = page.getByRole("dialog", { name: "Delete conversation?" });
+  await confirmDialog.waitFor();
+  // ConfirmDialog ignores clicks within 450ms of opening (a deliberate
+  // double-click guard with a shake tell). Wait out the window so the
+  // confirm click lands deterministically, like a real user's second tap.
+  await page.waitForTimeout(500);
+  await confirmDialog.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByRole("link", { name: /Engineering release room/ })).toHaveCount(0);
 });

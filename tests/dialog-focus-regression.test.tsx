@@ -100,15 +100,28 @@ describe("dialog focus lifecycle — the typing regression", () => {
     await flushFrame();
     fireEvent.click(screen.getByRole("button", { name: /Group room/ }));
 
-    const off = screen.getByRole("button", { name: /Off/ });
+    // The AI participation picker is a real radiogroup (see the V3 a11y
+    // work): clicking the visible card checks the radio and moves focus to
+    // it, and the selection survives interacting with the other options.
+    const modeCard = (name: RegExp) => screen.getByRole("radio", { name }).closest("label")!;
+
+    const off = modeCard(/^Off/);
     fireEvent.click(off);
     await flushFrame();
+    const offInput = screen.getByRole("radio", { name: /^Off/ }) as HTMLInputElement;
+    expect(offInput.checked).toBe(true);
+    // Focus moves into the dialog's radio group (jsdom may forward label
+    // clicks to any member of the shared-name group — the exact node is an
+    // implementation detail). What matters for the regression: focus never
+    // escapes the dialog to the page behind it.
+    expect(dialog().contains(document.activeElement)).toBe(true);
     expect(off.className).toContain("border-[--accent]/60");
 
-    const auto = screen.getByRole("button", { name: /Auto/ });
+    const auto = modeCard(/Auto/);
     fireEvent.click(auto);
     await flushFrame();
-    expect(auto.className).toContain("border-[--accent]/60");
+    expect((screen.getByRole("radio", { name: /Auto/ }) as HTMLInputElement).checked).toBe(true);
+    expect(offInput.checked).toBe(false);
     expect(off.className).not.toContain("border-[--accent]/60");
   });
 

@@ -138,7 +138,7 @@ export function Modal({
             animate="show"
             exit="exit"
             className={cn(
-              "relative w-full max-w-lg rounded-t-[--r-xl] border border-[--border] bg-[--surface-raised]",
+              "relative flex max-h-[calc(100dvh-3rem)] w-full max-w-lg flex-col rounded-t-[--r-xl] border border-[--border] bg-[--surface-raised]",
               "shadow-[--e4] sm:rounded-[--r-xl]",
               className,
             )}
@@ -154,7 +154,7 @@ export function Modal({
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            {children && <div className="px-5 py-4">{children}</div>}
+            {children && <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>}
             {footer && (
               <div className="flex items-center justify-end gap-2 border-t border-[--border] px-5 py-3.5">
                 {footer}

@@ -18,11 +18,14 @@ import {
 } from "lucide-react";
 import { Avatar, AiAvatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ConversationRowMenu } from "@/components/layout/conversation-row-menu";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-provider";
 import { ConversationListSkeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/components/session-provider";
-import { signOut } from "@/lib/data/api";
+import { useToast } from "@/components/ui/toast";
+import { AppDataContext } from "@/app/app/layout";
+import { deleteConversation, signOut, updateConversation } from "@/lib/data/api";
 import type { ConversationSummary } from "@/lib/types";
 import {
   cn,
@@ -57,8 +60,6 @@ export function Sidebar({
   const router = useRouter();
   const { profile } = useSession();
 
-  // §3 pinned conversations: pinned rows float to the top of the list, in
-  // the order they were pinned, and are removed from the type groups below.
   const { pinned, rest } = partitionPinned(conversations);
   const direct = rest.filter((c) => c.type === "direct_ai");
   const rooms = rest.filter((c) => c.type === "group");
@@ -247,9 +248,34 @@ function ConversationRow({
 }) {
   const title = conversationTitle(c);
   const pinned = Boolean(c.pinned_at);
+  const toast = useToast();
+  const router = useRouter();
+  const { refreshConversations } = React.useContext(AppDataContext);
+  const isRoom = c.type === "group";
   const preview = c.last_message
     ? `${c.last_message.sender_type === "ai" ? "AI: " : ""}${truncate(plainPreview(c.last_message.content), 44)}`
     : "No messages yet";
+
+  const renameConversation = async (name: string) => {
+    try {
+      await updateConversation(c.id, { name });
+      refreshConversations();
+    } catch (e) {
+      toast.push({ kind: "error", title: "Couldn't rename", description: String(e) });
+    }
+  };
+
+  const removeConversation = async () => {
+    try {
+      await deleteConversation(c.id);
+      refreshConversations();
+      // Same contract as deleting from room settings: never leave the user
+      // looking at a conversation that no longer exists.
+      if (active) router.push("/app");
+    } catch (e) {
+      toast.push({ kind: "error", title: "Couldn't delete", description: String(e) });
+    }
+  };
 
   return (
     <motion.li
@@ -344,6 +370,18 @@ function ConversationRow({
             strokeWidth={pinned ? 2.5 : 2}
           />
         </button>
+      )}
+
+      {isRoom && (
+        <ConversationRowMenu
+          title={title}
+          pinned={pinned}
+          actions={{
+            onTogglePin: onTogglePin ? () => onTogglePin(c.id, !pinned) : () => {},
+            onRename: renameConversation,
+            onDelete: removeConversation,
+          }}
+        />
       )}
     </motion.li>
   );

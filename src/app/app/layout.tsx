@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu } from "lucide-react";
+import { Menu, PanelLeft } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { NewConversationModal } from "@/components/layout/new-conversation-modal";
 import { JoinModal } from "@/components/layout/join-modal";
@@ -14,16 +14,15 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { useSession } from "@/components/session-provider";
 import { useToast } from "@/components/ui/toast";
-import { listConversations, setPinned } from "@/lib/data/api";
+import { listConversations, setPinned, isDeliberateSignOut, clearDeliberateSignOut } from "@/lib/data/api";
 import { DEMO_MODE } from "@/lib/env";
 import { demo } from "@/lib/data/demo-store";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import type { ConversationSummary } from "@/lib/types";
 import { backdrop, tEnter } from "@/lib/motion";
+import { AppDataContext } from "./app-data";
 
-export const AppDataContext = React.createContext<{ refreshConversations: () => void }>({
-  refreshConversations: () => {},
-});
+export { AppDataContext } from "./app-data";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -37,6 +36,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [sidebarHidden, setSidebarHidden] = React.useState(false);
 
   const refresh = React.useCallback(async () => {
     try {
@@ -73,9 +73,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     [refresh, toast],
   );
 
-  // auth guard
+  // auth guard. During a user-initiated sign-out the callers navigate to a
+  // public page deliberately; the guard skips its redirect once so it does not
+  // race that navigation with a bounce to /login?next=/app.
   React.useEffect(() => {
-    if (!sessionLoading && !profile) router.replace("/login?next=/app");
+    if (!sessionLoading && !profile) {
+      if (isDeliberateSignOut()) {
+        clearDeliberateSignOut();
+        return;
+      }
+      router.replace("/login?next=/app");
+    }
   }, [sessionLoading, profile, router]);
 
   React.useEffect(() => {
@@ -101,7 +109,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [profile, refresh]);
 
   // §3: ⌘K opens the command palette (navigate / create / theme).
-  // ⌘/ opens message full-text search.
+  // ⌘/ opens message full-text search. ⌘B toggles the desktop sidebar —
+  // typing-safe: ignored while the focus sits in a text field so it can
+  // never steal a keystroke from the composer.
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
@@ -112,6 +122,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       } else if (k === "/") {
         e.preventDefault();
         setSearchOpen((o) => !o);
+      } else if (k === "b") {
+        const t = e.target as HTMLElement | null;
+        if (t && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName))) {
+          return;
+        }
+        e.preventDefault();
+        setSidebarHidden((h) => !h);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -160,14 +177,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             ruled rectangle: no flat border, just a soft gradient seam so
             the sidebar reads as a distinct surface catching ambient light
             from the shell behind it. Sidebar's own surface/glass treatment
-            is handled inside the Sidebar component itself. */}
-        <aside className="relative hidden w-[17.5rem] shrink-0 lg:block">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-y-4 right-0 w-px bg-gradient-to-b from-transparent via-[--border-strong]/70 to-transparent"
-          />
-          {sidebar}
-        </aside>
+            is handled inside the Sidebar component itself. ⌘B collapses it
+            on desktop; a compact restore button takes its place. */}
+        {!sidebarHidden && (
+          <aside className="relative hidden w-[17.5rem] shrink-0 lg:block">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-4 right-0 w-px bg-gradient-to-b from-transparent via-[--border-strong]/70 to-transparent"
+            />
+            {sidebar}
+          </aside>
+        )}
+        {sidebarHidden && (
+          <div className="hidden shrink-0 items-start pt-4 pl-2 lg:flex">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarHidden(false)}
+              aria-label="Show sidebar"
+              title="Show sidebar (Ctrl+B)"
+            >
+              <PanelLeft className="h-5 w-5" />
+            </Button>
+          </div>
+        )}
 
         {/* mobile drawer */}
         <AnimatePresence>
