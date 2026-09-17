@@ -40,9 +40,9 @@ async function generateEmbeddings(
     throw new Error(error.error || "Embedding generation failed");
   }
 
-  const data = await response.json();
+  const data: { data: Array<{ embedding: number[] }> } = await response.json();
   
-  return data.data.map((item: any) => item.embedding);
+  return data.data.map((item) => item.embedding);
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {

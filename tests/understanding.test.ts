@@ -348,10 +348,12 @@ describe("text chunking", () => {
     const chunks = chunkText(text, config);
 
     if (chunks.length > 1) {
-      const firstChunkEnd = chunks[0].content;
+      const firstChunkEnd = chunks[0].content.slice(-config.overlapChars);
       const secondChunkStart = chunks[1].content;
       // Second chunk should start with some overlap from first chunk
       expect(secondChunkStart.length).toBeGreaterThan(0);
+      expect(secondChunkStart.startsWith(firstChunkEnd)).toBe(true);
+      expect(chunks[1].startChar).toBe(chunks[0].endChar - config.overlapChars);
     }
   });
 
