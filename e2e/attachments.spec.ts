@@ -31,6 +31,9 @@ test("attachments: a file attached to a message is shown as a chip", async ({ pa
   await composer(page).press("Enter");
 
   // The attachment chip should render with the file name + a size label.
-  await expect(messageLog(page)).toContainText("pixel.png");
-  await expect(messageLog(page)).toContainText(/B$|kB|MB/);
+  // Asserted against the chip itself (not the whole log) so a streamed
+  // assistant reply after the chip can never break the size check.
+  const chip = messageLog(page).locator("a", { hasText: "pixel.png" }).first();
+  await expect(chip).toContainText("pixel.png");
+  await expect(chip).toContainText(/B$|kB|MB/);
 });

@@ -15,6 +15,12 @@ const DEMO_KEY = "aichat.demo.v2";
 
 /** Wipe the demo store so the in-browser seed is regenerated on next load. */
 export async function resetDemo(page: Page): Promise<void> {
+  // `page.evaluate` before any navigation runs against an opaque about:blank
+  // origin, where Chromium denies `localStorage` entirely (SecurityError).
+  // Land on the app origin first so the store wipe targets the real origin.
+  if (page.url() === "about:blank") {
+    await page.goto("/login");
+  }
   await page.evaluate((key) => window.localStorage.removeItem(key), DEMO_KEY);
   await page.evaluate(() => window.localStorage.removeItem("aichat.theme"));
 }
