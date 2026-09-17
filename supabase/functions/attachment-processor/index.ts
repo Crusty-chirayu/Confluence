@@ -5,21 +5,23 @@
 // 1. Validates attachment exists and caller has authorization
 // 2. Retrieves private file from storage
 // 3. Extracts text content using the extraction layer
-// 4. Normalizes and chunks content
-// 5. Persists chunks to database
-// 6. Handles idempotency and retries safely
+// 4. Normalizes and chunks content (page-preserving for PDFs)
+// 5. Generates embeddings in bounded batches and persists chunks
+// 6. Tracks processing status honestly: queued -> processing -> ready|failed
+// 7. Handles idempotency and retries safely
 // =====================================================================
 
 import { preflight, corsHeaders, json } from "../_shared/cors.ts";
 import { requireUser, adminClient, HttpError, userClient } from "../_shared/supabase.ts";
 import {
   extractText,
+  chunkPages,
   chunkText,
   generateChunkLabels,
   estimateTokenCount,
   type ChunkConfig,
 } from "../_shared/extract.ts";
-import { generateEmbeddings } from "../_shared/embeddings.ts";
+import { generateEmbeddings, EMBEDDING_DIMENSION } from "../_shared/embeddings.ts";
 
 interface Body {
   attachment_id: string;
@@ -31,8 +33,22 @@ const CHUNK_CONFIG: ChunkConfig = {
 };
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
-const EMBEDDING_DIMENSION = 1536; // OpenAI text-embedding-3-small dimension
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+
+/** Max text chunks sent to the embedding API per request (bounded payloads). */
+const EMBEDDING_BATCH_SIZE = 100;
+/** Hard cap on persisted chunks per attachment (defence against runaway docs). */
+const MAX_CHUNKS = 400;
+
+/** MIME types the understanding pipeline can extract text from. */
+const EXTRACTABLE_MIME_TYPES = new Set([
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+  "text/html",
+]);
 
 Deno.serve(async (req) => {
   const pf = preflight(req);
@@ -53,7 +69,7 @@ Deno.serve(async (req) => {
     // 1. Verify attachment exists and get metadata
     const { data: attachment, error: attErr } = await admin
       .from("message_attachments")
-      .select("id, message_id, storage_path, mime_type, size_bytes")
+      .select("id, message_id, storage_path, mime_type, size_bytes, processing_status")
       .eq("id", attachmentId)
       .single();
 
@@ -84,7 +100,18 @@ Deno.serve(async (req) => {
       throw new HttpError(403, "not_conversation_member");
     }
 
-    // 3. Check if already processed (idempotency)
+    // 3b. File types the pipeline never processes (images, audio, video).
+    // Reported honestly instead of pretending to process them.
+    if (!EXTRACTABLE_MIME_TYPES.has(attachment.mime_type)) {
+      await admin
+        .from("message_attachments")
+        .update({ processing_status: "unsupported", processing_error: null })
+      
+      .eq("id", attachmentId);
+      return json(req, { success: true, message: "unsupported", chunk_count: 0 }, 200);
+    }
+
+    // 4. Check if already processed (idempotency)
     const { data: existingChunks } = await admin
       .from("attachment_chunks")
       .select("id")
@@ -100,7 +127,15 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
-    // 4. Retrieve file from storage
+    // 5. Claim the work. The status row is the crash-recovery marker: a run
+    // that dies between claim and completion/failure never leaves a lie in
+    // the DB — a later retry resets the state before re-processing.
+    await admin
+      .from("message_attachments")
+      .update({ processing_status: "processing", processing_error: null })
+      .eq("id", attachmentId);
+
+    // 6. Retrieve file from storage
     const { data: fileData, error: downloadErr } = await admin
       .storage
       .from("attachments")
@@ -114,18 +149,27 @@ Deno.serve(async (req) => {
     const pathParts = attachment.storage_path.split("/");
     const filename = pathParts[pathParts.length - 1] || "unknown";
 
-    // 5. Extract text content
+    // 7. Extract text content
     const extractionResult = await extractText(
       filename,
       attachment.mime_type,
       new Uint8Array(await fileData.arrayBuffer()),
     );
 
-    // 6. Chunk the extracted text
-    const chunks = chunkText(extractionResult.text, CHUNK_CONFIG);
+    // 8. Chunk the extracted text. PDFs (and any multi-page result) chunk
+    // per page so every chunk keeps its true source page number.
+    const pages = extractionResult.pages;
+    const chunks =
+      pages.length > 1
+        ? chunkPages(pages, CHUNK_CONFIG)
+        : chunkText(extractionResult.text, CHUNK_CONFIG);
 
     if (chunks.length === 0) {
-      // Empty extraction - still mark as processed but with no chunks
+      // Empty extraction - mark ready with no chunks (truthful, not failed)
+      await admin.rpc("mark_attachment_processed", {
+        p_attachment_id: attachmentId,
+        p_chunk_count: 0,
+      });
       return json(req, { 
         success: true, 
         message: "empty_extraction",
@@ -133,66 +177,74 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
-    // 7. Generate labels for chunks
-    const labels = generateChunkLabels(chunks, {
-      filename: extractionResult.metadata.filename,
-      pageCount: extractionResult.metadata.pageCount,
-    });
+    // 9. Generate labels for chunks (page-aware when pages are known)
+    const labels = generateChunkLabels(
+      chunks.map((c) => ({ content: c.content, index: c.index })),
+      {
+        filename: extractionResult.metadata.filename,
+        pageCount: extractionResult.metadata.pageCount,
+      },
+    );
 
-    // 8. Prepare chunk records for insertion
-    const chunkRecords = chunks.map((chunk, i) => ({
+    // 10. Generate embeddings in bounded batches if the key is available.
+    // Embedding is best-effort: FTS remains the retrieval fallback whenever
+    // it fails, so a provider outage never fails the whole extraction.
+    const embeddings: Array<number[] | null> = new Array(chunks.length).fill(null);
+    if (OPENAI_API_KEY) {
+      for (let start = 0; start < chunks.length; start += EMBEDDING_BATCH_SIZE) {
+        const batch = chunks
+          .slice(start, start + EMBEDDING_BATCH_SIZE)
+          .map((c) => c.content);
+        try {
+          const vectors = await generateEmbeddings(
+            batch,
+            OPENAI_API_KEY,
+            EMBEDDING_MODEL,
+            EMBEDDING_DIMENSION,
+          );
+          for (let i = 0; i < vectors.length; i++) {
+            embeddings[start + i] = vectors[i];
+          }
+        } catch (embeddingError) {
+          console.error(
+            "attachment-processor: embedding_generation_failed",
+            embeddingError instanceof Error ? embeddingError.message : embeddingError,
+          );
+          break; // skip remaining batches; FTS covers retrieval
+        }      }
+    }
+
+    // 11. Persist chunks (bounded), then flip status to ready only on success.
+    const records = chunks.slice(0, MAX_CHUNKS).map((chunk, i) => ({
       attachment_id: attachmentId,
       chunk_index: chunk.index,
       content: chunk.content,
-      label: labels[i],
+      label: labels[i] ?? `section ${chunk.index + 1}`,
       token_count: estimateTokenCount(chunk.content),
-      // Embedding will be added after generation
-      embedding: null,
+      page_number: chunk.pageNumber,
+      embedding: embeddings[i],
     }));
 
-    // 9. Generate embeddings if API key is available
-    let embeddings: number[][] = [];
-    if (OPENAI_API_KEY) {
-      try {
-        const chunkTexts = chunks.map((chunk) => chunk.content);
-        embeddings = await generateEmbeddings(chunkTexts, OPENAI_API_KEY, EMBEDDING_MODEL);
-        
-        // Verify embedding dimensions
-        if (embeddings.length > 0 && embeddings[0].length !== EMBEDDING_DIMENSION) {
-          console.warn("attachment-processor: embedding_dimension_mismatch", 
-            `Expected ${EMBEDDING_DIMENSION}, got ${embeddings[0].length}`);
-          embeddings = []; // Fall back to no embeddings if dimension mismatch
-        }
-      } catch (embeddingError) {
-        console.error("attachment-processor: embedding_generation_failed", embeddingError);
-        // Continue without embeddings - FTS will still work
-        embeddings = [];
-      }
-    }
-
-    // 10. Add embeddings to chunk records
-    if (embeddings.length > 0) {
-      for (let i = 0; i < chunkRecords.length; i++) {
-        if (i < embeddings.length) {
-          chunkRecords[i].embedding = embeddings[i];
-        }
-      }
-    }
-
-    // 11. Insert chunks in a transaction
     const { error: insertErr } = await admin
       .from("attachment_chunks")
-      .insert(chunkRecords);
+      .insert(records);
 
     if (insertErr) {
-      console.error("attachment-processor: chunk_insert_failed", insertErr);
+      console.error("attachment-processor: chunk_insert_failed", insertErr.message);
       throw new HttpError(500, "chunk_insert_failed");
     }
+
+    // 12. Mark processed — service-role RPC with an ownership guard, so
+    // 'ready' can only ever be reached with chunks actually persisted.
+    await admin.rpc("mark_attachment_processed", {
+      p_attachment_id: attachmentId,
+      p_chunk_count: records.length,
+    });
 
     return json(req, {
       success: true,
       message: "processing_complete",
-      chunk_count: chunks.length,
+      chunk_count: records.length,
       metadata: {
         filename: extractionResult.metadata.filename,
         mime_type: extractionResult.metadata.mimeType,
@@ -202,6 +254,21 @@ Deno.serve(async (req) => {
     }, 200);
 
   } catch (e) {
+    // Best-effort: record the failure on the attachment so the UI can show
+    // it. The reason string is bounded and never contains file contents.
+    try {
+      const body = await req.clone().json().catch(() => null) as Body | null;
+      if (body?.attachment_id) {
+        const reason = e instanceof HttpError ? e.code : "processing_failed";
+        await adminClient().rpc("mark_attachment_failed", {
+          p_attachment_id: body.attachment_id,
+          p_reason: reason,
+        });
+      }
+    } catch {
+      // status write is best-effort; the original error still surfaces
+    }
+
     if (e instanceof HttpError) {
       return json(req, { error: e.code, detail: e.detail ?? null }, e.status);
     }

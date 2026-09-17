@@ -134,7 +134,7 @@ export async function extractText(
           const page = await pdfDocument.getPage(i);
           const textContent = await page.getTextContent();
           const pageText = textContent.items
-            .map((item: any) => item.str)
+            .map((item: { str?: string }) => item.str ?? "")
             .join(" ")
             .trim();
           
@@ -241,7 +241,12 @@ function sanitizeFilename(filename: string): string {
 }
 
 /**
- * Split text into chunks with overlap for embedding generation
+ * Split text into chunks with overlap for embedding generation.
+ *
+ * When `pages` is provided the chunks never straddle a page boundary;
+ * the returned `pageNumber` says exactly which source page each chunk
+ * came from, so citations can carry a verified page number. Without
+ * pages the whole text is chunked and `pageNumber` is null.
  */
 export interface ChunkConfig {
   maxChars: number;
@@ -251,8 +256,8 @@ export interface ChunkConfig {
 export function chunkText(
   text: string,
   config: ChunkConfig = { maxChars: 1000, overlapChars: 200 },
-): Array<{ content: string; index: number; startChar: number; endChar: number }> {
-  const chunks: Array<{ content: string; index: number; startChar: number; endChar: number }> = [];
+): Array<{ content: string; index: number; startChar: number; endChar: number; pageNumber: number | null }> {
+  const chunks: Array<{ content: string; index: number; startChar: number; endChar: number; pageNumber: number | null }> = [];
 
   if (text.length === 0) {
     return chunks;
@@ -264,6 +269,7 @@ export function chunkText(
       index: 0,
       startChar: 0,
       endChar: text.length,
+      pageNumber: null,
     });
     return chunks;
   }
@@ -288,6 +294,7 @@ export function chunkText(
       index,
       startChar: start,
       endChar: start + chunk.length,
+      pageNumber: null,
     });
 
     start += chunk.length - config.overlapChars;
@@ -299,6 +306,37 @@ export function chunkText(
   }
 
   return chunks;
+}
+
+/**
+ * Chunk each page independently so every chunk keeps its true page
+ * number. Page text is chunked with the same overlap rules; the global
+ * chunk index stays contiguous across pages.
+ */
+export function chunkPages(
+  pages: Array<{ pageNumber: number; content: string }>,
+  config: ChunkConfig = { maxChars: 1000, overlapChars: 200 },
+): Array<{ content: string; index: number; startChar: number; endChar: number; pageNumber: number | null }> {
+  const out: ReturnType<typeof chunkPages> = [];
+  for (const page of pages) {
+    const pageText = page.content.trim();
+    if (!pageText) continue;
+    if (pageText.length <= config.maxChars) {
+      out.push({
+        content: pageText,
+        index: out.length,
+        startChar: 0,
+        endChar: pageText.length,
+        pageNumber: page.pageNumber,
+      });
+      continue;
+    }
+    const pieces = chunkText(pageText, config);
+    for (const piece of pieces) {
+      out.push({ ...piece, index: out.length, pageNumber: page.pageNumber });
+    }
+  }
+  return out;
 }
 
 /**

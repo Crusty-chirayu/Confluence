@@ -26,14 +26,23 @@ export interface EmbeddingResponse {
   };
 }
 
+/** Default embedding dimension for text-embedding-3-small. */
+export const EMBEDDING_DIMENSION = 1536;
+
 /**
  * Generate embeddings for text using OpenAI-compatible API
  * Uses the same provider configuration as the chat completions
+ *
+ * The response is validated before it is trusted: shape, count and
+ * dimension are all checked so a malformed provider reply can never be
+ * persisted as a vector of the wrong size (pgvector would reject it at
+ * best; a silently truncated vector would poison similarity search).
  */
 export async function generateEmbeddings(
   inputs: string[],
   apiKey: string,
   model = "text-embedding-3-small",
+  expectedDimension = EMBEDDING_DIMENSION,
 ): Promise<number[][]> {
   if (inputs.length === 0) {
     return [];
@@ -60,20 +69,38 @@ export async function generateEmbeddings(
   }
 
   const data: EmbeddingResponse = await response.json();
-  
-  // Return embeddings in the same order as inputs
-  return data.data.map((item) => item.embedding);
+  if (!data || !Array.isArray(data.data) || data.data.length !== inputs.length) {
+    throw new Error("embedding_response_invalid");
+  }
+  // Preserve the provider's ordering — callers rely on input-index parity.
+  const byIndex = [...data.data].sort((a, b) => a.index - b.index);
+  const embeddings = byIndex.map((item) => item?.embedding);
+  for (const v of embeddings) {
+    if (
+      !Array.isArray(v) ||
+      v.length !== expectedDimension ||
+      v.some((n) => typeof n !== "number" || !Number.isFinite(n))
+    ) {
+      throw new Error("embedding_dimension_mismatch");
+    }
+  }
+  return embeddings;
 }
 
 /**
- * Generate a single embedding for a query string
+ * Generate a single embedding for a query string.
+ * Empty/whitespace queries are rejected here so callers can rely on the
+ * vector being well-formed and can fall back to FTS instead.
  */
 export async function generateQueryEmbedding(
   query: string,
   apiKey: string,
   model = "text-embedding-3-small",
+  expectedDimension = EMBEDDING_DIMENSION,
 ): Promise<number[]> {
-  const embeddings = await generateEmbeddings([query], apiKey, model);
+  const q = query.trim();
+  if (!q) throw new Error("empty_query");
+  const embeddings = await generateEmbeddings([q], apiKey, model, expectedDimension);
   return embeddings[0];
 }
 

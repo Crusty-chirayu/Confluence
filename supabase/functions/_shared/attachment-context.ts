@@ -19,6 +19,12 @@ export interface ContextChunk {
   mime_type: string;
   label: string;
   content: string;
+  chunk_id?: string;
+  chunk_index?: number;
+  /** 1-based source page when the extractor knows it (PDFs). */
+  page?: number | null;
+  retrieval_method?: string;
+  similarity?: number;
 }
 
 export interface AttachmentRef {
@@ -118,6 +124,42 @@ export function renderDocumentContext(
     ...sections,
     "<<<END_SHARED_FILE_CONTENT>>>",
   ].join("\n");
+}
+
+/**
+ * Generate citation metadata for the frontend based on retrieved chunks.
+ * Returns a simplified structure that can be safely sent to the client.
+ */
+export function generateCitationMetadata(chunks: ContextChunk[]): Array<{
+  attachment_id: string;
+  filename: string;
+  label: string;
+  chunk_index?: number;
+  retrieval_method?: string;
+}> {
+  const byAttachment = new Map<string, { filename: string; labels: string[]; chunk_indices: number[]; retrieval_method?: string }>();
+  
+  for (const chunk of chunks) {
+    const entry = byAttachment.get(chunk.attachment_id) ?? {
+      filename: chunk.filename,
+      labels: [],
+      chunk_indices: [],
+      retrieval_method: chunk.retrieval_method,
+    };
+    entry.labels.push(chunk.label);
+    if (chunk.chunk_index !== undefined) {
+      entry.chunk_indices.push(chunk.chunk_index);
+    }
+    byAttachment.set(chunk.attachment_id, entry);
+  }
+
+  return Array.from(byAttachment.entries()).map(([attachment_id, data]) => ({
+    attachment_id,
+    filename: data.filename,
+    label: data.labels.slice(0, 1).join(", "), // Show first label for brevity
+    chunk_index: data.chunk_indices[0],
+    retrieval_method: data.retrieval_method,
+  }));
 }
 
 /**

@@ -11,6 +11,11 @@ export default defineConfig({
     exclude: ["tests/moderation-fail-closed.test.ts", "node_modules/**"],
   },
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      // Deno-only `npm:` specifier in the shared extract module; vitest
+      // imports that module for chunking tests, so remap it to a stub.
+      "npm:pdfjs-dist@4.8.69": path.resolve(__dirname, "./tests/stubs/pdfjs.ts"),
+    },
   },
 });

@@ -28,14 +28,36 @@ import {
   untrustedContentRules,
   type ContextChunk,
 } from "../_shared/attachment-context.ts";
+import { generateQueryEmbedding } from "../_shared/embeddings.ts";
+import {
+  buildVerifiedCitations,
+  serializeCitations,
+  type SerializedCitation,
+} from "../_shared/citations.ts";
 
 const MODEL = Deno.env.get("AI_MODEL") ?? "anthropic/claude-sonnet-4.6";
 const MAX_TOKENS = Number(Deno.env.get("AI_MAX_TOKENS") ?? 2048);
 const HISTORY_LIMIT = Number(Deno.env.get("AI_HISTORY_LIMIT") ?? 30);
 const API_KEY = Deno.env.get("OPENROUTER_API_KEY")!;
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY"); // For embeddings
+const EMBEDDING_MODEL = "text-embedding-3-small";
 
 const BLOCKED_TEXT =
   "_This response was withheld by the safety filter._";
+
+/** Row shape returned by the retrieve_attachment_chunks RPC. */
+interface RetrievedChunk {
+  chunk_id: string;
+  attachment_id: string;
+  chunk_index: number;
+  page_number: number | null;
+  content: string;
+  label: string;
+  similarity: number;
+  retrieval_method: string;
+  filename: string;
+  mime_type: string;
+}
 
 /**
  * §8 training-pipeline hook. Only ever invoked when EVERY participant in
@@ -191,6 +213,9 @@ Deno.serve(async (req) => {
     // --- 4a. attachment context retrieval ------------------------------------
     let attachmentContext: string | null = null;
     let hasAttachments = false;
+    // Kept outside the stream closure: citation metadata is derived from the
+    // exact chunks that went into the prompt, nothing else.
+    let retrievedContextChunks: ContextChunk[] = [];
 
     // Check for attachments in the conversation
     const { data: attachments } = await admin
@@ -205,23 +230,46 @@ Deno.serve(async (req) => {
       // Use the most recent human message as the query for retrieval
       const lastHumanMessage = [...ordered].reverse().find((m) => m.sender_type === "human");
       if (lastHumanMessage) {
+        // Generate query embedding if OpenAI API key is available
+        let queryEmbedding: number[] | null = null;
+        if (OPENAI_API_KEY) {
+          try {
+            queryEmbedding = await generateQueryEmbedding(
+              lastHumanMessage.content.slice(0, 500),
+              OPENAI_API_KEY,
+              EMBEDDING_MODEL
+            );
+          } catch (embeddingError) {
+            console.error("Query embedding generation failed:", embeddingError);
+            // Continue without embedding - FTS will still work
+          }
+        }
+
         const { data: retrievedChunks } = await admin.rpc("retrieve_attachment_chunks", {
           p_conversation_id: conversationId,
-          p_query: lastHumanMessage.content.slice(0, 500), // Use first 500 chars as query
+          p_query: lastHumanMessage.content.slice(0, 500),
+          p_query_embedding: queryEmbedding,
           p_limit: 10,
         });
 
         if (retrievedChunks && retrievedChunks.length > 0) {
-          // Convert to ContextChunk format
-          const contextChunks: ContextChunk[] = retrievedChunks.map((chunk: any) => ({
+          // Convert to ContextChunk format with citation metadata
+          const rows = retrievedChunks as RetrievedChunk[];
+          const contextChunks: ContextChunk[] = rows.map((chunk) => ({
             attachment_id: chunk.attachment_id,
-            filename: attachments.find((a: any) => a.id === chunk.attachment_id)?.storage_path?.split("/").pop() || "unknown",
-            mime_type: attachments.find((a: any) => a.id === chunk.attachment_id)?.mime_type || "text/plain",
+            filename: chunk.filename || attachments.find((a) => a.id === chunk.attachment_id)?.storage_path?.split("/").pop() || "unknown",
+            mime_type: chunk.mime_type || attachments.find((a) => a.id === chunk.attachment_id)?.mime_type || "text/plain",
             label: chunk.label,
             content: chunk.content,
+            chunk_id: chunk.chunk_id,
+            chunk_index: chunk.chunk_index,
+            page: chunk.page_number,
+            retrieval_method: chunk.retrieval_method,
+            similarity: chunk.similarity,
           }));
 
           attachmentContext = renderDocumentContext(contextChunks);
+          retrievedContextChunks = contextChunks;
         }
       }
     }
@@ -402,11 +450,16 @@ Deno.serve(async (req) => {
             send("blocked", { reason: post.reason ?? "policy" });
           } else {
             full = full.trim();
+            // Citations are derived ONLY from the chunks actually placed in
+            // the prompt — model-invented sources can never appear here.
+            const citations: SerializedCitation[] = serializeCitations(
+              buildVerifiedCitations(full, retrievedContextChunks),
+            );
             await admin
               .from("messages")
-              .update({ content: full, status: "sent" })
+              .update({ content: full, status: "sent", citations })
               .eq("id", msgId);
-            send("done", { message_id: msgId, content: full });
+            send("done", { message_id: msgId, content: full, citations });
           }
 
           await admin.from("ai_usage_log").insert({
