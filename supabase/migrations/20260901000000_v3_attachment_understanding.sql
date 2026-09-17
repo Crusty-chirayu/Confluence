@@ -21,7 +21,7 @@ create table if not exists public.attachment_chunks (
   content           text not null,
   label             text not null,  -- e.g., "page 1", "section 2", or generic index
   token_count       int,
-  embedding         vector(1536),  -- OpenAI text-embedding-3-small dimension
+  embedding         vector(1536),  -- Standard text embedding dimension
   created_at        timestamptz not null default now(),
   
   -- Ensure chunk order is unique per attachment
@@ -115,10 +115,9 @@ begin
   ) into v_has_embeddings;
 
   if v_has_embeddings then
-    -- Vector similarity search using pgvector
-    -- First, we need to generate an embedding for the query
-    -- This requires the embedding service, so we'll use FTS as fallback for now
-    -- TODO: Add embedding generation for query when embedding service is available
+    -- For now, use FTS even when embeddings exist
+    -- TODO: Add query embedding generation and vector similarity search
+    -- when embedding generation is fully deployed and tested
     return query
     select 
       ac.id as chunk_id,
@@ -126,13 +125,13 @@ begin
       ac.chunk_index,
       ac.content,
       ac.label,
-      0.0 as similarity  -- Placeholder until embedding service is integrated
+      ts_rank(ac.content_tsv, websearch_to_tsquery('english', p_query)) as similarity
     from public.attachment_chunks ac
     join public.message_attachments ma on ma.id = ac.attachment_id
     join public.messages m on m.id = ma.message_id
     where m.conversation_id = p_conversation_id
       and ac.content_tsv @@ websearch_to_tsquery('english', p_query)
-    order by ts_rank(ac.content_tsv, websearch_to_tsquery('english', p_query)) desc
+    order by similarity desc
     limit least(coalesce(p_limit, 10), 50);
   else
     -- Full-text search fallback

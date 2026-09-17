@@ -19,6 +19,7 @@ import {
   estimateTokenCount,
   type ChunkConfig,
 } from "../_shared/extract.ts";
+import { generateEmbeddings } from "../_shared/embeddings.ts";
 
 interface Body {
   attachment_id: string;
@@ -28,6 +29,10 @@ const CHUNK_CONFIG: ChunkConfig = {
   maxChars: 1000,
   overlapChars: 200,
 };
+
+const EMBEDDING_MODEL = "text-embedding-3-small";
+const EMBEDDING_DIMENSION = 1536; // OpenAI text-embedding-3-small dimension
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
 Deno.serve(async (req) => {
   const pf = preflight(req);
@@ -133,11 +138,40 @@ Deno.serve(async (req) => {
       content: chunk.content,
       label: labels[i],
       token_count: estimateTokenCount(chunk.content),
-      // Embedding is null for now - will be added when embedding service is available
+      // Embedding will be added after generation
       embedding: null,
     }));
 
-    // 9. Insert chunks in a transaction
+    // 9. Generate embeddings if API key is available
+    let embeddings: number[][] = [];
+    if (OPENAI_API_KEY) {
+      try {
+        const chunkTexts = chunks.map((chunk) => chunk.content);
+        embeddings = await generateEmbeddings(chunkTexts, OPENAI_API_KEY, EMBEDDING_MODEL);
+        
+        // Verify embedding dimensions
+        if (embeddings.length > 0 && embeddings[0].length !== EMBEDDING_DIMENSION) {
+          console.warn("attachment-processor: embedding_dimension_mismatch", 
+            `Expected ${EMBEDDING_DIMENSION}, got ${embeddings[0].length}`);
+          embeddings = []; // Fall back to no embeddings if dimension mismatch
+        }
+      } catch (embeddingError) {
+        console.error("attachment-processor: embedding_generation_failed", embeddingError);
+        // Continue without embeddings - FTS will still work
+        embeddings = [];
+      }
+    }
+
+    // 10. Add embeddings to chunk records
+    if (embeddings.length > 0) {
+      for (let i = 0; i < chunkRecords.length; i++) {
+        if (i < embeddings.length) {
+          chunkRecords[i].embedding = embeddings[i];
+        }
+      }
+    }
+
+    // 11. Insert chunks in a transaction
     const { error: insertErr } = await admin
       .from("attachment_chunks")
       .insert(chunkRecords);

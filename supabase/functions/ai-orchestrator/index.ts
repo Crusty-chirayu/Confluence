@@ -25,10 +25,8 @@ import {
 } from "../_shared/provider.ts";
 import {
   renderDocumentContext,
-  buildImageParts,
   untrustedContentRules,
   type ContextChunk,
-  type ImageRef,
 } from "../_shared/attachment-context.ts";
 
 const MODEL = Deno.env.get("AI_MODEL") ?? "anthropic/claude-sonnet-4.6";
