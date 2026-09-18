@@ -305,7 +305,10 @@ the page it actually came from; text formats are modelled as a single page. Chun
 are 1000 characters with a 200-character overlap, never straddling a page boundary,
 capped at 400 per attachment. A PDF that fails to parse **fails loudly** — no
 placeholder text is ever persisted, because a placeholder would later be retrieved
-and cited as though the document said it.
+and cited as though the document said it. Because Vitest has to stub pdf.js, that
+path is covered by a separate Deno integration test (`npm run test:pdf`) that builds
+a real PDF in memory and runs the real library — a stub cannot catch a broken worker
+initialization, and one shipped that way.
 
 **Retrieval** is hybrid when embeddings exist and honestly lexical when they don't.
 `retrieve_attachment_chunks` runs a pgvector cosine leg and a PostgreSQL full-text
@@ -338,9 +341,11 @@ renders nothing it cannot verify; no chip can be minted from prose alone.
 - **Audio and video are not transcribed**; they are marked `unsupported`.
 - **Semantic retrieval requires `OPENAI_API_KEY`.** Without it retrieval is
   full-text only. Embeddings are generated against OpenAI's API directly.
-- The extraction PDF path, the SQL retrieval fusion and the RLS policies have
-  **not been executed against a live Supabase project** — see the verification
-  status in [`ACCEPTANCE.md`](./ACCEPTANCE.md) for exactly what was and was not run.
+- The SQL retrieval fusion and the RLS policies have **not been executed against a
+  live Supabase project**, and PDF extraction has not been run inside a deployed Edge
+  Function (it is verified against the real pdf.js locally, under Deno). See the
+  verification status in [`ACCEPTANCE.md`](./ACCEPTANCE.md) for exactly what was and
+  was not run.
 
 ---
 
@@ -493,6 +498,7 @@ npx tsc --noEmit          # typecheck
 npm test                 # unit + component + a11y (axe-core) suites
 npm run test:a11y        # vitest axe-core accessibility suite (jsdom, structural)
 npm run test:edge        # Deno moderation fail-closed integration test (needs Deno runtime)
+npm run test:pdf         # Deno PDF extraction integration test against real pdf.js
 npm run test:contrast    # WCAG AA token contrast against globals.css (no browser)
 npm run test:e2e         # Playwright E2E + browser axe audit (needs Chromium)
 npm run test:e2e:install # download Chromium for the E2E suite

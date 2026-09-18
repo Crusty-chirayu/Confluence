@@ -5,7 +5,7 @@
  *
  * It exists because the stub cannot catch a broken pdf.js initialization: the
  * worker source was once assigned `false`, which the real package rejects with
- * "Invalid `workerSrc` type", so every PDF failed extraction while the stubbed
+ * "Invalid workerSrc type", so every PDF failed extraction while the stubbed
  * tests stayed green. These assertions run against the real library.
  *
  * Assertions come from `node:assert` rather than `jsr:@std/assert` (used by

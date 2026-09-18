@@ -7,7 +7,14 @@ asserted without a source.
 > **Re-run 2026-08-28 on `main` `c2cb9eb` + the final-completion branch
 > (`arena/01a04990-group-chatbot`).** Numbers below are from that run. The
 > security section gained six findings that were **not** in the original audit
-> and are now fixed; see "Security — this pass". 
+> and are now fixed; see "Security — this pass".
+>
+> **Re-run 2026-09-18 for the V3 Attachment Understanding pass.** Deno became
+> runnable in this environment, so the Edge Function gates that were previously
+> reported as "not run" have been executed; they found a production-breaking
+> defect in PDF extraction. Current numbers and findings are in
+> "V3 Attachment Understanding — verified 2026-09-18" and in the updated
+> `Errors` table. Anything still dated 2026-08-28 is from that earlier run. 
 
 ## Summary
 
@@ -22,7 +29,10 @@ asserted without a source.
 | WCAG AA text/UI contrast | ✅ measured | `scripts/contrast.mjs` — **54/54 pairs pass**, exit 0 |
 | Component a11y (axe) | ✅ measured | `tests/a11y/components.axe.test.tsx` — **13 tests, 0 violations** |
 | Keyboard / focus behaviour | ✅ measured | `tests/keyboard-focus.test.tsx` — **15 tests** (focus in/trap/restore, combobox wiring, live regions) |
-| App a11y (browser axe) | ⛔ **not run** | `e2e/accessibility.spec.ts` exists but **no Chromium is available and CI has no `e2e` job** — see `Errors` |
+| App a11y (browser axe) | ⛔ **not run** | `e2e/accessibility.spec.ts` exists and the CI `e2e` job has landed, but **no Chromium is obtainable in this sandbox** — see `Errors` |
+| PDF extraction (V3) | ✅ measured 2026-09-18 | `tests/pdf-extraction.test.ts` — **4 tests** against the real `pdfjs-dist@4.8.69`. Broken until this pass: `workerSrc = false` failed every PDF |
+| `deno check` on all four Edge Functions | ✅ run 2026-09-18 | passes including under `--frozen`, Deno's default when `CI=true` |
+| V3 retrieval SQL / RLS execution | ⛔ **not run** | no PostgreSQL or Supabase CLI in the sandbox; static review only |
 | Frame budget under 4× CPU throttle | 🟡 harness only | `e2e/perf.spec.ts` — written, never executed |
 | Client bundle size | ⚠️ measured (initial) | see below — first-load JS is a starting point, **Lighthouse not run** |
 | Lighthouse / real-browser perf | ⛔ not measured here | needs a live deploy + browser; no fake numbers |
@@ -124,17 +134,52 @@ real browser — they are intentionally not fabricated. A harness for the last o
 exists (`e2e/perf.spec.ts`) and will produce its first numbers on the first CI
 run of the `e2e` job.
 
+## V3 Attachment Understanding — verified 2026-09-18
+
+Findings from re-verifying V3 against the code rather than the design documents.
+Full acceptance mapping is in [`ACCEPTANCE.md`](./ACCEPTANCE.md).
+
+| # | Finding | Severity | Status |
+|---|---|---|---|
+| 1 | `GlobalWorkerOptions.workerSrc = false` in the PDF branch of `_shared/extract.ts`. pdf.js validates that setter and throws `Invalid workerSrc type`, so **every PDF upload failed extraction** and landed in the `failed` state | **High** — a headline supported format never worked | ✅ fixed; covered by `tests/pdf-extraction.test.ts` |
+| 2 | The defect was invisible to every gate. Vitest aliases `npm:pdfjs-dist@4.8.69` to a stub, so the real initialization path never ran; and `attachment-processor` was absent from the `deno check` loop, so the one checker that could have seen it never looked | **High** — process gap, not just a bug | ✅ fixed; test added and the held CI patch extends the loop to all four functions |
+| 3 | `types/pdfjs-deno.d.ts` was looser than the package it stands in for (`workerSrc: unknown`, `items` without the marked-content variant), so `tsc --noEmit` accepted what `deno check` rejected | Medium | ✅ fixed; shapes now mirror `pdfjs-dist@4.8.69` |
+| 4 | Committed `deno.lock` predated the `pdfjs-dist` import and carried a stale peer resolution for `next`. Deno implies `--frozen` under `CI=true`, so the `edge-functions` job cannot self-heal a lockfile | Medium | ✅ regenerated and committed; all four functions pass `deno check --frozen` |
+
+Retrieval was checked specifically for overclaiming, since that is the easiest
+thing to get wrong here. It is **not** a fallback dressed up as semantic search:
+`retrieve_attachment_chunks` runs a pgvector cosine leg and a PostgreSQL
+full-text leg, joins them by chunk id and fuses them with reciprocal rank, and
+each returned row reports `hybrid`, `vector` or `fts` for the method that
+actually found it. Without `OPENAI_API_KEY` no embeddings are written, the
+vector leg is skipped, and retrieval is lexical — degraded, and labelled as
+such. The SQL has **not** been executed against a database (see `Errors`), so
+this is a code-level verification, not a measured one.
+
+Citations are likewise derived rather than trusted: `buildVerifiedCitations`
+resolves what the model wrote against the chunks actually placed in the prompt
+and drops anything unresolvable, and page numbers come from the extractor's own
+`page_number`. A chunk can legitimately cite a page number greater than
+`metadata.pageCount`, because `pageCount` counts pages *with content* and blank
+pages are skipped — which is why labels must never be inferred from a chunk's
+position. `tests/pdf-extraction.test.ts` asserts exactly that against a real
+three-page PDF whose second page is blank.
+
 ## Owner / config follow-ups (not code defects)
 
 These are blocked on owner-held credentials or a `workflows`-permission push
 (see `SECURITY.md`):
-1. **Push `.github/workflows/ci.yml`** (Playwright `e2e` job + token-contrast
-   step) and **bump** `actions/checkout@v4→v5` and `gitleaks/gitleaks-action@v2→v3`.
-   The gitleaks job **fails on every `pull_request` run while passing on the
-   `push` run of the identical tree** (verified 2026-08-28 on head `8032f07`,
-   and on PR #11 before it) — a Node-20-on-24 action defect, not a secret
-   finding; see `SECURITY.md` item 2 for the full evidence. One-time patch:
-   `ci/patches/ci-playwright-and-contrast.patch`.
+1. ~~**Push `.github/workflows/ci.yml`** (Playwright `e2e` job + token-contrast
+   step) and **bump** `actions/checkout@v4→v5` and `gitleaks/gitleaks-action@v2→v3`~~
+   — **landed**; `ci/patches/ci-playwright-and-contrast.patch` no longer applies
+   because its post-image is the committed file (see `ci/README.md`). The
+   gitleaks job **failed on every `pull_request` run while passing on the `push`
+   run of the identical tree** (verified 2026-08-28 on head `8032f07`, and on
+   PR #11 before it) — a Node-20-on-24 action defect, not a secret finding; see
+   `SECURITY.md` item 2 for the full evidence. **Still pending:** the
+   `attachment-processor` workflow changes held at
+   `ci/patches/ci-attachment-processor-workflows.patch`, which need a credential
+   with the `workflows` permission.
 2. **Release secrets**: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`,
    `SUPABASE_DB_PASSWORD`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
    `VERCEL_PROJECT_ID` (see `ci/README.md`).
@@ -153,16 +198,21 @@ Recorded so nothing here is mistaken for a passing gate.
 
 | Gate | Status | Blocker |
 |---|---|---|
-| `npx playwright test` (31 tests, 12 files) | **NOT RUN — ENVIRONMENT LIMITATION** | No Chromium binary and none is obtainable: `cdn.playwright.dev`, `storage.googleapis.com` and `playwright.azureedge.net` all fail TLS from this sandbox (only `registry.npmjs.org` and `github.com` are reachable). CI has no `e2e` job either (see follow-up 1). |
-| `npx playwright test --list` | ✅ run | 31 tests / 12 files collected; config valid |
+| `npx playwright test` (36 tests, 14 files) | **NOT RUN — ENVIRONMENT LIMITATION** | No Chromium binary and none is obtainable: `cdn.playwright.dev`, `storage.googleapis.com` and `playwright.azureedge.net` all fail TLS from this sandbox (re-verified 2026-09-18). The CI `e2e` job has landed, so this runs there. |
+| `npx playwright test --list` | ✅ run | **36 tests / 14 files** collected; config valid |
 | Browser axe (`e2e/accessibility.spec.ts`) | **NOT RUN — ENVIRONMENT LIMITATION** | same as above |
 | Frame budget under 4× CPU throttle (`e2e/perf.spec.ts`) | **NOT RUN — ENVIRONMENT LIMITATION** | same as above |
-| `deno check` on the Edge Functions | **NOT RUN — ENVIRONMENT LIMITATION** | no Deno runtime in the sandbox. Runs in the `edge-functions` CI job, which is green on `main`. |
-| `deno test tests/moderation-fail-closed.test.ts` | **NOT RUN — ENVIRONMENT LIMITATION** | same; green in CI |
+| `deno check` on the Edge Functions | ✅ **run 2026-09-18** | all four functions pass, including under `--frozen`. Deno is not preinstalled and its GitHub release assets fail TLS here, so 2.9.6 was installed from npm's platform package `@deno/linux-x64-glibc` |
+| `deno test tests/pdf-extraction.test.ts` | ✅ **run 2026-09-18** | **4/4 pass** against the real `pdfjs-dist@4.8.69` (`npm run test:pdf`) |
+| `deno test tests/moderation-fail-closed.test.ts` | **NOT RUN — ENVIRONMENT LIMITATION** | it imports `jsr:@std/assert@1` and `jsr.io` is unreachable from this sandbox. Runs in the `edge-functions` CI job |
 | Live k6 load test | **NOT RUN** | needs a deployed Supabase project (deliberately out of scope for the code checkpoint) |
-| `supabase db push` / RLS policy verification | **NOT RUN** | no live project; the SQL was reviewed statically and is idempotent |
+| `supabase db push` / RLS policy verification / `retrieve_attachment_chunks` | **NOT RUN — ENVIRONMENT LIMITATION** | no PostgreSQL and no Supabase CLI in the sandbox (only `sqlite3`); the SQL was reviewed statically and is idempotent, but has never been executed |
+| Deployed Edge Function invocation over HTTP | **NOT RUN — ENVIRONMENT LIMITATION** | same; the pipeline is verified module by module instead |
 | Lighthouse / real-browser performance | **NOT RUN** | needs a deployed host + a browser |
 
-Everything else was run on the committed tree and is reported above:
-`tsc --noEmit` ✅ · `npm run lint` 0 errors ✅ · `npm test` **83/83** ✅ ·
-`node scripts/contrast.mjs` **54/54** ✅ · `npm run build` ✅.
+Everything else was run on the committed tree and is reported above
+(2026-09-18): `tsc --noEmit` ✅ · `npm run lint` 0 errors, 19 pre-existing
+warnings ✅ · `npm test` **255/255 across 21 files** ✅ ·
+`node scripts/contrast.mjs` **54/54** ✅ · `npm run build` ✅ ·
+`deno check` on all four Edge Functions ✅ · `npm run test:pdf` **4/4** ✅.
+The 2026-08-28 run reported **83** unit tests; the suite has grown since.
