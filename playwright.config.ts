@@ -24,6 +24,10 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [
     ["list"],
+    // In CI (GITHUB_ACTIONS set) the `github` reporter writes one annotation
+    // per failing test — the only way to see which test failed without
+    // downloading the HTML report artifact.
+    ...(process.env.GITHUB_ACTIONS ? ([["github"]] as const) : []),
     ["html", { open: "never", outputFolder: "playwright-report" }],
   ],
   timeout: 30_000,
