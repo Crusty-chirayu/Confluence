@@ -18,6 +18,9 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./e2e",
+  // Converts the JSON report into check-run annotations in CI, where step
+  // logs and report artifacts are not otherwise reachable (see the file).
+  globalTeardown: "./e2e/ci-report.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
