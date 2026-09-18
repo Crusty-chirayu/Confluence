@@ -78,6 +78,30 @@ export function isImageMime(mime: string): boolean {
   return mime.startsWith("image/");
 }
 
+/**
+ * MIME types the attachment-understanding pipeline can extract text from.
+ *
+ * Mirrors `SUPPORTED_MIME_TYPES` in
+ * `supabase/functions/_shared/extract.ts`. The Edge module cannot be imported
+ * into the browser bundle (it pulls in the Deno-only pdf.js specifier), so the
+ * list is duplicated here deliberately — `tests/extractable-mime.test.ts`
+ * imports both sides and fails if they drift, which would otherwise leave
+ * uploads never triggering processing for a format the server does support.
+ */
+const EXTRACTABLE_MIME: ReadonlySet<string> = new Set([
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+  "text/html",
+]);
+
+/** True when an uploaded file will be run through the understanding pipeline. */
+export function isExtractableMime(mime: string): boolean {
+  return EXTRACTABLE_MIME.has((mime || "").toLowerCase());
+}
+
 /** A short human label for an attachment, e.g. "photo.png · 240 kB". */
 export function attachmentLabel(name: string, sizeBytes: number): string {
   return `${name} · ${formatFileSize(sizeBytes)}`;

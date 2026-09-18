@@ -1,0 +1,26 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index d930c98..717cb1b 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -86,7 +86,7 @@ jobs:
+ 
+       - name: Typecheck Deno functions
+         run: |
+-          for fn in ai-orchestrator moderation-check invite-consume; do
++          for fn in ai-orchestrator attachment-processor moderation-check invite-consume; do
+             echo "::group::$fn"
+             deno check "supabase/functions/$fn/index.ts"
+             echo "::endgroup::"
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 9af3303..de5429e 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -42,7 +42,7 @@ jobs:
+     runs-on: ubuntu-latest
+     strategy:
+       matrix:
+-        fn: [ai-orchestrator, moderation-check, invite-consume]
++        fn: [ai-orchestrator, attachment-processor, moderation-check, invite-consume]
+     steps:
+       - uses: actions/checkout@v4
+       - uses: supabase/setup-cli@v1

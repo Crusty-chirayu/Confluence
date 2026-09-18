@@ -123,12 +123,22 @@ export function buildVerifiedCitations(
     if (seen.has(key)) continue;
     seen.add(key);
 
+    // Prefer the page the chunk was actually extracted from. The stored
+    // `page_number` comes from the extractor; a page parsed back out of the
+    // label is only a fallback for chunks that predate page tracking.
     const pageFromLabel = /page\s+(\d{1,4})/i.exec(match.label);
+    const page =
+      typeof match.page === "number" && Number.isInteger(match.page) && match.page >= 1
+        ? match.page
+        : pageFromLabel
+          ? Number(pageFromLabel[1])
+          : null;
+
     out.push({
       attachment_id: match.attachment_id,
       filename: match.filename,
       label: match.label,
-      page: pageFromLabel ? Number(pageFromLabel[1]) : null,
+      page,
       chunk_index: match.chunk_index ?? null,
       mime_type: match.mime_type ?? null,
     });
