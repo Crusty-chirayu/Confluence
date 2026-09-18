@@ -54,6 +54,11 @@ Deno.serve(async (req) => {
   const pf = preflight(req);
   if (pf) return pf;
 
+  // Set only after the caller has proved membership and atomically claimed
+  // the job. This prevents an unauthorised request from changing another
+  // conversation's processing state through the error handler.
+  let claimedAttachmentId: string | null = null;
+
   try {
     // Authenticate the caller and verify they are a valid user
     const { user, authHeader } = await requireUser(req);
@@ -111,31 +116,26 @@ Deno.serve(async (req) => {
       return json(req, { success: true, message: "unsupported", chunk_count: 0 }, 200);
     }
 
-    // 4. Check if already processed (idempotency)
-    const { data: existingChunks } = await admin
-      .from("attachment_chunks")
-      .select("id")
-      .eq("attachment_id", attachmentId)
-      .limit(1);
-
-    if (existingChunks && existingChunks.length > 0) {
-      // Already processed, return success idempotently
-      return json(req, { 
-        success: true, 
-        message: "already_processed",
-        chunk_count: existingChunks.length 
-      }, 200);
+    // 4. Atomically claim the work. Concurrent calls observe "processing"
+    // instead of both extracting and racing on the unique chunk index.
+    const { data: claim, error: claimError } = await admin.rpc(
+      "claim_attachment_processing",
+      { p_attachment_id: attachmentId },
+    );
+    if (claimError) throw new HttpError(500, "processing_claim_failed");
+    if (claim === "ready") {
+      return json(req, { success: true, message: "already_processed" }, 200);
     }
+    if (claim === "unsupported") {
+      return json(req, { success: true, message: "unsupported", chunk_count: 0 }, 200);
+    }
+    if (claim === "processing") {
+      return json(req, { success: true, message: "already_processing", chunk_count: 0 }, 202);
+    }
+    if (claim !== "claimed") throw new HttpError(500, "processing_claim_invalid");
+    claimedAttachmentId = attachmentId;
 
-    // 5. Claim the work. The status row is the crash-recovery marker: a run
-    // that dies between claim and completion/failure never leaves a lie in
-    // the DB — a later retry resets the state before re-processing.
-    await admin
-      .from("message_attachments")
-      .update({ processing_status: "processing", processing_error: null })
-      .eq("id", attachmentId);
-
-    // 6. Retrieve file from storage
+    // 5. Retrieve file from storage
     const { data: fileData, error: downloadErr } = await admin
       .storage
       .from("attachments")
@@ -149,14 +149,14 @@ Deno.serve(async (req) => {
     const pathParts = attachment.storage_path.split("/");
     const filename = pathParts[pathParts.length - 1] || "unknown";
 
-    // 7. Extract text content
+    // 6. Extract text content
     const extractionResult = await extractText(
       filename,
       attachment.mime_type,
       new Uint8Array(await fileData.arrayBuffer()),
     );
 
-    // 8. Chunk the extracted text. PDFs (and any multi-page result) chunk
+    // 7. Chunk the extracted text. PDFs (and any multi-page result) chunk
     // per page so every chunk keeps its true source page number.
     const pages = extractionResult.pages;
     const chunks =
@@ -166,10 +166,11 @@ Deno.serve(async (req) => {
 
     if (chunks.length === 0) {
       // Empty extraction - mark ready with no chunks (truthful, not failed)
-      await admin.rpc("mark_attachment_processed", {
+      const { error: emptyCompletionError } = await admin.rpc("mark_attachment_processed", {
         p_attachment_id: attachmentId,
         p_chunk_count: 0,
       });
+      if (emptyCompletionError) throw new HttpError(500, "processing_completion_failed");
       return json(req, { 
         success: true, 
         message: "empty_extraction",
@@ -177,7 +178,13 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
-    // 9. Generate labels for chunks (page-aware when pages are known)
+    // Do not spend embedding quota on content that will never be persisted,
+    // and do not silently omit a document tail from searchable context.
+    if (chunks.length > MAX_CHUNKS) {
+      throw new HttpError(422, "document_too_large_for_processing");
+    }
+
+    // 8. Generate labels for chunks (page-aware when pages are known)
     const labels = generateChunkLabels(
       chunks.map((c) => ({ content: c.content, index: c.index })),
       {
@@ -186,7 +193,7 @@ Deno.serve(async (req) => {
       },
     );
 
-    // 10. Generate embeddings in bounded batches if the key is available.
+    // 9. Generate embeddings in bounded batches if the key is available.
     // Embedding is best-effort: FTS remains the retrieval fallback whenever
     // it fails, so a provider outage never fails the whole extraction.
     const embeddings: Array<number[] | null> = new Array(chunks.length).fill(null);
@@ -214,8 +221,8 @@ Deno.serve(async (req) => {
         }      }
     }
 
-    // 11. Persist chunks (bounded), then flip status to ready only on success.
-    const records = chunks.slice(0, MAX_CHUNKS).map((chunk, i) => ({
+    // 10. Persist chunks (bounded), then flip status to ready only on success.
+    const records = chunks.map((chunk, i) => ({
       attachment_id: attachmentId,
       chunk_index: chunk.index,
       content: chunk.content,
@@ -234,12 +241,13 @@ Deno.serve(async (req) => {
       throw new HttpError(500, "chunk_insert_failed");
     }
 
-    // 12. Mark processed — service-role RPC with an ownership guard, so
+    // 11. Mark processed — service-role RPC with an ownership guard, so
     // 'ready' can only ever be reached with chunks actually persisted.
-    await admin.rpc("mark_attachment_processed", {
+    const { error: completionError } = await admin.rpc("mark_attachment_processed", {
       p_attachment_id: attachmentId,
       p_chunk_count: records.length,
     });
+    if (completionError) throw new HttpError(500, "processing_completion_failed");
 
     return json(req, {
       success: true,
@@ -257,11 +265,10 @@ Deno.serve(async (req) => {
     // Best-effort: record the failure on the attachment so the UI can show
     // it. The reason string is bounded and never contains file contents.
     try {
-      const body = await req.clone().json().catch(() => null) as Body | null;
-      if (body?.attachment_id) {
+      if (claimedAttachmentId) {
         const reason = e instanceof HttpError ? e.code : "processing_failed";
         await adminClient().rpc("mark_attachment_failed", {
-          p_attachment_id: body.attachment_id,
+          p_attachment_id: claimedAttachmentId,
           p_reason: reason,
         });
       }

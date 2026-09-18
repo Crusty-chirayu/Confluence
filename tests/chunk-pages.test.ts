@@ -9,7 +9,7 @@
  * single-page text.
  */
 import { describe, expect, it } from "vitest";
-import { chunkPages, chunkText } from "../supabase/functions/_shared/extract";
+import { chunkPages, chunkText, extractText } from "../supabase/functions/_shared/extract";
 
 describe("chunkPages", () => {
   it("keeps the true page number on single-chunk pages", () => {
@@ -70,5 +70,13 @@ describe("chunkText page marker", () => {
     if (out.length > 1) {
       expect(out[1].startChar).toBe(out[0].endChar - 200);
     }
+  });
+});
+
+describe("PDF extraction failures", () => {
+  it("fails instead of creating searchable placeholder content", async () => {
+    await expect(
+      extractText("broken.pdf", "application/pdf", new Uint8Array([1, 2, 3])),
+    ).rejects.toThrow("pdf_extraction_failed");
   });
 });

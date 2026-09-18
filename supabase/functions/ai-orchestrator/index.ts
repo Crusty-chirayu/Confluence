@@ -15,7 +15,7 @@
 //   7. Log tokens/latency to ai_usage_log.
 // =====================================================================
 import { preflight, corsHeaders, json } from "../_shared/cors.ts";
-import { requireUser, adminClient, HttpError } from "../_shared/supabase.ts";
+import { requireUser, adminClient, HttpError, userClient } from "../_shared/supabase.ts";
 import { enforceRateLimit } from "../_shared/ratelimit.ts";
 import { moderate, logModeration } from "../_shared/moderation.ts";
 import {
@@ -135,7 +135,11 @@ Deno.serve(async (req) => {
   let aiMessageId: string | null = null;
 
   try {
-    const { user } = await requireUser(req);
+    const { user, authHeader } = await requireUser(req);
+    // Retrieval is deliberately executed under the caller's JWT. The SQL RPC
+    // verifies `auth.uid()` against conversation membership, which would be
+    // absent when invoked through the service-role client.
+    const memberClient = userClient(authHeader);
     const body = (await req.json()) as Body;
     const conversationId = body.conversation_id;
     if (!conversationId) throw new HttpError(400, "conversation_id_required");
@@ -245,14 +249,20 @@ Deno.serve(async (req) => {
           }
         }
 
-        const { data: retrievedChunks } = await admin.rpc("retrieve_attachment_chunks", {
+        const { data: retrievedChunks, error: retrievalError } = await memberClient.rpc("retrieve_attachment_chunks", {
           p_conversation_id: conversationId,
           p_query: lastHumanMessage.content.slice(0, 500),
           p_query_embedding: queryEmbedding,
           p_limit: 10,
         });
 
-        if (retrievedChunks && retrievedChunks.length > 0) {
+        if (retrievalError) {
+          // A retrieval problem must not silently turn into an ungrounded
+          // document answer. Continue without document context or citations.
+          console.error("attachment retrieval failed:", retrievalError.message);
+        }
+
+        if (!retrievalError && retrievedChunks && retrievedChunks.length > 0) {
           // Convert to ContextChunk format with citation metadata
           const rows = retrievedChunks as RetrievedChunk[];
           const contextChunks: ContextChunk[] = rows.map((chunk) => ({

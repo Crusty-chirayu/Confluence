@@ -147,9 +147,10 @@ export async function extractText(
         text = extractedPages.map((p) => p.content).join("\n\n");
       } catch (pdfError) {
         console.error("PDF extraction failed:", pdfError);
-        // Fallback to placeholder if PDF extraction fails
-        text = "[PDF extraction failed - file stored for later processing]";
-        pages = [{ pageNumber: 1, content: text }];
+        // Never persist a synthetic placeholder as document content: it could
+        // later be retrieved and cited as though it came from the PDF. The
+        // processor records this as a visible failed state instead.
+        throw new Error("pdf_extraction_failed");
       }
       break;
 
