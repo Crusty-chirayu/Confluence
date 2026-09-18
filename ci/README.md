@@ -93,7 +93,13 @@ The AI provider key is **not** a GitHub secret — it's a Supabase Edge Function
 
 ```bash
 supabase secrets set OPENROUTER_API_KEY=sk-or-...
+supabase secrets set OPENAI_API_KEY=sk-...        # optional: V3 semantic retrieval
 ```
+
+Without `OPENAI_API_KEY` no chunk or query embeddings are generated, so
+`retrieve_attachment_chunks` runs its full-text leg only. Retrieval still works and
+stays conversation-scoped; it is lexical rather than semantic, and each row reports
+`fts` instead of `hybrid`/`vector`.
 
 
 Edge Function secrets that are **optional but worth setting before launch**:

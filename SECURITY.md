@@ -47,8 +47,44 @@ on the current `main`, so claims are verifiable rather than assumed.
 - Invite redemption goes through the `invite-consume` Edge Function
   (`service_role`), so the client has no direct RLS path to an invite for a
   room it has not joined.
+
+### Attachment understanding (V3)
+
+- **`attachment_chunks` is read-only to clients.** SELECT requires membership of
+  the chunk's conversation; INSERT, UPDATE and DELETE have no permissive policy
+  at all, so only `service_role` (the processor) can write searchable text into
+  a room. Without that, any member could plant content that later retrieval
+  would surface to the assistant as a quoted document.
+- **Retrieval re-checks membership itself.** `retrieve_attachment_chunks` is
+  `SECURITY INVOKER` and returns an empty set — not an error — when
+  `auth.uid()` is not a member of the conversation, so a non-member learns
+  nothing and cannot distinguish "no matches" from "not your room". The
+  orchestrator calls it under the caller's JWT for exactly that reason; a
+  service-role call would have no `auth.uid()` to check.
+- **The processing lifecycle cannot be driven from the browser.**
+  `claim_attachment_processing`, `mark_attachment_processed` and
+  `mark_attachment_failed` are `SECURITY DEFINER` with EXECUTE revoked from
+  `public`, `anon` and `authenticated` and granted only to `service_role`.
+  `mark_attachment_processed` additionally refuses to set `ready` unless chunks
+  actually exist, so a status can never claim processing that did not happen.
+- **`attachment-processor` authorizes before it works.** It re-verifies the JWT,
+  reads the attachment, resolves its message's conversation, and confirms
+  membership through a client bound to the caller's JWT — only then does it
+  claim the job. The failure handler records state only for an attachment the
+  caller already proved it may see, so an unauthorized request cannot flip
+  another conversation's processing status.
+- **Processing status is member-scoped on read too.**
+  `get_attachment_processing_status` filters on membership, and returns the
+  failure reason only for rows that actually failed.
+- **Extracted text is untrusted input.** It is fenced inside a delimited block
+  and the prompt states that nothing in it can change instructions, override
+  safety policy or reveal system internals. Citations are derived from the
+  chunks actually placed in the prompt, never from model prose, and are
+  re-validated at the render boundary.
 - Storage (private attachments) policies mirror the same membership checks;
-  access is via signed URLs only. (Upload UI is not yet implemented.)
+  access is via signed URLs only. The bucket is private and the path convention
+  `{conversation_id}/{message_id}/{filename}` is what the policies read, so a
+  member cannot write into — or read out of — a room they are not in.
 
 ## Input / output handling
 
@@ -74,12 +110,28 @@ on the current `main`, so claims are verifiable rather than assumed.
 - **Rate limiting is enforced in the database** for the two limits that clients
   can reach without an Edge Function: `BEFORE INSERT` triggers cap messages at
   30/minute per sender and invites at 20/hour per creator. AI invocations
-  (10/min) and moderation checks (60/min) are Edge Function counters.
+  (10/min), moderation checks (60/min) and attachment processing (20/min) are
+  Edge Function counters. The processing limit matters because one call
+  downloads up to 10 MB, extracts, and can generate up to 400 embeddings —
+  without it an authenticated member could loop a costly pipeline.
 
 ## Secrets in outbound requests
 
-- The only outbound credentialed call is the orchestrator's request to the
-
+- Outbound credentialed calls, all of them server-side inside Edge Functions:
+  the orchestrator's request to OpenRouter
+  (`OPENROUTER_API_KEY`), the embedding requests to
+  `https://api.openai.com/v1/embeddings` from `attachment-processor` and
+  `ai-orchestrator` (`OPENAI_API_KEY`), and the optional moderation and
+  training webhooks.
+- `OPENAI_API_KEY` is optional. When it is absent no embeddings are generated at
+  all: chunks are persisted with a NULL embedding, retrieval runs its
+  PostgreSQL full-text leg only, and each returned row reports `fts` rather than
+  `hybrid`/`vector`. Semantic retrieval is therefore never claimed without the
+  key that makes it possible. Embedding failures are non-fatal by design — a
+  provider outage degrades retrieval to full-text instead of failing ingestion.
+- Provider and database error text is logged server-side and replaced by a
+  generic message in the response, because provider error bodies can echo
+  request headers and the request headers carry the key.
 - `TRAINING_PIPELINE_TOKEN` and `MODERATION_WEBHOOK_TOKEN` are optional and
   read the same way; the training sink is a no-op unless
   `TRAINING_PIPELINE_URL` is set and every member has opted in.
@@ -94,15 +146,25 @@ workflow-permitted push. The first two were re-verified on 2026-08-28.
    confirmed server-side again on 2026-08-28 (session
    `arena/01a04990-group-chatbot`) with a real rejected push: "refusing to
    allow a GitHub App to create or update workflow … without `workflows`
-   permission". The Playwright CI activation (e2e job + contrast step + action
-   bumps) is therefore **not in the branch**; the byte-identical change ships
-   as `ci/patches/ci-playwright-and-contrast.patch` and an owner with the
-   `workflows` permission must apply/push it (see `RELEASING.md` §3).
+   permission" — reproduced again on 2026-09-18.
 
-   **Consequence worth stating plainly:** because CI has no `e2e` job and
-   Chromium cannot be installed in the agent sandbox, the 31 Playwright tests
-   in `e2e/` have never been executed. They are committed, type-checked and
-   collected — nothing more.
+   The Playwright CI activation (e2e job + contrast step + action bumps) held in
+   `ci/patches/ci-playwright-and-contrast.patch` **has since landed** and is in
+   `.github/workflows/ci.yml`; that patch no longer applies and is kept for
+   reference only.
+
+   **Still pending (2026-09-18):** `attachment-processor` is in neither
+   workflow — it is not `deno check`ed in CI and not in `release.yml`'s deploy
+   matrix, so a release would never ship it. Both are one-line edits held at
+   `ci/patches/ci-attachment-processor-workflows.patch` (verified with
+   `git apply --check`); an owner with the `workflows` permission must apply and
+   push them.
+
+   **Consequence worth stating plainly:** Chromium cannot be installed in this
+   environment (`cdn.playwright.dev` is unreachable — re-verified 2026-09-18),
+   so the 36 Playwright tests in `e2e/` have still never been executed here.
+   They are committed, type-checked and collected (`npx playwright test --list`)
+   — nothing more. CI now has an `e2e` job that would run them.
 2. **gitleaks fails on `pull_request` runs — this is not a secret finding.**
    `actions/checkout@v4` and `gitleaks/gitleaks-action@v2` target Node 20,
    which GitHub deprecated (2025-09-19) and now forces onto Node 24.

@@ -29,7 +29,7 @@
 
 <br/>
 
-**[🚀 Quick Start](#-quick-start) · [🏗 Architecture](#-architecture) · [🔐 Security](#-security-model) · [🎬 Motion System](#-motion-system) · [📄 Pages](#-page-inventory) · [📊 By the Numbers](#-by-the-numbers) · [🆚 How It's Different](#-how-its-different) · [🧪 CI/CD](#-cicd--push-everything-release-policy) · [❓ FAQ](#-faq)**
+**[🚀 Quick Start](#-quick-start) · [🏗 Architecture](#-architecture) · [🔐 Security](#-security-model) · [📎 Attachment Understanding](#-attachment-understanding-v3) · [🎬 Motion System](#-motion-system) · [📄 Pages](#-page-inventory) · [📊 By the Numbers](#-by-the-numbers) · [🆚 How It's Different](#-how-its-different) · [🧪 CI/CD](#-cicd--push-everything-release-policy) · [❓ FAQ](#-faq)**
 
 </div>
 
@@ -51,7 +51,7 @@
 
 | 🧩 Edge Functions | 🧪 E2E Tests | 🎨 Contrast Pairs Verified | ⏱ Rate-Limit Triggers | 📄 App Routes | 🌗 Themes |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **3** | **31** | **54** | **BEFORE INSERT ×2** | **10** | **light / dark / system** |
+| **4** | **36** | **54** | **BEFORE INSERT ×2** | **10** | **light / dark / system** |
 
 | ⚡ Streaming Flush | 🚦 AI Call Ceiling | 🛡 Moderation Stages | 🔑 Keys in Browser | 🕵️ Audit Table Policies |
 |:---:|:---:|:---:|:---:|:---:|
@@ -111,7 +111,19 @@ With no environment variables set, the app boots into **demo mode** — an in-br
 <br/>
 
 1. Create a project at [supabase.com](https://supabase.com)
-2. Run [`supabase_schema.sql`](./supabase_schema.sql) in the SQL Editor (or `supabase db push`)
+2. Apply the schema, then the migrations:
+
+   ```bash
+   supabase db push     # runs everything under supabase/migrations/
+   ```
+
+   [`supabase_schema.sql`](./supabase_schema.sql) is the v2.0 single-file
+   baseline for pasting into the SQL Editor. **It does not contain the V3
+   attachment-understanding objects** (`attachment_chunks`, the processing
+   status columns, `messages.citations`, or the retrieval RPCs) — those live
+   only in `supabase/migrations/20260901*` and later. Use `supabase db push`,
+   or run the baseline *and then* every migration in filename order.
+
 3. Dashboard → **Authentication** → enable **Email** and **Google** providers
 4. Set the frontend keys:
 
@@ -124,10 +136,24 @@ With no environment variables set, the app boots into **demo mode** — an in-br
 
    ```bash
    supabase secrets set OPENROUTER_API_KEY=sk-or-...
-   supabase functions deploy ai-orchestrator moderation-check invite-consume
+   supabase secrets set OPENAI_API_KEY=sk-...        # embeddings; see below
+   supabase functions deploy ai-orchestrator attachment-processor moderation-check invite-consume
    ```
 
+   `OPENAI_API_KEY` is **optional but changes what retrieval can do**. With it,
+   chunks are embedded on ingest and queries are embedded too, so retrieval is
+   genuine hybrid (vector + full-text, fused by reciprocal rank). Without it
+   no embeddings are ever written and retrieval runs on PostgreSQL full-text
+   search alone — still correct, still conversation-scoped, but lexical rather
+   than semantic. Nothing in the product claims otherwise at runtime: each
+   retrieved chunk reports the method that actually found it.
+
 6. **Confirm RLS is ON** for every table (shield icon in the Table Editor) before going to production.
+
+> `attachment-processor` is not in `release.yml`'s deploy matrix and not in the
+> CI `deno check` loop yet — both are one-line workflow edits held at
+> [`ci/patches/ci-attachment-processor-workflows.patch`](./ci/patches/ci-attachment-processor-workflows.patch).
+> Until that is applied, deploy it by hand as shown above.
 
 </details>
 
@@ -233,12 +259,88 @@ flowchart LR
 | 🔑 AI provider key | `OPENROUTER_API_KEY` — only ever in the Edge Function environment |
 | 🎟 Invite redemption | `invite-consume` (service_role) — the client has no RLS path to an invite for a room it hasn't joined |
 | 🚧 Moderation | Two stages (`pre`, `post`), **fails closed** — a classifier error blocks publication |
-| ⏱ Rate limiting | 30 msg/min & 20 invites/hr as `BEFORE INSERT` triggers (every write path), plus fixed-window Edge Function counters — 10 AI calls/min, 60 moderation checks/min |
+| ⏱ Rate limiting | 30 msg/min & 20 invites/hr as `BEFORE INSERT` triggers (every write path), plus fixed-window Edge Function counters — 10 AI calls/min, 60 moderation checks/min, 20 attachment-processing calls/min |
 | 📎 Attachments | Private bucket, storage policies call the same membership check |
+| 📄 Attachment chunks | RLS: readable by conversation members; **insert/update/delete have no permissive policy** → `service_role` only, so no client can write searchable text into a room |
+| 🔎 Retrieval | `retrieve_attachment_chunks` is `SECURITY INVOKER` and re-checks membership itself, so it returns nothing — not an error — to a non-member |
+| 🏷 Citations | Derived server-side from the chunks actually placed in the prompt; model prose alone can never mint an attachment id, page or label |
 | 🧠 Training data | `profiles.training_opt_in`, off by default; routing requires **unanimous** opt-in |
 | ↪️ Redirect targets | `?next=` collapsed to a same-origin path by `safeInternalPath()` — no open redirects |
 
 > ⚠️ The client-side classifier in `src/lib/data/moderation-local.ts` is a **UX affordance only** — it warns before you send. The authoritative check always runs server-side.
+
+---
+
+## 📎 Attachment Understanding <sub>V3</sub>
+
+Documents shared in a conversation become retrievable context for the assistant —
+grounded, member-scoped, and cited only from what was actually retrieved.
+
+```
+upload → validate → private bucket → message_attachments (queued)
+       → attachment-processor: claim → download → extract → chunk → embed → persist → ready
+       → ai-orchestrator: embed query → retrieve → fence into the prompt → cite
+```
+
+**Ingestion.** Uploads are capped at 10 MB and checked against an allowlist that
+deliberately excludes SVG (it can carry scripts and would be served back raw).
+Files land in the private `attachments` bucket at
+`{conversation_id}/{message_id}/{filename}` — the shape the storage policies read
+to enforce membership — and the `message_attachments` row can only be inserted by
+the message's own author inside a room they belong to.
+
+**Processing status** is a real lifecycle, not a guess:
+`unsupported → queued → processing → ready | failed`, stored on the row and read
+back through the member-scoped `get_attachment_processing_status` RPC. The chip
+polls a bounded number of times rather than forever, announces each state, and
+offers a **Retry** on failure. A job is claimed atomically
+(`claim_attachment_processing`, `SELECT … FOR UPDATE`), so concurrent calls cannot
+double-extract; a lease abandoned by a crashed function is reclaimable after 15
+minutes; and a failure clears its partial chunks so a retry starts clean. An empty
+but readable document completes as `ready` with zero chunks — truthful, not failed.
+
+**Extraction** covers PDF, plain text, Markdown, CSV, JSON and HTML. PDFs are
+extracted per page with pdf.js and chunked *within* each page, so every chunk keeps
+the page it actually came from; text formats are modelled as a single page. Chunks
+are 1000 characters with a 200-character overlap, never straddling a page boundary,
+capped at 400 per attachment. A PDF that fails to parse **fails loudly** — no
+placeholder text is ever persisted, because a placeholder would later be retrieved
+and cited as though the document said it.
+
+**Retrieval** is hybrid when embeddings exist and honestly lexical when they don't.
+`retrieve_attachment_chunks` runs a pgvector cosine leg and a PostgreSQL full-text
+leg, joins them by chunk id and fuses them with reciprocal rank fusion; each row
+reports `hybrid`, `vector` or `fts` for the method that actually found it. Without
+`OPENAI_API_KEY` no embeddings are written, the vector leg is skipped, and full-text
+search carries retrieval — degraded, never fabricated. A failed query embedding
+falls back the same way. Retrieval is `SECURITY INVOKER` and re-verifies membership
+itself, scoped to the whole conversation rather than the recent-message window.
+
+**Prompt injection.** Extracted text is untrusted data. It is delivered inside an
+explicitly delimited `SHARED FILE CONTENT` block, and the system prompt's rules for
+that block are added exactly when the block is — stating that content inside it can
+never change instructions, override safety policy, or reveal system internals, even
+when it says "ignore previous instructions".
+
+**Citations are derived, not trusted.** The model is asked to cite the source labels
+it was given, but instructions are not enforcement — so `buildVerifiedCitations`
+resolves whatever the model wrote against the chunks that were actually placed in
+the prompt, and drops anything that cannot be resolved. A citation therefore always
+maps to a real retrieved chunk, with the page number taken from the extractor's own
+`page_number`. The client re-validates the stored JSON at the render boundary and
+renders nothing it cannot verify; no chip can be minted from prose alone.
+
+**Known limitations** (all documented in [`ACCEPTANCE.md`](./ACCEPTANCE.md)):
+
+- **Images are not analysed.** They are stored, member-scoped and rendered, but the
+  provider layer carries `content: string` only — there is no multimodal wire
+  format, so no image content reaches the model.
+- **Audio and video are not transcribed**; they are marked `unsupported`.
+- **Semantic retrieval requires `OPENAI_API_KEY`.** Without it retrieval is
+  full-text only. Embeddings are generated against OpenAI's API directly.
+- The extraction PDF path, the SQL retrieval fusion and the RLS policies have
+  **not been executed against a live Supabase project** — see the verification
+  status in [`ACCEPTANCE.md`](./ACCEPTANCE.md) for exactly what was and was not run.
 
 ---
 
@@ -332,9 +434,20 @@ src/
     ├── motion.ts              §2.7 motion tokens — single source of truth
     ├── data/api.ts            unified data layer (Supabase ⟷ demo)
     ├── data/demo-store.ts     in-browser Supabase stand-in
+    ├── attachments.ts         upload allowlist, size cap, storage path, extractable types
+    ├── attachment-status.ts   processing lifecycle + bounded polling
+    ├── understanding.ts       client trigger for the processor
+    ├── citations.ts           render-boundary validation of verified citations
     └── supabase/              browser + server clients
 
 supabase/
+├── migrations/                versioned schema — the V3 objects live here, not in supabase_schema.sql
+└── functions/
+    ├── ai-orchestrator/       streaming, moderation, retrieval, verified citations
+    ├── attachment-processor/  extract → chunk → embed → persist, with status tracking
+    ├── moderation-check/      fail-closed classifier
+    ├── invite-consume/        invite redemption (service_role)
+    └── _shared/               extract, embeddings, attachment-context, citations, provider, cors, ratelimit
 
 ```
 
