@@ -45,6 +45,14 @@ const EMBEDDING_MODEL = "text-embedding-3-small";
 const BLOCKED_TEXT =
   "_This response was withheld by the safety filter._";
 
+/** Row shape returned by the get_attachment_context RPC. */
+interface ConversationAttachment {
+  attachment_id: string;
+  filename: string;
+  mime_type: string;
+  chunk_count: number;
+}
+
 /** Row shape returned by the retrieve_attachment_chunks RPC. */
 interface RetrievedChunk {
   chunk_id: string;
@@ -98,7 +106,7 @@ function systemPrompt(opts: {
   roomName: string | null;
   topic: string | null;
   members: string[];
-  hasAttachments: boolean;
+  hasDocumentContext: boolean;
 }) {
   const base = [
     "You are the AI assistant embedded in a chat product.",
@@ -119,8 +127,10 @@ function systemPrompt(opts: {
     );
   }
 
-  // Add untrusted content rules if attachments are present
-  if (opts.hasAttachments) {
+  // The rules describe the SHARED FILE CONTENT block, so they are added
+  // exactly when that block is added — never for a room whose attachments
+  // produced no retrieved context.
+  if (opts.hasDocumentContext) {
     base.push(untrustedContentRules());
   }
 
@@ -216,59 +226,63 @@ Deno.serve(async (req) => {
 
     // --- 4a. attachment context retrieval ------------------------------------
     let attachmentContext: string | null = null;
-    let hasAttachments = false;
     // Kept outside the stream closure: citation metadata is derived from the
     // exact chunks that went into the prompt, nothing else.
     let retrievedContextChunks: ContextChunk[] = [];
 
-    // Check for attachments in the conversation
-    const { data: attachments } = await admin
-      .from("message_attachments")
-      .select("id, storage_path, mime_type")
-      .in("message_id", ordered.map((m) => m.id));
+    // Scoped to the CONVERSATION, not to the history window above: a document
+    // uploaded more than HISTORY_LIMIT messages ago is still a room document,
+    // and `retrieve_attachment_chunks` is conversation-scoped by design. The
+    // RPC is `security invoker` and enforces membership, so it runs under the
+    // caller's JWT like the retrieval call below.
+    const { data: conversationAttachments } = await memberClient.rpc("get_attachment_context", {
+      p_conversation_id: conversationId,
+    });
+    const knownAttachments = (conversationAttachments ?? []) as ConversationAttachment[];
 
-    if (attachments && attachments.length > 0) {
-      hasAttachments = true;
-      
-      // Retrieve relevant chunks for the current query
-      // Use the most recent human message as the query for retrieval
-      const lastHumanMessage = [...ordered].reverse().find((m) => m.sender_type === "human");
-      if (lastHumanMessage) {
-        // Generate query embedding if OpenAI API key is available
-        let queryEmbedding: number[] | null = null;
-        if (OPENAI_API_KEY) {
-          try {
-            queryEmbedding = await generateQueryEmbedding(
-              lastHumanMessage.content.slice(0, 500),
-              OPENAI_API_KEY,
-              EMBEDDING_MODEL
-            );
-          } catch (embeddingError) {
-            console.error("Query embedding generation failed:", embeddingError);
-            // Continue without embedding - FTS will still work
-          }
+    // Retrieval — and the query embedding it needs — is only worth paying for
+    // when at least one attachment in this conversation actually produced
+    // chunks. Without that guard every image-only room ran a vector query
+    // that could only ever return nothing.
+    const query = [...ordered].reverse().find((m) => m.sender_type === "human")?.content.slice(0, 500);
+    if (query && knownAttachments.some((a) => (a.chunk_count ?? 0) > 0)) {
+      // Semantic leg: generated only when an embedding key is configured.
+      // Absent or failing, `p_query_embedding` stays null and the RPC runs
+      // its full-text leg alone — retrieval degrades, it never fabricates.
+      let queryEmbedding: number[] | null = null;
+      if (OPENAI_API_KEY) {
+        try {
+          queryEmbedding = await generateQueryEmbedding(query, OPENAI_API_KEY, EMBEDDING_MODEL);
+        } catch (embeddingError) {
+          console.error(
+            "ai-orchestrator: query_embedding_failed",
+            embeddingError instanceof Error ? embeddingError.message : embeddingError,
+          );
         }
+      }
 
-        const { data: retrievedChunks, error: retrievalError } = await memberClient.rpc("retrieve_attachment_chunks", {
+      const { data: retrievedChunks, error: retrievalError } = await memberClient.rpc(
+        "retrieve_attachment_chunks",
+        {
           p_conversation_id: conversationId,
-          p_query: lastHumanMessage.content.slice(0, 500),
+          p_query: query,
           p_query_embedding: queryEmbedding,
           p_limit: 10,
-        });
+        },
+      );
 
-        if (retrievalError) {
-          // A retrieval problem must not silently turn into an ungrounded
-          // document answer. Continue without document context or citations.
-          console.error("attachment retrieval failed:", retrievalError.message);
-        }
-
-        if (!retrievalError && retrievedChunks && retrievedChunks.length > 0) {
-          // Convert to ContextChunk format with citation metadata
-          const rows = retrievedChunks as RetrievedChunk[];
-          const contextChunks: ContextChunk[] = rows.map((chunk) => ({
+      if (retrievalError) {
+        // A retrieval problem must not silently turn into an ungrounded
+        // document answer. Continue without document context or citations.
+        console.error("ai-orchestrator: attachment_retrieval_failed", retrievalError.message);
+      } else if (retrievedChunks && retrievedChunks.length > 0) {
+        const rows = retrievedChunks as RetrievedChunk[];
+        const contextChunks: ContextChunk[] = rows.map((chunk) => {
+          const source = knownAttachments.find((a) => a.attachment_id === chunk.attachment_id);
+          return {
             attachment_id: chunk.attachment_id,
-            filename: chunk.filename || attachments.find((a) => a.id === chunk.attachment_id)?.storage_path?.split("/").pop() || "unknown",
-            mime_type: chunk.mime_type || attachments.find((a) => a.id === chunk.attachment_id)?.mime_type || "text/plain",
+            filename: chunk.filename || source?.filename || "unknown",
+            mime_type: chunk.mime_type || source?.mime_type || "text/plain",
             label: chunk.label,
             content: chunk.content,
             chunk_id: chunk.chunk_id,
@@ -276,11 +290,11 @@ Deno.serve(async (req) => {
             page: chunk.page_number,
             retrieval_method: chunk.retrieval_method,
             similarity: chunk.similarity,
-          }));
+          };
+        });
 
-          attachmentContext = renderDocumentContext(contextChunks);
-          retrievedContextChunks = contextChunks;
-        }
+        attachmentContext = renderDocumentContext(contextChunks);
+        retrievedContextChunks = contextChunks;
       }
     }
 
@@ -352,7 +366,7 @@ Deno.serve(async (req) => {
       roomName: conversation.name,
       topic: conversation.topic,
       members: (memberProfiles ?? []).map((p) => p.display_name),
-      hasAttachments,
+      hasDocumentContext: attachmentContext !== null,
     });
 
     // Append attachment context to system prompt if available

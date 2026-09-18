@@ -8,27 +8,50 @@ GitHub Actions workflows for the §1 "push everything" release policy.
 > ("ci: activate workflows"). No workflow files live in `ci/` anymore; this README is
 > their documentation.
 >
-> **Pending — re-confirmed 2026-08-28 (session `arena/01a04990-group-chatbot`):** the
-> Playwright `e2e` job, the token-contrast step and the Node-24 action bumps are **not
-> in `.github/workflows/ci.yml`**. The session's GitHub App credential lacks the
-> `workflows` permission, so GitHub rejected a real push of the commit that touches
-> `ci.yml` (`refusing to allow a GitHub App to create or update workflow … without
-> 'workflows' permission`). The byte-identical change is kept at
-> [`patches/ci-playwright-and-contrast.patch`](patches/ci-playwright-and-contrast.patch)
-> — verified to apply cleanly to `main` `c2cb9eb` — and lands on `main` with the merge.
-> One-time owner action: [`../RELEASING.md` §3](../RELEASING.md).
+> **Landed:** the Playwright `e2e` job, the token-contrast step and the Node-24 action
+> bumps held in [`patches/ci-playwright-and-contrast.patch`](patches/ci-playwright-and-contrast.patch)
+> are now present in `.github/workflows/ci.yml` — the patch no longer applies because its
+> post-image is the committed file. It is kept for reference only.
 >
-> Until that lands, **no E2E test in `e2e/` has ever run anywhere**: Chromium cannot be
-> installed in the agent sandbox (`cdn.playwright.dev` is unreachable) and CI has no
-> `e2e` job. The suite (31 tests / 12 files) is committed, type-checked and collected
-> (`npx playwright test --list`) — that is all that can be claimed today.
+> **Pending — 2026-09-18:** `attachment-processor` is absent from **both** workflows — it
+> is not in the `edge-functions` job's `deno check` loop (so it is never typechecked) and
+> not in `release.yml`'s deploy matrix (so a release would never ship it, and V3 attachment
+> processing would not exist in production). The GitHub App credential used here lacks the
+> `workflows` permission and GitHub rejects any push that touches a workflow file
+> (`refusing to allow a GitHub App to create or update workflow … without 'workflows'
+> permission` — reproduced 2026-09-18). All three changes are held at
+> [`patches/ci-attachment-processor-workflows.patch`](patches/ci-attachment-processor-workflows.patch),
+> verified with `git apply --check` against the current `main`. Owner action:
+> `git apply ci/patches/ci-attachment-processor-workflows.patch && git commit -am "ci: typecheck and deploy attachment-processor" && git push`.
+>
+> The third change adds a `deno test tests/pdf-extraction.test.ts` step. Vitest has to
+> stub pdf.js (`tests/stubs/pdfjs.ts`), so the PDF branch of `extract.ts` has no coverage
+> there at all — which is exactly how a broken `GlobalWorkerOptions.workerSrc` assignment
+> shipped: every PDF failed extraction in production while the stubbed suite stayed green.
+> `tests/pdf-extraction.test.ts` builds a real PDF in memory and runs the real library.
+>
+> Everything the patch adds has been run locally (Deno 2.9.6): `deno check` passes for all
+> four functions **including under `--frozen`**, which is Deno's default when `CI=true`, and
+> `npm run test:pdf` passes 4/4. `deno.lock` was regenerated for this and is committed —
+> it was stale, missing `pdfjs-dist` entirely and carrying an older peer resolution for
+> `next`, so a frozen check would have failed on it regardless of the patch.
+>
+> One gate still cannot run locally: `tests/moderation-fail-closed.test.ts` imports
+`jsr:@std/assert@1` and `jsr.io` is unreachable from this environment, so `npm run
+test:edge` has no local evidence. `tests/pdf-extraction.test.ts` deliberately asserts with
+`node:assert` instead, so it runs anywhere Deno does.
+
+E2E status is unchanged: **no test in `e2e/` has ever been executed**. Chromium cannot
+> be installed in this environment (`cdn.playwright.dev` is unreachable — re-verified
+> 2026-09-18), so although CI now has an `e2e` job, the suite's only local evidence is
+> collection (`npx playwright test --list`, 36 tests / 14 files) and a clean typecheck.
 
 ## What they do
 
 | Workflow | File | Trigger | Steps |
 | --- | --- | --- | --- |
-| CI | `.github/workflows/ci.yml` | every push + PR to `main` | **as it stands:** `npm ci` → `tsc --noEmit` → `npm run lint` → unit tests (incl. 13 axe tests) → `npm run build`, **plus** `deno check` on all three Edge Functions, the moderation fail-closed integration test (`deno test`), and a gitleaks secret scan. **After the owner applies the patch:** also `node scripts/contrast.mjs` (WCAG AA token gate) and a dedicated **Playwright E2E + browser axe audit** job (`e2e`) |
-| Release | `.github/workflows/release.yml` | push to `main`, or manual dispatch | **1** `supabase db push` → **2** deploy `ai-orchestrator`, `moderation-check`, `invite-consume` → **3** build & deploy the frontend to Vercel |
+| CI | `.github/workflows/ci.yml` | every push + PR to `main` | `npm ci` → `tsc --noEmit` → `npm run lint` → unit tests (incl. 13 axe tests) → `node scripts/contrast.mjs` (WCAG AA token gate) → `npm run build`, **plus** a Playwright E2E + browser axe job (`e2e`), `deno check` on `ai-orchestrator`, `moderation-check` and `invite-consume`, the moderation fail-closed integration test (`deno test`), and a gitleaks secret scan. **After the owner applies the pending patch:** `deno check` also covers `attachment-processor`, and the PDF extraction integration test runs |
+| Release | `.github/workflows/release.yml` | push to `main`, or manual dispatch | **1** `supabase db push` → **2** deploy `ai-orchestrator`, `moderation-check`, `invite-consume` → **3** build & deploy the frontend to Vercel. **After the owner applies the pending patch:** step 2 also deploys `attachment-processor` |
 
 `release.yml` runs strictly in that order via `needs:`, so a schema change is always live
 before the functions that depend on it, and the frontend ships last. A partial deploy is
@@ -68,6 +91,9 @@ Notes learned the hard way (do not regress):
   already pinned in `deno.lock` install fine, so the lock both pins and unblocks.
   If you intentionally bump dependencies, regenerate the lock
   (`deno check supabase/functions/ai-orchestrator/index.ts` writes it) and commit it.
+  Regenerate it whenever a function starts importing a new package, too: GitHub Actions
+  sets `CI=true`, Deno then implies `--frozen`, and a lock that does not already contain
+  the import fails the job instead of updating itself.
 
 ## Required repository secrets
 
@@ -87,7 +113,13 @@ The AI provider key is **not** a GitHub secret — it's a Supabase Edge Function
 
 ```bash
 supabase secrets set OPENROUTER_API_KEY=sk-or-...
+supabase secrets set OPENAI_API_KEY=sk-...        # optional: V3 semantic retrieval
 ```
+
+Without `OPENAI_API_KEY` no chunk or query embeddings are generated, so
+`retrieve_attachment_chunks` runs its full-text leg only. Retrieval still works and
+stays conversation-scoped; it is lexical rather than semantic, and each row reports
+`fts` instead of `hybrid`/`vector`.
 
 
 Edge Function secrets that are **optional but worth setting before launch**:

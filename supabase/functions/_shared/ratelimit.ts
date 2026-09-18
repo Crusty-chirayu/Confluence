@@ -6,6 +6,9 @@ export const LIMITS: Record<string, { max: number; windowSec: number }> = {
   ai_invocations_per_min: { max: 10, windowSec: 60 },
   invites_per_hour: { max: 20, windowSec: 3600 },
   moderation_checks_per_min: { max: 60, windowSec: 60 },
+  // One processing call downloads up to 10 MB and can generate hundreds of
+  // embeddings; 20/min leaves ample room for genuine retries of failed jobs.
+  attachment_processing_per_min: { max: 20, windowSec: 60 },
 };
 
 /**

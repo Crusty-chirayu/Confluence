@@ -21,7 +21,7 @@ import type {
   SearchHit,
 } from "@/lib/types";
 import { plainPreview } from "@/lib/utils";
-import { attachmentStoragePath, validateAttachmentFile } from "@/lib/attachments";
+import { attachmentStoragePath, isExtractableMime, validateAttachmentFile } from "@/lib/attachments";
 import { processAttachment } from "@/lib/understanding";
 
 /* ------------------------------------------------------------------ */
@@ -457,14 +457,16 @@ export async function uploadAttachment(
     .single();
   if (error) throw error;
   
-  // Trigger attachment processing for text-based files (non-demo mode only)
-  if (!DEMO_MODE && (verdict.mime.startsWith("text/") || verdict.mime === "application/json" || verdict.mime === "application/pdf")) {
-    // Trigger processing asynchronously - don't await to avoid blocking upload
+  // Trigger the understanding pipeline for formats it can extract text from.
+  // Fire-and-forget: the upload is already durable, and the chip polls the
+  // member-scoped status RPC for the resulting queued -> processing ->
+  // ready | failed transition.
+  if (isExtractableMime(verdict.mime)) {
     processAttachment(data.id).catch((err) => {
       console.error("Failed to trigger attachment processing:", err);
     });
   }
-  
+
   return data as MessageAttachment;
 }
 

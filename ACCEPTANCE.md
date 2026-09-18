@@ -30,6 +30,13 @@ taken from previous reports.
 | Playwright execution | `npx playwright test` | ⛔ **NOT RUN — ENVIRONMENT LIMITATION** (no Chromium; `cdn.playwright.dev` unreachable from the sandbox) |
 | Deno typecheck / integration | `deno check …`, `deno test …` | ⛔ **NOT RUN — ENVIRONMENT LIMITATION** (no Deno runtime in the sandbox; both run in the `edge-functions` CI job, which is green) |
 
+> **Superseded for V3 by [the 2026-09-18 pass](#v3-attachment-understanding-pass-2026-09-18).**
+> Deno turned out to be installable here after all, so those two gates have since been
+> run for real; the unit-test and Playwright counts above (83 and 31) have also grown.
+> The parenthetical "the `edge-functions` CI job … is green" was taken from CI history
+> and never re-verified — the committed `deno.lock` proved to be stale, which is recorded
+> in the V3 pass below.
+
 ### What this pass changed
 
 **Security (all previously exploitable or leaking):**
@@ -68,6 +75,70 @@ taken from previous reports.
 | Moderation warning / attachment error appeared silently | persistent `role="status"` / `role="alert"` regions | GREEN |
 | Landing page had no `<main>` landmark | wrapped | GREEN |
 | Sidebar groups were unlabelled runs of links | named `<ul>` per group | GREEN |
+
+---
+
+## V3 Attachment Understanding pass (2026-09-18)
+
+V3 was re-verified against the code in this pass rather than taken from the design
+documents. It found three real defects, not documentation gaps: PDF extraction was
+broken for every upload, the two typecheckers could not corroborate each other, and
+the committed Deno lockfile was stale. All three are fixed and covered below.
+
+### Gates run in this pass
+
+| Gate | Command | Result |
+|---|---|---|
+| Typecheck | `npx tsc --noEmit` | ✅ clean |
+| Lint | `npm run lint` | ✅ 0 errors (19 pre-existing `<EffectEvent>`/set-state-in-effect warnings) |
+| Unit + component + a11y | `npm test` | ✅ **255 tests / 21 files** |
+| Token contrast | `npm run test:contrast` | ✅ **54 pairs**, both themes |
+| Production build | `npm run build` | ✅ exit 0 |
+| Deno typecheck | `deno check` on all four `supabase/functions/*/index.ts` | ✅ all four pass, including under `--frozen` |
+| Deno PDF integration | `npm run test:pdf` | ✅ **4 tests** against the real `pdfjs-dist@4.8.69` |
+| Deno moderation integration | `npm run test:edge` | ⛔ **NOT RUN** — it imports `jsr:@std/assert@1` and `jsr.io` is unreachable from here |
+| Playwright collection | `npx playwright test --list` | ✅ **36 tests / 14 files** |
+| Playwright execution | `npx playwright test` | ⛔ **NOT RUN** — Chromium cannot be installed (`cdn.playwright.dev` unreachable) |
+| Migrations, RLS, RPC, retrieval SQL | `supabase db push`, `psql` | ⛔ **NOT RUN** — no PostgreSQL and no Supabase CLI in this environment; static review only |
+| Deployed Edge Function invocation | `supabase functions deploy` | ⛔ **NOT RUN** — same reason |
+
+Deno 2.9.6 was used. It is not preinstalled and its GitHub release assets are
+unreachable from here, so it was installed from npm's platform package
+(`@deno/linux-x64-glibc`) instead. The two Deno rows above are therefore real runs,
+not static review.
+
+### Defects found and fixed in this pass
+
+| Finding | Impact | Fix | Status |
+|---|---|---|---|
+| `GlobalWorkerOptions.workerSrc = false` in the PDF branch of `extract.ts` | pdf.js validates that setter and throws `Invalid workerSrc type`, so **every PDF upload failed** with `pdf_extraction_failed`. Nothing caught it: Vitest stubs pdf.js, and `attachment-processor` was absent from the `deno check` loop | resolve the pinned worker module to a file URL with `import.meta.resolve`; add `tests/pdf-extraction.test.ts`, which builds a real PDF in memory and runs the real library | GREEN |
+| `types/pdfjs-deno.d.ts` was looser than the package it stands in for (`workerSrc: unknown`, `items` without the marked-content variant) | `tsc --noEmit` accepted code `deno check` rejected, so the two checkers corroborated nothing | the shapes now mirror `pdfjs-dist@4.8.69`, and the `items` mapping narrows the union instead of assuming every entry carries a string | GREEN |
+| Committed `deno.lock` predated the `pdfjs-dist` import and carried an older peer resolution for `next` | Deno implies `--frozen` when `CI=true`, so the `edge-functions` job fails on a lockfile it is not allowed to update | regenerated and committed; all four functions now pass `deno check --frozen` | GREEN |
+
+### Acceptance areas
+
+| Area | Status | Evidence and gaps |
+|---|---|---|
+| **A** Ingestion | GREEN | `attachments.test.ts` (10), `attachment-status.test.ts` (11). Lifecycle is `queued → processing → ready \| failed`, a job is claimed atomically with a 15-minute lease, a failure clears its partial chunks, and the chip offers retry. Storage-bucket policies were reviewed statically, not executed |
+| **B** Extraction & chunking | GREEN | `understanding.test.ts` (34), `chunk-pages.test.ts` (7), `extractable-mime.test.ts` (5), `pdf-extraction.test.ts` (4, real PDF). Chunks never straddle a page boundary and keep the page they came from; a blank page is skipped without renumbering the pages after it |
+| **C** Retrieval | YELLOW | genuinely hybrid — a pgvector cosine leg and a PostgreSQL full-text leg fused by reciprocal rank — when embeddings exist, and honestly lexical when they do not, with each row reporting `hybrid`/`vector`/`fts` for the method that found it. `embeddings.test.ts` (17) and `embeddings-validation.test.ts` (12) cover the application side. **The SQL itself has never been executed**: there is no database in this environment |
+| **D** AI context integration | GREEN | `attachment-context.test.ts` (13): scoped to the conversation rather than the recent-message window, untrusted content in a delimited block whose rules are injected exactly when the block is, and safe on empty |
+| **E** Citations | GREEN | `citations.test.ts` (22), `citation-list.test.tsx` (9). Citations are resolved against the chunks actually placed in the prompt and anything unresolvable is dropped; page numbers come from the extractor's own `page_number`, never from a chunk's position |
+| **F** Security / RLS | YELLOW | policies, the grants migration and `SECURITY INVOKER` retrieval are internally consistent on review, but **not executed against a live database**, so cross-user isolation is not empirically demonstrated |
+| **G** Frontend states | GREEN | `attachment-chip.test.tsx` (15): uploading/processing/ready/failed, retry, `role="status"` on the terminal badges, and retry rendered as a sibling of the download link rather than nested inside it |
+
+155 of the 255 Vitest tests are V3-specific, plus the four Deno PDF tests.
+
+### Not verified anywhere in this pass
+
+- No file was uploaded to a real Supabase Storage bucket and no Edge Function was
+  invoked over HTTP. The pipeline is verified module by module, not end to end.
+- `retrieve_attachment_chunks`, `claim_attachment_processing` and every V3 RLS
+  policy are static review only. Treat them as unproven until they have run
+  against a project.
+- Images are still not analysed and audio/video still not transcribed: the provider
+  layer carries `content: string` only. That is a design limitation rather than a
+  defect, and it is documented in the README.
 
 ---
 

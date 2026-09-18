@@ -8,7 +8,11 @@ export default defineConfig({
     environment: "jsdom",
     // Deno-runtime tests are executed by `deno test`, not vitest.
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
-    exclude: ["tests/moderation-fail-closed.test.ts", "node_modules/**"],
+    exclude: [
+      "tests/moderation-fail-closed.test.ts",
+      "tests/pdf-extraction.test.ts",
+      "node_modules/**",
+    ],
   },
   resolve: {
     alias: {

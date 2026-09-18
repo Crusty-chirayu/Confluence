@@ -1,0 +1,38 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index d930c98..077e99c 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -86,7 +86,7 @@ jobs:
+ 
+       - name: Typecheck Deno functions
+         run: |
+-          for fn in ai-orchestrator moderation-check invite-consume; do
++          for fn in ai-orchestrator attachment-processor moderation-check invite-consume; do
+             echo "::group::$fn"
+             deno check "supabase/functions/$fn/index.ts"
+             echo "::endgroup::"
+@@ -97,6 +97,11 @@ jobs:
+       - name: Integration — moderation fails closed
+         run: deno test --allow-env --allow-net tests/moderation-fail-closed.test.ts
+ 
++      # The vitest suite has to stub pdf.js, so a broken worker initialization
++      # stays invisible there; this runs the real library against a real PDF.
++      - name: Integration — PDF extraction against real pdf.js
++        run: deno test --allow-read --allow-env --allow-net tests/pdf-extraction.test.ts
++
+   secrets-scan:
+     name: Secret scan (gitleaks)
+     runs-on: ubuntu-latest
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 9af3303..de5429e 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -42,7 +42,7 @@ jobs:
+     runs-on: ubuntu-latest
+     strategy:
+       matrix:
+-        fn: [ai-orchestrator, moderation-check, invite-consume]
++        fn: [ai-orchestrator, attachment-processor, moderation-check, invite-consume]
+     steps:
+       - uses: actions/checkout@v4
+       - uses: supabase/setup-cli@v1

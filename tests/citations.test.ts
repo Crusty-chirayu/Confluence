@@ -114,6 +114,54 @@ describe("buildVerifiedCitations", () => {
   it("returns nothing when the text cites nothing", () => {
     expect(buildVerifiedCitations("No citations here.", retrieved)).toEqual([]);
   });
+
+  describe("page provenance", () => {
+    it("reports the chunk's stored page, not one re-parsed from the label", () => {
+      // The stored page_number comes from the extractor. If a label ever
+      // disagrees with it, the extractor wins — the label is presentation.
+      const out = buildVerifiedCitations("`report.pdf — page 7`", [
+        chunk({ attachment_id: "att-1", label: "report.pdf — page 7", page: 42, chunk_index: 6 }),
+      ]);
+      expect(out[0].page).toBe(42);
+    });
+
+    it("resolves a bare page label as produced by generateChunkLabels", () => {
+      const out = buildVerifiedCitations("`report.pdf — page 3`", [
+        chunk({ attachment_id: "att-1", label: "page 3", page: 3, chunk_index: 2 }),
+      ]);
+      expect(out).toHaveLength(1);
+      expect(out[0]).toMatchObject({ page: 3, chunk_index: 2, label: "page 3" });
+    });
+
+    it("carries a stored page even when the label has none", () => {
+      const out = buildVerifiedCitations("`report.pdf — section 2`", [
+        chunk({ attachment_id: "att-1", label: "section 2", page: 5, chunk_index: 1 }),
+      ]);
+      expect(out).toHaveLength(1);
+      expect(out[0].page).toBe(5);
+    });
+
+    it("reports no page when neither the chunk nor the label has one", () => {
+      const out = buildVerifiedCitations("`notes.txt — section 1`", [
+        chunk({
+          attachment_id: "att-2",
+          filename: "notes.txt",
+          mime_type: "text/plain",
+          label: "section 1",
+        }),
+      ]);
+      expect(out).toHaveLength(1);
+      expect(out[0].page).toBeNull();
+    });
+
+    it("ignores a nonsensical stored page rather than printing it", () => {
+      const out = buildVerifiedCitations("`report.pdf — page 7`", [
+        chunk({ attachment_id: "att-1", label: "report.pdf — page 7", page: 0, chunk_index: 6 }),
+      ]);
+      // page 0 is not a page; fall back to the label, which does have one.
+      expect(out[0].page).toBe(7);
+    });
+  });
 });
 
 describe("serializeCitations / parseCitations", () => {

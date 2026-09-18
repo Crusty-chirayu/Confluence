@@ -13,12 +13,14 @@
 
 import { preflight, corsHeaders, json } from "../_shared/cors.ts";
 import { requireUser, adminClient, HttpError, userClient } from "../_shared/supabase.ts";
+import { enforceRateLimit } from "../_shared/ratelimit.ts";
 import {
   extractText,
   chunkPages,
   chunkText,
   generateChunkLabels,
   estimateTokenCount,
+  isExtractableMimeType,
   type ChunkConfig,
 } from "../_shared/extract.ts";
 import { generateEmbeddings, EMBEDDING_DIMENSION } from "../_shared/embeddings.ts";
@@ -39,16 +41,6 @@ const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const EMBEDDING_BATCH_SIZE = 100;
 /** Hard cap on persisted chunks per attachment (defence against runaway docs). */
 const MAX_CHUNKS = 400;
-
-/** MIME types the understanding pipeline can extract text from. */
-const EXTRACTABLE_MIME_TYPES = new Set([
-  "application/pdf",
-  "text/plain",
-  "text/markdown",
-  "text/csv",
-  "application/json",
-  "text/html",
-]);
 
 Deno.serve(async (req) => {
   const pf = preflight(req);
@@ -105,14 +97,18 @@ Deno.serve(async (req) => {
       throw new HttpError(403, "not_conversation_member");
     }
 
+    // 3a. Bound the cost of the pipeline before any of it runs. A single call
+    // downloads up to 10 MB, extracts, and can generate up to MAX_CHUNKS
+    // embeddings, so an authenticated member must not be able to loop it.
+    await enforceRateLimit(admin, user.id, "attachment_processing_per_min");
+
     // 3b. File types the pipeline never processes (images, audio, video).
     // Reported honestly instead of pretending to process them.
-    if (!EXTRACTABLE_MIME_TYPES.has(attachment.mime_type)) {
+    if (!isExtractableMimeType(attachment.mime_type)) {
       await admin
         .from("message_attachments")
         .update({ processing_status: "unsupported", processing_error: null })
-      
-      .eq("id", attachmentId);
+        .eq("id", attachmentId);
       return json(req, { success: true, message: "unsupported", chunk_count: 0 }, 200);
     }
 
@@ -123,6 +119,10 @@ Deno.serve(async (req) => {
       { p_attachment_id: attachmentId },
     );
     if (claimError) throw new HttpError(500, "processing_claim_failed");
+    if (claim === "missing") {
+      // Deleted between the read above and the claim.
+      throw new HttpError(404, "attachment_not_found");
+    }
     if (claim === "ready") {
       return json(req, { success: true, message: "already_processed" }, 200);
     }
@@ -156,11 +156,15 @@ Deno.serve(async (req) => {
       new Uint8Array(await fileData.arrayBuffer()),
     );
 
-    // 7. Chunk the extracted text. PDFs (and any multi-page result) chunk
-    // per page so every chunk keeps its true source page number.
+    // 7. Chunk from the extractor's own page model so every persisted chunk
+    // keeps the page it actually came from — for a PDF that is the pdf.js page
+    // number, for a text-format document the single page the extractor models.
+    // `chunkText` is only a fallback for the (defensive) no-pages case and
+    // yields chunks with no page, which are labelled as sections rather than
+    // being attributed to a page we never observed.
     const pages = extractionResult.pages;
     const chunks =
-      pages.length > 1
+      pages.length > 0
         ? chunkPages(pages, CHUNK_CONFIG)
         : chunkText(extractionResult.text, CHUNK_CONFIG);
 
@@ -171,10 +175,10 @@ Deno.serve(async (req) => {
         p_chunk_count: 0,
       });
       if (emptyCompletionError) throw new HttpError(500, "processing_completion_failed");
-      return json(req, { 
-        success: true, 
+      return json(req, {
+        success: true,
         message: "empty_extraction",
-        chunk_count: 0 
+        chunk_count: 0,
       }, 200);
     }
 
@@ -184,9 +188,9 @@ Deno.serve(async (req) => {
       throw new HttpError(422, "document_too_large_for_processing");
     }
 
-    // 8. Generate labels for chunks (page-aware when pages are known)
+    // 8. Generate labels for chunks from the extractor's page numbers.
     const labels = generateChunkLabels(
-      chunks.map((c) => ({ content: c.content, index: c.index })),
+      chunks.map((c) => ({ content: c.content, index: c.index, pageNumber: c.pageNumber })),
       {
         filename: extractionResult.metadata.filename,
         pageCount: extractionResult.metadata.pageCount,

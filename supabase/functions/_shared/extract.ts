@@ -31,6 +31,36 @@ export interface ExtractionError {
 /** Maximum file size for extraction (10MB) */
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
+/**
+ * Worker module for the pinned pdf.js release. Must carry the same version as
+ * the dynamic import in `extractText`, or the worker and the API come from
+ * different releases and pdf.js refuses to initialize.
+ *
+ * That import stays a literal string on purpose: `vitest.config.mts` aliases
+ * this exact specifier to `tests/stubs/pdfjs.ts`, and a computed specifier
+ * would not match, so the Node test run would try to load the real package.
+ */
+const PDFJS_WORKER_SPECIFIER = "npm:pdfjs-dist@4.8.69/build/pdf.worker.min.mjs";
+
+/**
+ * Turn the worker specifier into something pdf.js can actually load.
+ *
+ * pdf.js validates its `workerSrc` setter and throws for a non-string, so the
+ * worker cannot be switched off with a flag. It then hands the value to a
+ * loader that accepts only file and data URLs, which rejects a bare `npm:`
+ * specifier. `import.meta.resolve` maps the specifier to the real file URL
+ * inside the resolved package — the form both Deno and Node accept. Where it
+ * cannot be resolved the specifier is passed through unchanged so pdf.js
+ * produces the error and the caller records a failed run.
+ */
+function resolvePdfWorkerSrc(specifier: string): string {
+  try {
+    return import.meta.resolve(specifier);
+  } catch {
+    return specifier;
+  }
+}
+
 /** Supported MIME types for extraction */
 const SUPPORTED_MIME_TYPES = new Set([
   "application/pdf",
@@ -40,6 +70,19 @@ const SUPPORTED_MIME_TYPES = new Set([
   "application/json",
   "text/html",
 ]);
+
+/**
+ * True when the understanding pipeline can extract text from this MIME type.
+ *
+ * Single source of truth for "is this attachment processable" on the Edge
+ * side — the processor must not keep its own copy of the list, or the two
+ * drift apart and files get queued for a pipeline that rejects them. The
+ * browser-side mirror lives in `src/lib/attachments.ts` and is kept honest
+ * by `tests/extractable-mime.test.ts`.
+ */
+export function isExtractableMimeType(mimeType: string): boolean {
+  return SUPPORTED_MIME_TYPES.has(mimeType);
+}
 
 /**
  * Validate file metadata before extraction
@@ -101,7 +144,6 @@ export async function extractText(
     throw new Error(validation.error.error);
   }
 
-  let text = "";
   let pages: Array<{ pageNumber: number; content: string }> = [];
 
   switch (mimeType) {
@@ -110,8 +152,10 @@ export async function extractText(
     case "text/csv":
     case "application/json":
     case "text/html":
-      text = decodeText(buffer);
-      pages = [{ pageNumber: 1, content: text }];
+      // A text-format document has no page structure; the extractor models it
+      // as one page so chunking, labels and page metadata stay uniform across
+      // every supported format.
+      pages = [{ pageNumber: 1, content: decodeText(buffer) }];
       break;
 
     case "application/pdf":
@@ -121,8 +165,7 @@ export async function extractText(
         // Load pdfjs dynamically to avoid issues when not needed
         const pdfjs = await import("npm:pdfjs-dist@4.8.69");
         
-        // Set worker source to false for Deno compatibility
-        pdfjs.GlobalWorkerOptions.workerSrc = false;
+        pdfjs.GlobalWorkerOptions.workerSrc = resolvePdfWorkerSrc(PDFJS_WORKER_SPECIFIER);
         
         const loadingTask = pdfjs.getDocument({ data: pdfData });
         const pdfDocument = await loadingTask.promise;
@@ -133,8 +176,10 @@ export async function extractText(
         for (let i = 1; i <= pageCount; i++) {
           const page = await pdfDocument.getPage(i);
           const textContent = await page.getTextContent();
+          // `items` is a union: only TextItem carries a string. Marked-content
+          // entries have no text of their own and contribute nothing.
           const pageText = textContent.items
-            .map((item: { str?: string }) => item.str ?? "")
+            .map((item) => ("str" in item ? item.str : ""))
             .join(" ")
             .trim();
           
@@ -144,7 +189,6 @@ export async function extractText(
         }
         
         pages = extractedPages;
-        text = extractedPages.map((p) => p.content).join("\n\n");
       } catch (pdfError) {
         console.error("PDF extraction failed:", pdfError);
         // Never persist a synthetic placeholder as document content: it could
@@ -158,17 +202,26 @@ export async function extractText(
       throw new Error(`Unsupported MIME type: ${mimeType}`);
   }
 
-  // Normalize text (remove excessive whitespace, normalize line endings)
-  text = normalizeText(text);
+  // Normalize every page, then re-derive the whole-document text from the
+  // normalized pages. Chunking runs over `pages` while labels, citations and
+  // the prompt render from `text`, so the two must describe the same
+  // characters — normalizing only `text` left page chunks carrying raw
+  // whitespace the document context never showed.
+  //
+  // Pages that normalize to nothing are dropped so `pageCount` means "pages
+  // with content" for every format (the PDF branch already skips blank pages).
+  const normalizedPages = pages
+    .map((p) => ({ pageNumber: p.pageNumber, content: normalizeText(p.content) }))
+    .filter((p) => p.content.length > 0);
 
   return {
-    text,
-    pages,
+    text: normalizedPages.map((p) => p.content).join("\n\n"),
+    pages: normalizedPages,
     metadata: {
       filename: sanitizeFilename(filename),
       mimeType,
       sizeBytes: buffer.length,
-      pageCount: pages.length,
+      pageCount: normalizedPages.length,
       extractedAt: new Date().toISOString(),
     },
   };
@@ -341,28 +394,38 @@ export function chunkPages(
 }
 
 /**
- * Generate labels for chunks based on content structure
+ * Generate the source label rendered in the prompt and shown in a citation.
+ *
+ * A label is only ever a page reference when the extractor actually reported
+ * that page for the chunk (`pageNumber`, populated by `chunkPages`). Page
+ * numbers are never inferred from a chunk's position: the previous version
+ * spread chunks evenly across `pageCount`, which handed the model — and then
+ * the user — citations for pages the quoted text did not come from whenever a
+ * document had unevenly sized or blank pages.
+ *
+ * Falls back to `section N` when no chunk carries a page, and to `page 1`
+ * for a document the extractor modelled as a single page.
  */
 export function generateChunkLabels(
-  chunks: Array<{ content: string; index: number }>,
+  chunks: Array<{ content: string; index: number; pageNumber?: number | null }>,
   metadata: { filename: string; pageCount?: number },
 ): string[] {
-  if (metadata.pageCount && metadata.pageCount > 1) {
-    // If we have page information, distribute chunks across pages
-    const chunksPerPage = Math.ceil(chunks.length / metadata.pageCount);
-    return chunks.map((chunk, i) => {
-      const pageNum = Math.min(Math.floor(i / chunksPerPage) + 1, metadata.pageCount!);
-      return `page ${pageNum}`;
-    });
+  const pages = chunks.map((chunk) =>
+    typeof chunk.pageNumber === "number" && Number.isInteger(chunk.pageNumber) && chunk.pageNumber >= 1
+      ? chunk.pageNumber
+      : null,
+  );
+
+  if (pages.some((p) => p !== null)) {
+    return pages.map((p, i) => (p === null ? `section ${i + 1}` : `page ${p}`));
   }
 
-  // Use page labels even for single-page documents when pageCount is provided
+  // No page structure anywhere in the document.
   if (metadata.pageCount === 1) {
-    return chunks.map(() => `page 1`);
+    return chunks.map(() => "page 1");
   }
 
-  // Generic labels for unknown structure
-  return chunks.map((chunk, i) => `section ${i + 1}`);
+  return chunks.map((_, i) => `section ${i + 1}`);
 }
 
 /**
