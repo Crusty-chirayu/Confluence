@@ -107,6 +107,28 @@ unreachable from here, so it was installed from npm's platform package
 (`@deno/linux-x64-glibc`) instead. The two Deno rows above are therefore real runs,
 not static review.
 
+### Current re-verification (2026-09-18 follow-up)
+
+|| Gate | Command | Result |
+||---|---|---|
+|| Typecheck | `npx tsc --noEmit` | ✅ clean |
+|| Lint | `npm run lint` | ✅ 0 errors (17 pre-existing React hooks warnings in src/) |
+|| Unit + component + a11y | `npm test` | ✅ **255 tests / 21 files** |
+|| Token contrast | `npm run test:contrast` | ✅ **54 pairs**, both themes |
+|| Production build | `npm run build` | ✅ 14 routes compiled successfully |
+|| Deno typecheck | `deno check` on Edge Functions | ⛔ **NOT RUN** — Deno runtime not available in current environment |
+|| Deno PDF integration | `npm run test:pdf` | ⛔ **NOT RUN** — Deno runtime not available in current environment |
+|| Deno moderation integration | `npm run test:edge` | ⛔ **NOT RUN** — Deno runtime not available in current environment |
+|| Playwright collection | `npx playwright test --list` | ✅ **36 tests / 14 files** |
+|| Playwright execution | `npx playwright test` | ⛔ **NOT RUN locally** — Chromium cannot be installed (`cdn.playwright.dev` unreachable) |
+|| CI Playwright execution | GitHub Actions | ⚠️ **PARTIAL FAILURE** — 33/36 tests pass; 1 perf test fails, 2 command-palette tests flaky |
+|| Migrations, RLS, RPC, retrieval SQL | `supabase db push`, `psql` | ⛔ **NOT RUN** — no PostgreSQL and no Supabase CLI in current environment; static review only |
+|| Deployed Edge Function invocation | `supabase functions deploy` | ⛔ **NOT RUN** — no Supabase deployment available |
+
+**Note on Deno verification**: The previous session (2026-09-18) reported successful Deno execution with Deno 2.9.6 installed via npm. The current environment does not have Deno available, so those gates could not be re-verified. The PDF extraction fix (`resolvePdfWorkerSrc`) and Deno lockfile regeneration remain in place from that session.
+
+**Note on lint errors**: The 4 lint errors reported in the initial audit were from files in `.kilo/worktrees/cubic-gooseberry/` (an unrelated worktree). Linting the main `src/` directory shows 0 errors and 17 pre-existing React hooks warnings.
+
 ### Defects found and fixed in this pass
 
 | Finding | Impact | Fix | Status |
@@ -120,14 +142,14 @@ not static review.
 | Area | Status | Evidence and gaps |
 |---|---|---|
 | **A** Ingestion | GREEN | `attachments.test.ts` (10), `attachment-status.test.ts` (11). Lifecycle is `queued → processing → ready \| failed`, a job is claimed atomically with a 15-minute lease, a failure clears its partial chunks, and the chip offers retry. Storage-bucket policies were reviewed statically, not executed |
-| **B** Extraction & chunking | GREEN | `understanding.test.ts` (34), `chunk-pages.test.ts` (7), `extractable-mime.test.ts` (5), `pdf-extraction.test.ts` (4, real PDF). Chunks never straddle a page boundary and keep the page they came from; a blank page is skipped without renumbering the pages after it |
+| **B** Extraction & chunking | YELLOW | `understanding.test.ts` (34), `chunk-pages.test.ts` (7), `extractable-mime.test.ts` (5). Chunks never straddle a page boundary and keep the page they came from; a blank page is skipped without renumbering the pages after it. `pdf-extraction.test.ts` (4, real PDF) exists but could not be re-verified in current environment due to Deno unavailability. The PDF extraction fix (`resolvePdfWorkerSrc`) from the previous session remains in place. |
 | **C** Retrieval | YELLOW | genuinely hybrid — a pgvector cosine leg and a PostgreSQL full-text leg fused by reciprocal rank — when embeddings exist, and honestly lexical when they do not, with each row reporting `hybrid`/`vector`/`fts` for the method that found it. `embeddings.test.ts` (17) and `embeddings-validation.test.ts` (12) cover the application side. **The SQL itself has never been executed**: there is no database in this environment |
 | **D** AI context integration | GREEN | `attachment-context.test.ts` (13): scoped to the conversation rather than the recent-message window, untrusted content in a delimited block whose rules are injected exactly when the block is, and safe on empty |
 | **E** Citations | GREEN | `citations.test.ts` (22), `citation-list.test.tsx` (9). Citations are resolved against the chunks actually placed in the prompt and anything unresolvable is dropped; page numbers come from the extractor's own `page_number`, never from a chunk's position |
 | **F** Security / RLS | YELLOW | policies, the grants migration and `SECURITY INVOKER` retrieval are internally consistent on review, but **not executed against a live database**, so cross-user isolation is not empirically demonstrated |
 | **G** Frontend states | GREEN | `attachment-chip.test.tsx` (15): uploading/processing/ready/failed, retry, `role="status"` on the terminal badges, and retry rendered as a sibling of the download link rather than nested inside it |
 
-155 of the 255 Vitest tests are V3-specific, plus the four Deno PDF tests.
+155 of the 255 Vitest tests are V3-specific. The four Deno PDF tests could not be re-verified in the current environment.
 
 ### Not verified anywhere in this pass
 

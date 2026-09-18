@@ -38,7 +38,11 @@ test("palette: switches theme to dark", async ({ page }) => {
   await gotoDashboard(page);
 
   await page.keyboard.press("Control+k");
-  await page.getByLabel("Command palette input").fill("dark");
+  const palette = page.getByRole("dialog", { name: "Command palette" });
+  await expect(palette).toBeVisible();
+  const input = page.getByLabel("Command palette input");
+  await expect(input).toBeVisible();
+  await input.fill("dark");
   await page.keyboard.press("Enter");
 
   // The root element picks up the `.dark` class.
@@ -52,7 +56,11 @@ test("palette: create a room action opens the room modal", async ({ page }) => {
   await gotoDashboard(page);
 
   await page.keyboard.press("Control+k");
-  await page.getByLabel("Command palette input").fill("room");
+  const palette = page.getByRole("dialog", { name: "Command palette" });
+  await expect(palette).toBeVisible();
+  const input = page.getByLabel("Command palette input");
+  await expect(input).toBeVisible();
+  await input.fill("room");
   await page.keyboard.press("Enter");
 
   // The palette's "Create a room" action opens the new-conversation modal.

@@ -20,6 +20,12 @@ import { expect, composer, gotoDashboard, messageLog, sendMessage } from "./help
  *               number would make every merge a coin flip. Once CI has
  *               produced a baseline, promote `FPS_BAR_MS` into the assertion.
  *
+ *   KNOWN CI ISSUE — GitHub Actions CI shows max frame times of 530-566ms under
+ *                    4× throttle, exceeding the 250ms enforced limit. This may
+ *                    indicate CI resource constraints or a genuine performance
+ *                    regression. The test remains strict to surface this issue
+ *                    rather than masking it with a higher threshold.
+ *
  * Runs with `prefers-reduced-motion: reduce` like the rest of the suite (set
  * in playwright.config.ts), which is the stricter case for a motion spec:
  * entry/exit animations collapse to an instant cut, so anything still costing
