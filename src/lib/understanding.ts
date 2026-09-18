@@ -1,20 +1,24 @@
 /**
- * Client-side attachment understanding utilities
- * 
- * Provides functions for triggering attachment processing and
- * integrating attachment context into AI requests.
+ * Client-side entry point for the attachment understanding pipeline (§35 V3).
+ *
+ * The pipeline itself runs server-side: `attachment-processor` extracts,
+ * chunks and embeds; `ai-orchestrator` retrieves and grounds the reply. The
+ * browser's only job is to start processing after a durable upload — the
+ * resulting lifecycle is read back through the member-scoped status RPC in
+ * `@/lib/attachment-status`, never inferred here.
  */
 
 import { SUPABASE_URL } from "@/lib/env";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 
-/**
- * Trigger processing of an attachment via the attachment-processor Edge Function
- * This is called after a file is uploaded to initiate text extraction and chunking
- * Note: The processor requires proper user authentication and conversation membership
- */
-export async function processAttachment(attachmentId: string): Promise<{
+/** Response shape returned by the attachment-processor Edge Function. */
+export interface ProcessAttachmentResult {
   success: boolean;
+  /**
+   * Outcome of the call. `processing_complete` and `empty_extraction` are
+   * terminal successes; `already_processed`, `already_processing` and
+   * `unsupported` mean no work was needed; anything else is a rejection.
+   */
   message: string;
   chunk_count?: number;
   metadata?: {
@@ -23,13 +27,31 @@ export async function processAttachment(attachmentId: string): Promise<{
     size_bytes: number;
     extracted_at: string;
   };
-}> {
+}
+
+/**
+ * Trigger processing of an attachment via the attachment-processor Edge
+ * Function. Called after a file has been durably uploaded.
+ *
+ * Requires the caller's own session: the function re-verifies the JWT and
+ * conversation membership server-side, and atomically claims the job, so a
+ * duplicate or concurrent call is a no-op rather than a second extraction.
+ *
+ * Throws when the client is unavailable, the caller is unauthenticated, or
+ * the function rejects the request — callers decide whether that is fatal
+ * (the upload itself already succeeded).
+ */
+export async function processAttachment(
+  attachmentId: string,
+): Promise<ProcessAttachmentResult> {
   const supa = getSupabaseBrowser();
   if (!supa) {
     throw new Error("Supabase client not available");
   }
 
-  const { data: { session } } = await supa.auth.getSession();
+  const {
+    data: { session },
+  } = await supa.auth.getSession();
   if (!session) {
     throw new Error("Not authenticated");
   }
@@ -44,55 +66,9 @@ export async function processAttachment(attachmentId: string): Promise<{
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "processing_failed" }));
-    throw new Error(error.error || "Attachment processing failed");
+    const error = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(error?.error || "Attachment processing failed");
   }
 
-  return response.json();
-}
-
-/**
- * Check if an attachment has been processed (has chunks)
- */
-export async function isAttachmentProcessed(attachmentId: string): Promise<boolean> {
-  const supa = getSupabaseBrowser();
-  if (!supa) return false;
-
-  const { data, error } = await supa
-    .from("attachment_chunks")
-    .select("id")
-    .eq("attachment_id", attachmentId)
-    .limit(1);
-
-  if (error) return false;
-  return (data?.length ?? 0) > 0;
-}
-
-/**
- * Get attachment context for a conversation (used by AI orchestrator)
- * This function would be called from the Edge Function, not client-side
- */
-export async function getConversationAttachmentContext(conversationId: string): Promise<{
-  attachments: Array<{
-    id: string;
-    filename: string;
-    mime_type: string;
-    chunk_count: number;
-  }>;
-}> {
-  const supa = getSupabaseBrowser();
-  if (!supa) {
-    return { attachments: [] };
-  }
-
-  const { data, error } = await supa.rpc("get_attachment_context", {
-    p_conversation_id: conversationId,
-  });
-
-  if (error) {
-    console.error("Failed to get attachment context:", error);
-    return { attachments: [] };
-  }
-
-  return { attachments: data || [] };
+  return (await response.json()) as ProcessAttachmentResult;
 }
