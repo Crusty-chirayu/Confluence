@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, Download, FileText, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Download, FileText, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
 import { attachmentUrl } from "@/lib/data/api";
 import { attachmentLabel, isImageMime } from "@/lib/attachments";
+import { processAttachment } from "@/lib/understanding";
+import { useToast } from "@/components/ui/toast";
 import {
   getAttachmentStatus,
   isTerminalStatus,
@@ -35,12 +37,21 @@ const POLL_INTERVAL_MS = 3000;
  * (or the demo object URL) lazily, shows an image thumbnail for images, and a
  * file chip with the name + size for everything else. Opens the attachment in
  * a new tab (target="_blank" + rel="noopener").
+ *
+ * Processing state is read from the server, never inferred here. A `failed`
+ * state offers a retry: the processor atomically re-claims failed jobs and
+ * clears their partial chunks, so retrying is safe and idempotent. The retry
+ * re-reads the lifecycle rather than assuming an outcome.
  */
 export function AttachmentChip({ attachment }: { attachment: MessageAttachment }) {
   const [url, setUrl] = React.useState<string | null>(null);
   const [failed, setFailed] = React.useState(false);
   const [status, setStatus] = React.useState<AttachmentStatusInfo | null>(null);
+  const [retrying, setRetrying] = React.useState(false);
+  // Bumping this restarts the polling effect after a retry.
+  const [pollToken, setPollToken] = React.useState(0);
   const pollAborted = React.useRef(false);
+  const toast = useToast();
 
   React.useEffect(() => {
     let alive = true;
@@ -78,7 +89,25 @@ export function AttachmentChip({ attachment }: { attachment: MessageAttachment }
       alive = false;
       pollAborted.current = true;
     };
-  }, [attachment.id, attachment.mime_type]);
+  }, [attachment.id, attachment.mime_type, pollToken]);
+
+  const retry = React.useCallback(async () => {
+    setRetrying(true);
+    try {
+      await processAttachment(attachment.id);
+    } catch (e) {
+      toast.push({
+        kind: "error",
+        title: "Couldn't retry processing",
+        description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setRetrying(false);
+      // Poll again either way: a rejected call leaves the stored status
+      // untouched, and an accepted one is now queued or processing.
+      setPollToken((t) => t + 1);
+    }
+  }, [attachment.id, toast]);
 
   const isImage = isImageMime(attachment.mime_type);
   const filename = attachment.storage_path.split("/").pop() ?? "file";
@@ -103,6 +132,7 @@ export function AttachmentChip({ attachment }: { attachment: MessageAttachment }
         return (
           <span
             className="inline-flex shrink-0 items-center gap-1 text-[11px] text-[--fg-subtle]"
+            role="status"
             title={`Ready — ${info.chunk_count} section${info.chunk_count === 1 ? "" : "s"} available to the assistant`}
           >
             <ShieldCheck className="h-3 w-3 shrink-0" aria-hidden />
@@ -113,6 +143,7 @@ export function AttachmentChip({ attachment }: { attachment: MessageAttachment }
         return (
           <span
             className="inline-flex shrink-0 items-center gap-1 text-[11px] text-[--warning]"
+            role="status"
             title="The assistant could not read this file."
           >
             <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
@@ -165,26 +196,52 @@ export function AttachmentChip({ attachment }: { attachment: MessageAttachment }
     );
   }
 
+  const processingFailed = !isImage && status?.status === "failed";
+
   return (
-    <a
-      href={url ?? "#"}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={url ? undefined : (e) => e.preventDefault()}
-      className={cn(
-        "inline-flex max-w-full items-center gap-2 rounded-[--r-md] border border-[--border]/70 bg-[--surface]/60 px-2.5 py-1.5 text-[12px] backdrop-blur-sm transition-all duration-[--d-micro]",
-        "hover:border-[--border-strong] hover:bg-[--bg-hover] active:scale-[0.985]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50",
-        !url && "cursor-default opacity-70",
+    <span className="inline-flex max-w-full items-center gap-1">
+      <a
+        href={url ?? "#"}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={url ? undefined : (e) => e.preventDefault()}
+        className={cn(
+          "inline-flex max-w-full items-center gap-2 rounded-[--r-md] border border-[--border]/70 bg-[--surface]/60 px-2.5 py-1.5 text-[12px] backdrop-blur-sm transition-all duration-[--d-micro]",
+          "hover:border-[--border-strong] hover:bg-[--bg-hover] active:scale-[0.985]",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50",
+          !url && "cursor-default opacity-70",
+        )}
+      >
+        <FileText className="h-3.5 w-3.5 shrink-0 text-[--fg-muted]" />
+        <span className="truncate">{filename}</span>
+        <span className="shrink-0 text-[11px] text-[--fg-subtle]">
+          {attachmentLabel("", attachment.size_bytes)}
+        </span>
+        {statusBadge(status)}
+        <Download className="h-3 w-3 shrink-0 text-[--fg-subtle]" />
+      </a>
+      {processingFailed && (
+        <button
+          type="button"
+          onClick={() => void retry()}
+          disabled={retrying}
+          data-testid="attachment-retry"
+          aria-label={`Retry processing ${filename}`}
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1 rounded-[--r-md] border border-[--border]/70 bg-[--surface]/60 px-2 py-1.5 text-[11px] text-[--fg-muted]",
+            "transition-colors duration-[--d-micro] hover:border-[--border-strong] hover:bg-[--bg-hover] hover:text-[--fg]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50",
+            "disabled:cursor-default disabled:opacity-60",
+          )}
+        >
+          {retrying ? (
+            <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden />
+          ) : (
+            <RotateCcw className="h-3 w-3 shrink-0" aria-hidden />
+          )}
+          Retry
+        </button>
       )}
-    >
-      <FileText className="h-3.5 w-3.5 shrink-0 text-[--fg-muted]" />
-      <span className="truncate">{filename}</span>
-      <span className="shrink-0 text-[11px] text-[--fg-subtle]">
-        {attachmentLabel("", attachment.size_bytes)}
-      </span>
-      {statusBadge(status)}
-      <Download className="h-3 w-3 shrink-0 text-[--fg-subtle]" />
-    </a>
+    </span>
   );
 }
