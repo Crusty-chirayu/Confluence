@@ -1,153 +1,57 @@
 /**
- * Unit tests for embedding generation utilities
- * 
- * Tests the embedding functions for semantic search support.
- * Note: These tests mock the API calls to avoid needing real API keys.
+ * Embedding request wire format and vector maths.
+ *
+ * Runs against the real shared module (`supabase/functions/_shared/embeddings.ts`)
+ * with `fetch` stubbed — no API key, no network. Response-shape and dimension
+ * validation is covered separately in `tests/embeddings-validation.test.ts`;
+ * this file covers what is sent, how failures propagate, and `cosineSimilarity`
+ * (the reference for the `<=>` operator the retrieval SQL uses — in production
+ * similarity is computed by pgvector, not here).
  */
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  EMBEDDING_DIMENSION,
+  cosineSimilarity,
+  generateEmbeddings,
+  generateQueryEmbedding,
+} from "../supabase/functions/_shared/embeddings";
 
-// Mock the fetch function for testing
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
 
-// Local implementation for testing (mirrors the Edge Function code)
-async function generateEmbeddings(
-  inputs: string[],
-  apiKey: string,
-  model = "text-embedding-3-small",
-): Promise<number[][]> {
-  if (inputs.length === 0) {
-    return [];
-  }
+beforeEach(() => {
+  vi.stubGlobal("fetch", mockFetch);
+});
 
-  const url = "https://api.openai.com/v1/embeddings";
-  
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      input: inputs,
-      model,
-      encoding_format: "float",
+afterEach(() => {
+  vi.unstubAllGlobals();
+  mockFetch.mockReset();
+});
+
+function vector(fill: number, dim = EMBEDDING_DIMENSION): number[] {
+  return new Array(dim).fill(fill);
+}
+
+function okResponse(data: Array<{ embedding: number[]; index: number }>) {
+  return {
+    ok: true,
+    json: async () => ({
+      data: data.map((d) => ({ ...d, object: "embedding" })),
+      model: "text-embedding-3-small",
+      usage: { prompt_tokens: 1, total_tokens: 1 },
     }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "embedding_failed" }));
-    throw new Error(error.error || "Embedding generation failed");
-  }
-
-  const data: { data: Array<{ embedding: number[] }> } = await response.json();
-  
-  return data.data.map((item) => item.embedding);
+  };
 }
 
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) {
-    throw new Error("Vector dimensions must match");
-  }
-
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-
-  if (normA === 0 || normB === 0) {
-    return 0;
-  }
-
-  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-}
-
-describe("embedding generation", () => {
-  beforeEach(() => {
-    mockFetch.mockClear();
-  });
-
-  it("returns empty array for no inputs", async () => {
-    const result = await generateEmbeddings([], "test-key");
-    expect(result).toEqual([]);
+describe("generateEmbeddings — request", () => {
+  it("does not call the provider for an empty batch", async () => {
+    await expect(generateEmbeddings([], "k")).resolves.toEqual([]);
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it("generates embeddings for single input", async () => {
-    const mockEmbedding = new Array(1536).fill(0.1);
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        data: [{
-          embedding: mockEmbedding,
-          index: 0,
-          object: "embedding",
-        }],
-        model: "text-embedding-3-small",
-        usage: { prompt_tokens: 10, total_tokens: 10 },
-      }),
-    });
+  it("posts to the OpenAI-compatible embeddings endpoint with a bearer key", async () => {
+    mockFetch.mockResolvedValueOnce(okResponse([{ embedding: vector(0.1), index: 0 }]));
 
-    const result = await generateEmbeddings(["test text"], "test-key");
-
-    expect(result).toHaveLength(1);
-    expect(result[0]).toEqual(mockEmbedding);
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-  });
-
-  it("generates embeddings for multiple inputs", async () => {
-    const mockEmbedding1 = new Array(1536).fill(0.1);
-    const mockEmbedding2 = new Array(1536).fill(0.2);
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        data: [
-          { embedding: mockEmbedding1, index: 0, object: "embedding" },
-          { embedding: mockEmbedding2, index: 1, object: "embedding" },
-        ],
-        model: "text-embedding-3-small",
-        usage: { prompt_tokens: 20, total_tokens: 20 },
-      }),
-    });
-
-    const result = await generateEmbeddings(["text1", "text2"], "test-key");
-
-    expect(result).toHaveLength(2);
-    expect(result[0]).toEqual(mockEmbedding1);
-    expect(result[1]).toEqual(mockEmbedding2);
-  });
-
-  it("throws error on API failure", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ error: "api_error" }),
-    });
-
-    await expect(generateEmbeddings(["test"], "test-key")).rejects.toThrow("api_error");
-  });
-
-  it("throws error on network failure", async () => {
-    mockFetch.mockRejectedValueOnce(new Error("Network error"));
-
-    await expect(generateEmbeddings(["test"], "test-key")).rejects.toThrow("Network error");
-  });
-
-  it("uses correct API endpoint and headers", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        data: [{ embedding: new Array(1536).fill(0.1), index: 0, object: "embedding" }],
-        model: "text-embedding-3-small",
-        usage: { prompt_tokens: 10, total_tokens: 10 },
-      }),
-    });
-
-    await generateEmbeddings(["test"], "test-key");
+    await generateEmbeddings(["test text"], "test-key");
 
     expect(mockFetch).toHaveBeenCalledWith(
       "https://api.openai.com/v1/embeddings",
@@ -155,81 +59,119 @@ describe("embedding generation", () => {
         method: "POST",
         headers: expect.objectContaining({
           "Content-Type": "application/json",
-          "Authorization": "Bearer test-key",
+          Authorization: "Bearer test-key",
         }),
       }),
     );
   });
 
-  it("sends correct request body", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        data: [{ embedding: new Array(1536).fill(0.1), index: 0, object: "embedding" }],
-        model: "text-embedding-3-small",
-        usage: { prompt_tokens: 10, total_tokens: 10 },
-      }),
-    });
+  it("sends the batch, model and float encoding in the body", async () => {
+    mockFetch.mockResolvedValueOnce(
+      okResponse([
+        { embedding: vector(0.1), index: 0 },
+        { embedding: vector(0.2), index: 1 },
+      ]),
+    );
 
-    await generateEmbeddings(["test text"], "test-key", "custom-model");
+    await generateEmbeddings(["text1", "text2"], "k", "custom-model");
 
-    const callArgs = mockFetch.mock.calls[0];
-    const body = JSON.parse(callArgs[1].body);
-
-    expect(body).toEqual({
-      input: ["test text"],
+    expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({
+      input: ["text1", "text2"],
       model: "custom-model",
       encoding_format: "float",
     });
   });
+
+  it("defaults to text-embedding-3-small", async () => {
+    mockFetch.mockResolvedValueOnce(okResponse([{ embedding: vector(0.1), index: 0 }]));
+    await generateEmbeddings(["x"], "k");
+    expect(JSON.parse(mockFetch.mock.calls[0][1].body).model).toBe("text-embedding-3-small");
+  });
+
+  it("returns one vector per input, in input order", async () => {
+    const a = vector(0.1);
+    const b = vector(0.2);
+    mockFetch.mockResolvedValueOnce(
+      okResponse([
+        { embedding: a, index: 0 },
+        { embedding: b, index: 1 },
+      ]),
+    );
+
+    const result = await generateEmbeddings(["first", "second"], "k");
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual(a);
+    expect(result[1]).toEqual(b);
+  });
 });
 
-describe("cosine similarity", () => {
-  it("calculates similarity for identical vectors", () => {
-    const v1 = [1, 2, 3];
-    const v2 = [1, 2, 3];
-    
-    const similarity = cosineSimilarity(v1, v2);
-    expect(similarity).toBeCloseTo(1.0);
+describe("generateEmbeddings — failures", () => {
+  it("surfaces the provider's error body", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, json: async () => ({ error: "api_error" }) });
+    await expect(generateEmbeddings(["test"], "k")).rejects.toThrow("api_error");
   });
 
-  it("calculates similarity for orthogonal vectors", () => {
-    const v1 = [1, 0, 0];
-    const v2 = [0, 1, 0];
-    
-    const similarity = cosineSimilarity(v1, v2);
-    expect(similarity).toBeCloseTo(0.0);
+  it("falls back to a stable code when the error body is unreadable", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => {
+        throw new Error("not json");
+      },
+    });
+    await expect(generateEmbeddings(["test"], "k")).rejects.toThrow("embedding_failed");
   });
 
-  it("calculates similarity for opposite vectors", () => {
-    const v1 = [1, 2, 3];
-    const v2 = [-1, -2, -3];
-    
-    const similarity = cosineSimilarity(v1, v2);
-    expect(similarity).toBeCloseTo(-1.0);
+  it("propagates a network failure so the caller can degrade to FTS", async () => {
+    mockFetch.mockRejectedValueOnce(new Error("Network error"));
+    await expect(generateEmbeddings(["test"], "k")).rejects.toThrow("Network error");
+  });
+});
+
+describe("generateQueryEmbedding", () => {
+  it("trims the query and returns a single vector", async () => {
+    const vec = vector(0.9);
+    mockFetch.mockResolvedValueOnce(okResponse([{ embedding: vec, index: 0 }]));
+
+    await expect(generateQueryEmbedding("  what does the report say?  ", "k")).resolves.toEqual(vec);
+    expect(JSON.parse(mockFetch.mock.calls[0][1].body).input).toEqual([
+      "what does the report say?",
+    ]);
   });
 
-  it("throws error for mismatched dimensions", () => {
-    const v1 = [1, 2, 3];
-    const v2 = [1, 2];
-    
-    expect(() => cosineSimilarity(v1, v2)).toThrow("Vector dimensions must match");
+  it("rejects a blank query without calling the provider", async () => {
+    await expect(generateQueryEmbedding("   ", "k")).rejects.toThrow("empty_query");
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("cosineSimilarity", () => {
+  it("is 1 for identical vectors", () => {
+    expect(cosineSimilarity([1, 2, 3], [1, 2, 3])).toBeCloseTo(1);
   });
 
-  it("handles zero vectors", () => {
-    const v1 = [0, 0, 0];
-    const v2 = [1, 2, 3];
-    
-    const similarity = cosineSimilarity(v1, v2);
-    expect(similarity).toBe(0);
+  it("is 0 for orthogonal vectors", () => {
+    expect(cosineSimilarity([1, 0, 0], [0, 1, 0])).toBeCloseTo(0);
   });
 
-  it("handles realistic vectors", () => {
-    const v1 = [0.5, 0.8, 0.3];
-    const v2 = [0.6, 0.7, 0.4];
-    
-    const similarity = cosineSimilarity(v1, v2);
-    expect(similarity).toBeGreaterThan(0);
-    expect(similarity).toBeLessThanOrEqual(1);
+  it("is -1 for opposite vectors", () => {
+    expect(cosineSimilarity([1, 2, 3], [-1, -2, -3])).toBeCloseTo(-1);
+  });
+
+  it("is scale invariant", () => {
+    expect(cosineSimilarity([0.5, 0.5], [100, 100])).toBeCloseTo(1);
+  });
+
+  it("returns 0 rather than NaN for a zero vector", () => {
+    expect(cosineSimilarity([0, 0, 0], [1, 2, 3])).toBe(0);
+  });
+
+  it("refuses mismatched dimensions instead of silently truncating", () => {
+    expect(() => cosineSimilarity([1, 2, 3], [1, 2])).toThrow("Vector dimensions must match");
+  });
+
+  it("stays within [-1, 1] for realistic embeddings", () => {
+    const score = cosineSimilarity([0.5, 0.8, 0.3], [0.6, 0.7, 0.4]);
+    expect(score).toBeGreaterThan(0);
+    expect(score).toBeLessThanOrEqual(1);
   });
 });

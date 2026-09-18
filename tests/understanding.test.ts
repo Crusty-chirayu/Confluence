@@ -1,444 +1,308 @@
 /**
- * Unit tests for attachment understanding utilities
- * 
- * Note: These tests mirror the Edge Function extraction logic
- * for testing in the Node.js environment. The actual implementation
- * lives in supabase/functions/_shared/extract.ts
+ * Extraction, chunking and labelling — the V3 understanding pipeline.
+ *
+ * These run against the real shared module
+ * (`supabase/functions/_shared/extract.ts`), not a copy of it. The module's
+ * only non-Node dependency is the `npm:pdfjs-dist` specifier inside the PDF
+ * branch, which `vitest.config.mts` aliases to `tests/stubs/pdfjs.ts`; that
+ * stub rejects loudly, so a PDF parse can never be silently faked here.
+ *
+ * Page-level chunking has its own suite in `tests/chunk-pages.test.ts`.
  */
 import { describe, expect, it } from "vitest";
+import {
+  chunkText,
+  estimateTokenCount,
+  extractText,
+  generateChunkLabels,
+  isExtractableMimeType,
+  validateFileForExtraction,
+  type ChunkConfig,
+} from "../supabase/functions/_shared/extract";
 
-// Replicate the extraction logic for testing in Node.js environment
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const SUPPORTED_MIME_TYPES = new Set([
-  "application/pdf",
-  "text/plain",
-  "text/markdown",
-  "text/csv",
-  "application/json",
-  "text/html",
-]);
+const encode = (s: string) => new TextEncoder().encode(s);
 
-function isSafeFilename(filename: string): boolean {
-  if (filename.includes("\0")) return false;
-  if (filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
-    return false;
-  }
-  if (/[\x00-\x1F\x7F]/.test(filename)) return false;
-  if (filename.length === 0 || filename.length > 255) return false;
-  return true;
-}
-
-function sanitizeFilename(filename: string): string {
-  const basename = filename.split(/[\\/]/).pop() || filename;
-  const clean = basename.replace(/[\x00-\x1F\x7F]/g, "");
-  return clean.slice(0, 255);
-}
-
-function decodeText(buffer: Uint8Array): string {
-  try {
-    const decoder = new TextDecoder("utf-8", { fatal: true });
-    return decoder.decode(buffer);
-  } catch {
-    const decoder = new TextDecoder("latin1");
-    return decoder.decode(buffer);
-  }
-}
-
-function normalizeText(text: string): string {
-  text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  text = text.replace(/[ \t]+/g, " ");
-  text = text.replace(/\n{3,}/g, "\n\n");
-  text = text.trim();
-  return text;
-}
-
-function validateFileForExtraction(
-  filename: string,
-  mimeType: string,
-  sizeBytes: number,
-): { ok: true } | { ok: false; error: { error: string; code: string; details?: string } } {
-  if (sizeBytes > MAX_FILE_SIZE) {
-    return {
-      ok: false,
-      error: {
-        error: "File too large for extraction",
-        code: "FILE_TOO_LARGE",
-        details: `Maximum size is ${MAX_FILE_SIZE} bytes, got ${sizeBytes}`,
-      },
-    };
-  }
-
-  if (!SUPPORTED_MIME_TYPES.has(mimeType)) {
-    return {
-      ok: false,
-      error: {
-        error: "Unsupported file type for extraction",
-        code: "UNSUPPORTED_MIME_TYPE",
-        details: `Supported types: ${Array.from(SUPPORTED_MIME_TYPES).join(", ")}`,
-      },
-    };
-  }
-
-  if (!isSafeFilename(filename)) {
-    return {
-      ok: false,
-      error: {
-        error: "Invalid filename",
-        code: "INVALID_FILENAME",
-        details: "Filename contains unsafe characters",
-      },
-    };
-  }
-
-  return { ok: true };
-}
-
-async function extractText(
-  filename: string,
-  mimeType: string,
-  buffer: Uint8Array,
-): Promise<{ text: string; pages: Array<{ pageNumber: number; content: string }>; metadata: { filename: string; mimeType: string; sizeBytes: number; pageCount?: number; extractedAt: string } }> {
-  const validation = validateFileForExtraction(filename, mimeType, buffer.length);
-  if (!validation.ok) {
-    throw new Error(validation.error.error);
-  }
-
-  let text = "";
-  let pages: Array<{ pageNumber: number; content: string }> = [];
-
-  switch (mimeType) {
-    case "text/plain":
-    case "text/markdown":
-    case "text/csv":
-    case "application/json":
-    case "text/html":
-      text = decodeText(buffer);
-      pages = [{ pageNumber: 1, content: text }];
-      break;
-
-    case "application/pdf":
-      // PDF extraction requires external library
-      // For Node.js testing, we return a placeholder
-      text = "[PDF extraction requires pdfjs-dist library]";
-      pages = [{ pageNumber: 1, content: text }];
-      break;
-
-    default:
-      throw new Error(`Unsupported MIME type: ${mimeType}`);
-  }
-
-  text = normalizeText(text);
-
-  return {
-    text,
-    pages,
-    metadata: {
-      filename: sanitizeFilename(filename),
-      mimeType,
-      sizeBytes: buffer.length,
-      pageCount: pages.length,
-      extractedAt: new Date().toISOString(),
-    },
-  };
-}
-
-interface ChunkConfig {
-  maxChars: number;
-  overlapChars: number;
-}
-
-function chunkText(
-  text: string,
-  config: ChunkConfig = { maxChars: 1000, overlapChars: 200 },
-): Array<{ content: string; index: number; startChar: number; endChar: number }> {
-  const chunks: Array<{ content: string; index: number; startChar: number; endChar: number }> = [];
-
-  if (text.length === 0) {
-    return chunks;
-  }
-
-  if (text.length <= config.maxChars) {
-    chunks.push({
-      content: text,
-      index: 0,
-      startChar: 0,
-      endChar: text.length,
-    });
-    return chunks;
-  }
-
-  let start = 0;
-  let index = 0;
-
-  while (start < text.length) {
-    const end = Math.min(start + config.maxChars, text.length);
-    let chunk = text.slice(start, end);
-
-    if (end < text.length && !/\s/.test(text[end])) {
-      const lastSpace = chunk.lastIndexOf(" ");
-      if (lastSpace > config.maxChars - config.overlapChars) {
-        chunk = chunk.slice(0, lastSpace);
-      }
-    }
-
-    chunks.push({
-      content: chunk.trim(),
-      index,
-      startChar: start,
-      endChar: start + chunk.length,
-    });
-
-    start += chunk.length - config.overlapChars;
-    index++;
-
-    if (start >= text.length - config.overlapChars) {
-      break;
-    }
-  }
-
-  return chunks;
-}
-
-function generateChunkLabels(
-  chunks: Array<{ content: string; index: number }>,
-  metadata: { filename: string; pageCount?: number },
-): string[] {
-  if (metadata.pageCount && metadata.pageCount > 1) {
-    const chunksPerPage = Math.ceil(chunks.length / metadata.pageCount);
-    return chunks.map((chunk, i) => {
-      const pageNum = Math.min(Math.floor(i / chunksPerPage) + 1, metadata.pageCount!);
-      return `page ${pageNum}`;
-    });
-  }
-
-  if (metadata.pageCount === 1) {
-    return chunks.map(() => `page 1`);
-  }
-
-  return chunks.map((chunk, i) => `section ${i + 1}`);
-}
-
-function estimateTokenCount(text: string): number {
-  return Math.ceil(text.length / 4);
-}
-
-describe("extraction validation", () => {
-  it("accepts valid text file", () => {
-    const result = validateFileForExtraction("test.txt", "text/plain", 1024);
-    expect(result.ok).toBe(true);
+describe("validateFileForExtraction", () => {
+  it("accepts a valid text file", () => {
+    expect(validateFileForExtraction("test.txt", "text/plain", 1024).ok).toBe(true);
   });
 
-  it("rejects files exceeding size limit", () => {
+  it("accepts every documented extractable format", () => {
+    for (const mime of [
+      "application/pdf",
+      "text/plain",
+      "text/markdown",
+      "text/csv",
+      "application/json",
+      "text/html",
+    ]) {
+      expect(validateFileForExtraction("f", mime, 1024).ok, mime).toBe(true);
+      expect(isExtractableMimeType(mime), mime).toBe(true);
+    }
+  });
+
+  it("rejects files over the size limit", () => {
     const result = validateFileForExtraction("large.txt", "text/plain", 11 * 1024 * 1024);
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe("FILE_TOO_LARGE");
-    }
+    if (!result.ok) expect(result.error.code).toBe("FILE_TOO_LARGE");
   });
 
   it("rejects unsupported MIME types", () => {
     const result = validateFileForExtraction("test.exe", "application/x-executable", 1024);
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe("UNSUPPORTED_MIME_TYPE");
-    }
+    if (!result.ok) expect(result.error.code).toBe("UNSUPPORTED_MIME_TYPE");
+    expect(isExtractableMimeType("application/x-executable")).toBe(false);
   });
 
-  it("rejects unsafe filenames with path traversal", () => {
-    const result = validateFileForExtraction("../etc/passwd", "text/plain", 1024);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe("INVALID_FILENAME");
+  it("rejects unsafe filenames", () => {
+    for (const name of ["../etc/passwd", "a/b.txt", "a\\b.txt", "test\0file.txt", ""]) {
+      const result = validateFileForExtraction(name, "text/plain", 16);
+      expect(result.ok, JSON.stringify(name)).toBe(false);
+      if (!result.ok) expect(result.error.code).toBe("INVALID_FILENAME");
     }
-  });
-
-  it("rejects filenames with null bytes", () => {
-    const result = validateFileForExtraction("test\0file.txt", "text/plain", 1024);
-    expect(result.ok).toBe(false);
   });
 });
 
-describe("text extraction", () => {
-  it("extracts plain text content", async () => {
-    const content = "Hello, world!";
-    const buffer = new TextEncoder().encode(content);
-    const result = await extractText("test.txt", "text/plain", buffer);
+describe("extractText", () => {
+  it("extracts plain text with its metadata", async () => {
+    const result = await extractText("test.txt", "text/plain", encode("Hello, world!"));
 
     expect(result.text).toBe("Hello, world!");
-    expect(result.pages).toHaveLength(1);
-    expect(result.pages[0].content).toBe("Hello, world!");
+    expect(result.pages).toEqual([{ pageNumber: 1, content: "Hello, world!" }]);
     expect(result.metadata.filename).toBe("test.txt");
     expect(result.metadata.mimeType).toBe("text/plain");
+    expect(result.metadata.sizeBytes).toBe(13);
+    expect(result.metadata.pageCount).toBe(1);
   });
 
-  it("normalizes whitespace in extracted text", async () => {
-    const content = "Hello   world\r\n\n\r\nThis is  a test.";
-    const buffer = new TextEncoder().encode(content);
-    const result = await extractText("test.txt", "text/plain", buffer);
-
+  it("normalizes whitespace and line endings", async () => {
+    const result = await extractText(
+      "test.txt",
+      "text/plain",
+      encode("Hello   world\r\n\n\r\nThis is  a test."),
+    );
     expect(result.text).toBe("Hello world\n\nThis is a test.");
   });
 
-  it("handles UTF-8 encoding", async () => {
-    const content = "Hello 世界 🌍";
-    const buffer = new TextEncoder().encode(content);
-    const result = await extractText("test.txt", "text/plain", buffer);
+  it("normalizes page content too, so text and pages describe the same characters", async () => {
+    // Chunking runs over `pages`; the prompt and the labels run off `text`.
+    // If only one of them were normalized the persisted chunks would carry
+    // whitespace the model never saw.
+    const result = await extractText("t.md", "text/markdown", encode("a  b\r\n\r\n\r\n\r\nc"));
+    expect(result.pages[0].content).toBe(result.text);
+    expect(result.pages[0].content).toBe("a b\n\nc");
+  });
 
+  it("preserves UTF-8 content", async () => {
+    const result = await extractText("test.txt", "text/plain", encode("Hello 世界 🌍"));
     expect(result.text).toBe("Hello 世界 🌍");
   });
 
-  it("handles CSV files", async () => {
-    const content = "name,age\nAlice,30\nBob,25";
-    const buffer = new TextEncoder().encode(content);
-    const result = await extractText("test.csv", "text/csv", buffer);
-
-    expect(result.text).toContain("name,age");
-    expect(result.text).toContain("Alice,30");
+  it("falls back to latin1 for invalid UTF-8 instead of throwing", async () => {
+    const result = await extractText("legacy.txt", "text/plain", new Uint8Array([0xff, 0xfe, 0x41]));
+    expect(result.text.endsWith("A")).toBe(true);
+    expect(result.text.length).toBe(3);
   });
 
-  it("handles JSON files", async () => {
-    const content = '{"name": "Alice", "age": 30}';
-    const buffer = new TextEncoder().encode(content);
-    const result = await extractText("test.json", "application/json", buffer);
+  it("handles CSV and JSON as single-page documents", async () => {
+    const csv = await extractText("t.csv", "text/csv", encode("name,age\nAlice,30"));
+    expect(csv.text).toContain("name,age");
+    expect(csv.metadata.pageCount).toBe(1);
 
-    expect(result.text).toContain("Alice");
+    const json = await extractText("t.json", "application/json", encode('{"name":"Alice"}'));
+    expect(json.text).toContain("Alice");
   });
 
-  it("throws error for unsupported MIME type", async () => {
-    const buffer = new TextEncoder().encode("test");
-    await expect(extractText("test.exe", "application/x-executable", buffer)).rejects.toThrow();
-  });
-
-  it("handles empty files", async () => {
-    const buffer = new Uint8Array(0);
-    const result = await extractText("empty.txt", "text/plain", buffer);
-
+  it("reports an empty document as zero pages rather than one blank page", async () => {
+    // pageCount means "pages with content" for every format — the PDF branch
+    // already skipped blank pages, so a blank text file must agree or the
+    // labeller receives a page count that does not describe the chunks.
+    const result = await extractText("empty.txt", "text/plain", new Uint8Array(0));
     expect(result.text).toBe("");
-    expect(result.pages).toHaveLength(1);
-    expect(result.pages[0].content).toBe("");
+    expect(result.pages).toEqual([]);
+    expect(result.metadata.pageCount).toBe(0);
+  });
+
+  it("reports a whitespace-only document as empty", async () => {
+    const result = await extractText("blank.txt", "text/plain", encode("   \n\t\n  "));
+    expect(result.text).toBe("");
+    expect(result.pages).toEqual([]);
+    expect(result.metadata.pageCount).toBe(0);
+  });
+
+  it("rejects an unsupported MIME type before touching the buffer", async () => {
+    // Validation runs first, so the caller gets the validation message and the
+    // buffer is never decoded.
+    await expect(extractText("t.exe", "application/x-executable", encode("x"))).rejects.toThrow(
+      "Unsupported file type for extraction",
+    );
+  });
+
+  it("rejects an oversized buffer before extracting", async () => {
+    await expect(
+      extractText("big.txt", "text/plain", new Uint8Array(11 * 1024 * 1024)),
+    ).rejects.toThrow("File too large for extraction");
+  });
+
+  it("strips path components from the stored filename", async () => {
+    const result = await extractText("notes.txt", "text/plain", encode("hi"));
+    expect(result.metadata.filename).toBe("notes.txt");
   });
 });
 
-describe("text chunking", () => {
-  it("chunks text with default config", () => {
-    const text = "A".repeat(2000);
-    const chunks = chunkText(text);
+describe("chunkText", () => {
+  const config: ChunkConfig = { maxChars: 1000, overlapChars: 200 };
 
-    expect(chunks.length).toBeGreaterThan(1);
-    expect(chunks[0].content.length).toBeLessThanOrEqual(1000);
-    expect(chunks[0].index).toBe(0);
-  });
-
-  it("handles text shorter than max chunk size", () => {
-    const text = "Hello, world!";
-    const chunks = chunkText(text);
-
+  it("returns a single chunk for short text", () => {
+    const chunks = chunkText("Hello, world!", config);
     expect(chunks).toHaveLength(1);
-    expect(chunks[0].content).toBe("Hello, world!");
+    expect(chunks[0]).toMatchObject({ content: "Hello, world!", index: 0, pageNumber: null });
   });
 
-  it("handles empty text", () => {
-    const chunks = chunkText("");
-    expect(chunks).toHaveLength(0);
+  it("returns no chunks for empty text", () => {
+    expect(chunkText("", config)).toEqual([]);
   });
 
-  it("preserves overlap between chunks", () => {
-    const text = "A".repeat(1500);
-    const config: ChunkConfig = { maxChars: 1000, overlapChars: 200 };
-    const chunks = chunkText(text, config);
-
-    if (chunks.length > 1) {
-      const firstChunkEnd = chunks[0].content.slice(-config.overlapChars);
-      const secondChunkStart = chunks[1].content;
-      // Second chunk should start with some overlap from first chunk
-      expect(secondChunkStart.length).toBeGreaterThan(0);
-      expect(secondChunkStart.startsWith(firstChunkEnd)).toBe(true);
-      expect(chunks[1].startChar).toBe(chunks[0].endChar - config.overlapChars);
+  it("keeps every chunk within maxChars", () => {
+    for (const chunk of chunkText("A".repeat(5000), config)) {
+      expect(chunk.content.length).toBeLessThanOrEqual(config.maxChars);
     }
   });
 
-  it("provides accurate character positions", () => {
-    const text = "Hello world foo bar baz";
-    const chunks = chunkText(text, { maxChars: 10, overlapChars: 2 });
+  it("overlaps consecutive chunks by overlapChars", () => {
+    const chunks = chunkText("A".repeat(1500), config);
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks[1].startChar).toBe(chunks[0].endChar - config.overlapChars);
+  });
 
-    expect(chunks[0].startChar).toBe(0);
-    expect(chunks[0].endChar).toBeGreaterThan(0);
-    if (chunks.length > 1) {
-      expect(chunks[1].startChar).toBeGreaterThan(0);
+  it("carries no page number, because it was given no pages", () => {
+    for (const chunk of chunkText("B".repeat(3000), config)) {
+      expect(chunk.pageNumber).toBeNull();
     }
   });
 
-  it("respects custom chunk configuration", () => {
-    const text = "A".repeat(500);
-    const config: ChunkConfig = { maxChars: 100, overlapChars: 20 };
-    const chunks = chunkText(text, config);
+  it("prefers a word boundary over a hard cut", () => {
+    const text = `${"word ".repeat(250)}tail`;
+    const chunks = chunkText(text, { maxChars: 100, overlapChars: 20 });
+    expect(chunks[0].content.endsWith(" ")).toBe(false);
+    expect(chunks[0].content.split(" ").every((w) => w === "word")).toBe(true);
+  });
+});
 
-    chunks.forEach(chunk => {
-      expect(chunk.content.length).toBeLessThanOrEqual(100);
+describe("generateChunkLabels", () => {
+  const meta = { filename: "doc.pdf", pageCount: 3 };
+
+  it("uses the extractor's real page number for every chunk", () => {
+    const labels = generateChunkLabels(
+      [
+        { content: "a", index: 0, pageNumber: 1 },
+        { content: "b", index: 1, pageNumber: 1 },
+        { content: "c", index: 2, pageNumber: 7 },
+      ],
+      meta,
+    );
+    expect(labels).toEqual(["page 1", "page 1", "page 7"]);
+  });
+
+  it("never invents pages by spreading chunks evenly across pageCount", () => {
+    // Regression: 6 chunks over a 3-page document used to be labelled
+    // 1,1,2,2,3,3 regardless of where the text actually came from. A document
+    // whose content is all on page 1 must say so on every chunk.
+    const chunks = Array.from({ length: 6 }, (_, i) => ({
+      content: `c${i}`,
+      index: i,
+      pageNumber: 1,
+    }));
+    const labels = generateChunkLabels(chunks, { filename: "doc.pdf", pageCount: 3 });
+    expect(labels).toEqual(["page 1", "page 1", "page 1", "page 1", "page 1", "page 1"]);
+  });
+
+  it("labels a chunk with no observed page as a section, even among paged chunks", () => {
+    const labels = generateChunkLabels(
+      [
+        { content: "a", index: 0, pageNumber: 4 },
+        { content: "b", index: 1, pageNumber: null },
+        { content: "c", index: 2, pageNumber: 4 },
+      ],
+      meta,
+    );
+    expect(labels).toEqual(["page 4", "section 2", "page 4"]);
+  });
+
+  it("keeps a page gap honest instead of closing it", () => {
+    // Blank pages are dropped during extraction, so page numbers can skip.
+    const labels = generateChunkLabels(
+      [
+        { content: "a", index: 0, pageNumber: 2 },
+        { content: "b", index: 1, pageNumber: 9 },
+      ],
+      { filename: "doc.pdf", pageCount: 2 },
+    );
+    expect(labels).toEqual(["page 2", "page 9"]);
+  });
+
+  it("falls back to section numbering for a chunk with no observed page", () => {
+    const labels = generateChunkLabels(
+      [
+        { content: "a", index: 0, pageNumber: null },
+        { content: "b", index: 1 },
+      ],
+      { filename: "doc.pdf", pageCount: 2 },
+    );
+    expect(labels).toEqual(["section 1", "section 2"]);
+  });
+
+  it("labels a single-page document as page 1", () => {
+    const labels = generateChunkLabels([{ content: "a", index: 0 }], {
+      filename: "notes.txt",
+      pageCount: 1,
     });
+    expect(labels).toEqual(["page 1"]);
+  });
+
+  it("uses section numbering when no page structure is known at all", () => {
+    const labels = generateChunkLabels(
+      [
+        { content: "a", index: 0 },
+        { content: "b", index: 1 },
+      ],
+      { filename: "notes.txt" },
+    );
+    expect(labels).toEqual(["section 1", "section 2"]);
+  });
+
+  it("ignores a nonsensical page number rather than printing it", () => {
+    const labels = generateChunkLabels(
+      [
+        { content: "a", index: 0, pageNumber: 0 },
+        { content: "b", index: 1, pageNumber: -3 },
+        { content: "c", index: 2, pageNumber: 1.5 },
+      ],
+      meta,
+    );
+    expect(labels).toEqual(["section 1", "section 2", "section 3"]);
+  });
+
+  it("returns one label per chunk", () => {
+    const chunks = Array.from({ length: 12 }, (_, i) => ({
+      content: "x",
+      index: i,
+      pageNumber: (i % 4) + 1,
+    }));
+    expect(generateChunkLabels(chunks, meta)).toHaveLength(12);
   });
 });
 
-describe("chunk label generation", () => {
-  it("generates page-based labels when page count is known", () => {
-    const chunks = [
-      { content: "Chunk 1", index: 0 },
-      { content: "Chunk 2", index: 1 },
-      { content: "Chunk 3", index: 2 },
-    ];
-    const metadata = { filename: "test.pdf", pageCount: 2 };
-
-    const labels = generateChunkLabels(chunks, metadata);
-
-    expect(labels).toHaveLength(3);
-    expect(labels[0]).toBe("page 1");
-    expect(labels[1]).toBe("page 1"); // First 2 chunks go to page 1 (chunksPerPage = 2)
-    expect(labels[2]).toBe("page 2"); // Third chunk goes to page 2
+describe("estimateTokenCount", () => {
+  it("approximates four characters per token", () => {
+    expect(estimateTokenCount("A".repeat(10_000))).toBe(2500);
   });
 
-  it("generates section labels when page count is unknown", () => {
-    const chunks = [
-      { content: "Chunk 1", index: 0 },
-      { content: "Chunk 2", index: 1 },
-    ];
-    const metadata = { filename: "test.txt" };
-
-    const labels = generateChunkLabels(chunks, metadata);
-
-    expect(labels).toHaveLength(2);
-    expect(labels[0]).toBe("section 1");
-    expect(labels[1]).toBe("section 2");
+  it("returns zero for empty text", () => {
+    expect(estimateTokenCount("")).toBe(0);
   });
 
-  it("handles single-page documents", () => {
-    const chunks = [{ content: "Chunk 1", index: 0 }];
-    const metadata = { filename: "test.txt", pageCount: 1 };
-
-    const labels = generateChunkLabels(chunks, metadata);
-
-    expect(labels).toHaveLength(1);
-    expect(labels[0]).toBe("page 1");
-  });
-});
-
-describe("token count estimation", () => {
-  it("estimates token count for English text", () => {
-    const text = "Hello world, this is a test.";
-    const tokens = estimateTokenCount(text);
-
-    expect(tokens).toBeGreaterThan(0);
-    expect(tokens).toBeLessThanOrEqual(text.length);
-  });
-
-  it("handles empty text", () => {
-    const tokens = estimateTokenCount("");
-    expect(tokens).toBe(0);
-  });
-
-  it("handles very long text", () => {
-    const text = "A".repeat(10000);
-    const tokens = estimateTokenCount(text);
-
-    expect(tokens).toBe(2500); // 10000 / 4
+  it("rounds up so a short chunk is never reported as free", () => {
+    expect(estimateTokenCount("abc")).toBe(1);
   });
 });
