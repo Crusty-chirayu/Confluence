@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:edge": "deno test --allow-env --allow-net tests/moderation-fail-closed.test.ts",
+    "test:pdf": "deno test --allow-read --allow-env --allow-net tests/pdf-extraction.test.ts",
     "test:a11y": "vitest run tests/a11y",
     "test:contrast": "node scripts/contrast.mjs",
     "test:e2e": "playwright test",

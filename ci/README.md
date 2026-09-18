@@ -19,12 +19,29 @@ GitHub Actions workflows for the §1 "push everything" release policy.
 > processing would not exist in production). The GitHub App credential used here lacks the
 > `workflows` permission and GitHub rejects any push that touches a workflow file
 > (`refusing to allow a GitHub App to create or update workflow … without 'workflows'
-> permission` — reproduced 2026-09-18). Both one-line changes are held at
+> permission` — reproduced 2026-09-18). All three changes are held at
 > [`patches/ci-attachment-processor-workflows.patch`](patches/ci-attachment-processor-workflows.patch),
 > verified with `git apply --check` against the current `main`. Owner action:
 > `git apply ci/patches/ci-attachment-processor-workflows.patch && git commit -am "ci: typecheck and deploy attachment-processor" && git push`.
 >
-> E2E status is unchanged: **no test in `e2e/` has ever been executed**. Chromium cannot
+> The third change adds a `deno test tests/pdf-extraction.test.ts` step. Vitest has to
+> stub pdf.js (`tests/stubs/pdfjs.ts`), so the PDF branch of `extract.ts` has no coverage
+> there at all — which is exactly how a broken `GlobalWorkerOptions.workerSrc` assignment
+> shipped: every PDF failed extraction in production while the stubbed suite stayed green.
+> `tests/pdf-extraction.test.ts` builds a real PDF in memory and runs the real library.
+>
+> Everything the patch adds has been run locally (Deno 2.9.6): `deno check` passes for all
+> four functions **including under `--frozen`**, which is Deno's default when `CI=true`, and
+> `npm run test:pdf` passes 4/4. `deno.lock` was regenerated for this and is committed —
+> it was stale, missing `pdfjs-dist` entirely and carrying an older peer resolution for
+> `next`, so a frozen check would have failed on it regardless of the patch.
+>
+> One gate still cannot run locally: `tests/moderation-fail-closed.test.ts` imports
+`jsr:@std/assert@1` and `jsr.io` is unreachable from this environment, so `npm run
+test:edge` has no local evidence. `tests/pdf-extraction.test.ts` deliberately asserts with
+`node:assert` instead, so it runs anywhere Deno does.
+
+E2E status is unchanged: **no test in `e2e/` has ever been executed**. Chromium cannot
 > be installed in this environment (`cdn.playwright.dev` is unreachable — re-verified
 > 2026-09-18), so although CI now has an `e2e` job, the suite's only local evidence is
 > collection (`npx playwright test --list`, 36 tests / 14 files) and a clean typecheck.
@@ -33,7 +50,7 @@ GitHub Actions workflows for the §1 "push everything" release policy.
 
 | Workflow | File | Trigger | Steps |
 | --- | --- | --- | --- |
-| CI | `.github/workflows/ci.yml` | every push + PR to `main` | `npm ci` → `tsc --noEmit` → `npm run lint` → unit tests (incl. 13 axe tests) → `node scripts/contrast.mjs` (WCAG AA token gate) → `npm run build`, **plus** a Playwright E2E + browser axe job (`e2e`), `deno check` on `ai-orchestrator`, `moderation-check` and `invite-consume`, the moderation fail-closed integration test (`deno test`), and a gitleaks secret scan. **After the owner applies the pending patch:** `deno check` also covers `attachment-processor` |
+| CI | `.github/workflows/ci.yml` | every push + PR to `main` | `npm ci` → `tsc --noEmit` → `npm run lint` → unit tests (incl. 13 axe tests) → `node scripts/contrast.mjs` (WCAG AA token gate) → `npm run build`, **plus** a Playwright E2E + browser axe job (`e2e`), `deno check` on `ai-orchestrator`, `moderation-check` and `invite-consume`, the moderation fail-closed integration test (`deno test`), and a gitleaks secret scan. **After the owner applies the pending patch:** `deno check` also covers `attachment-processor`, and the PDF extraction integration test runs |
 | Release | `.github/workflows/release.yml` | push to `main`, or manual dispatch | **1** `supabase db push` → **2** deploy `ai-orchestrator`, `moderation-check`, `invite-consume` → **3** build & deploy the frontend to Vercel. **After the owner applies the pending patch:** step 2 also deploys `attachment-processor` |
 
 `release.yml` runs strictly in that order via `needs:`, so a schema change is always live
@@ -74,6 +91,9 @@ Notes learned the hard way (do not regress):
   already pinned in `deno.lock` install fine, so the lock both pins and unblocks.
   If you intentionally bump dependencies, regenerate the lock
   (`deno check supabase/functions/ai-orchestrator/index.ts` writes it) and commit it.
+  Regenerate it whenever a function starts importing a new package, too: GitHub Actions
+  sets `CI=true`, Deno then implies `--frozen`, and a lock that does not already contain
+  the import fails the job instead of updating itself.
 
 ## Required repository secrets
 

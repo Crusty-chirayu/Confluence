@@ -31,6 +31,36 @@ export interface ExtractionError {
 /** Maximum file size for extraction (10MB) */
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
+/**
+ * Worker module for the pinned pdf.js release. Must carry the same version as
+ * the dynamic import in `extractText`, or the worker and the API come from
+ * different releases and pdf.js refuses to initialize.
+ *
+ * That import stays a literal string on purpose: `vitest.config.mts` aliases
+ * this exact specifier to `tests/stubs/pdfjs.ts`, and a computed specifier
+ * would not match, so the Node test run would try to load the real package.
+ */
+const PDFJS_WORKER_SPECIFIER = "npm:pdfjs-dist@4.8.69/build/pdf.worker.min.mjs";
+
+/**
+ * Turn the worker specifier into something pdf.js can actually load.
+ *
+ * pdf.js validates its `workerSrc` setter and throws for a non-string, so the
+ * worker cannot be switched off with a flag. It then hands the value to a
+ * loader that accepts only file and data URLs, which rejects a bare `npm:`
+ * specifier. `import.meta.resolve` maps the specifier to the real file URL
+ * inside the resolved package — the form both Deno and Node accept. Where it
+ * cannot be resolved the specifier is passed through unchanged so pdf.js
+ * produces the error and the caller records a failed run.
+ */
+function resolvePdfWorkerSrc(specifier: string): string {
+  try {
+    return import.meta.resolve(specifier);
+  } catch {
+    return specifier;
+  }
+}
+
 /** Supported MIME types for extraction */
 const SUPPORTED_MIME_TYPES = new Set([
   "application/pdf",
@@ -135,8 +165,7 @@ export async function extractText(
         // Load pdfjs dynamically to avoid issues when not needed
         const pdfjs = await import("npm:pdfjs-dist@4.8.69");
         
-        // Set worker source to false for Deno compatibility
-        pdfjs.GlobalWorkerOptions.workerSrc = false;
+        pdfjs.GlobalWorkerOptions.workerSrc = resolvePdfWorkerSrc(PDFJS_WORKER_SPECIFIER);
         
         const loadingTask = pdfjs.getDocument({ data: pdfData });
         const pdfDocument = await loadingTask.promise;
@@ -147,8 +176,10 @@ export async function extractText(
         for (let i = 1; i <= pageCount; i++) {
           const page = await pdfDocument.getPage(i);
           const textContent = await page.getTextContent();
+          // `items` is a union: only TextItem carries a string. Marked-content
+          // entries have no text of their own and contribute nothing.
           const pageText = textContent.items
-            .map((item: { str?: string }) => item.str ?? "")
+            .map((item) => ("str" in item ? item.str : ""))
             .join(" ")
             .trim();
           
