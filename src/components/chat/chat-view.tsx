@@ -33,8 +33,11 @@ import {
 } from "@/lib/data/api";
 import type { Conversation, ConversationMember, Message, Reaction } from "@/lib/types";
 import { conversationTitle, dayLabel, shouldInvokeAi } from "@/lib/utils";
-import { computeReadReceipt } from "@/lib/read-receipts";
+import { computeReadReceipt, type ReadReceipt } from "@/lib/read-receipts";
 import { tEnter, tExit } from "@/lib/motion";
+
+/** Shared empty array — a stable identity for MessageItem's memo. */
+const EMPTY_REACTIONS: Reaction[] = [];
 
 export function ChatView({ conversation: initial }: { conversation: Conversation }) {
   const router = useRouter();
@@ -162,9 +165,34 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
   };
 
   /* ---------------- AI ---------------- */
+  // Streaming deltas arrive in 1–3-token bursts. Applying each one directly
+  // re-renders the whole conversation (including a full markdown re-parse of
+  // the growing reply) several times per frame, which under load produces
+  // multi-hundred-ms main-thread stalls (§2.7). Buffer the deltas and flush
+  // at most once per animation frame so streaming work is frame-aligned.
+  const streamBufRef = React.useRef("");
+  const streamRafRef = React.useRef<number | null>(null);
+  const clearStream = React.useCallback(() => {
+    if (streamRafRef.current != null) {
+      cancelAnimationFrame(streamRafRef.current);
+      streamRafRef.current = null;
+    }
+    streamBufRef.current = "";
+    setStreamText("");
+  }, []);
+  const onStreamDelta = React.useCallback((chunk: string) => {
+    streamBufRef.current += chunk;
+    if (streamRafRef.current == null) {
+      streamRafRef.current = requestAnimationFrame(() => {
+        streamRafRef.current = null;
+        setStreamText(streamBufRef.current);
+      });
+    }
+  }, []);
+
   const runAi = React.useCallback(
     async (prompt: string, triggerId?: string, supersedesId?: string) => {
-      setStreamText("");
+      clearStream();
       const handle = await invokeAi(
         conversation.id,
         {
@@ -179,15 +207,15 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
             setStreamingId(id);
             if (DEMO_MODE) void load();
           },
-          onDelta: (chunk) => setStreamText((t) => t + chunk),
+          onDelta: onStreamDelta,
           onDone: () => {
             setStreamingId(null);
-            setStreamText("");
+            clearStream();
             void load();
           },
           onBlocked: () => {
             setStreamingId(null);
-            setStreamText("");
+            clearStream();
             toast.push({
               kind: "warning",
               title: "Response withheld",
@@ -197,7 +225,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
           },
           onError: (msg) => {
             setStreamingId(null);
-            setStreamText("");
+            clearStream();
             toast.push({ kind: "error", title: "The assistant failed", description: msg });
             void load();
           },
@@ -205,7 +233,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
       );
       aiHandle.current = handle;
     },
-    [conversation.id, conversation.name, isGroup, load, toast],
+    [conversation.id, conversation.name, isGroup, load, toast, clearStream, onStreamDelta],
   );
 
   const handleSend = async (text: string, files: File[]) => {
@@ -245,24 +273,65 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
     }
   };
 
-  const handleStop = () => {
-    aiHandle.current?.stop();
-    aiHandle.current = null;
-    setStreamingId(null);
-    setStreamText("");
-    void load();
-  };
+  /* -------- stable per-message handlers (keep MessageItem's memo effective
+     across streaming re-renders — identity, not value, is what matters) ------- */
+  const handleReact = React.useCallback(
+    async (messageId: string, emoji: string) => {
+      await toggleReaction(messageId, emoji);
+      setReactions(await listReactions(conversation.id));
+    },
+    [conversation.id],
+  );
+  const handleEditMessage = React.useCallback(
+    async (messageId: string, content: string) => {
+      await editMessage(messageId, content);
+      void load();
+    },
+    [load],
+  );
+  const handleDeleteMessage = React.useCallback(
+    async (messageId: string) => {
+      await deleteMessage(messageId);
+      void load();
+    },
+    [load],
+  );
+  const handleRegenerateId = React.useCallback(
+    async (messageId: string) => {
+      const idx = messages.findIndex((m) => m.id === messageId);
+      const prompt =
+        [...messages.slice(0, idx)].reverse().find((m) => m.sender_type === "human")?.content ?? "";
+      setAtBottom(true);
+      await runAi(prompt, undefined, messageId);
+    },
+    [messages, runAi],
+  );
 
-  const handleRegenerate = async (aiMessage: Message) => {
-    const idx = messages.findIndex((m) => m.id === aiMessage.id);
-    const prompt =
-      [...messages.slice(0, idx)].reverse().find((m) => m.sender_type === "human")?.content ?? "";
-    setAtBottom(true);
-    await runAi(prompt, undefined, aiMessage.id);
-  };
+  // Group reactions and read receipts per message once, so each MessageItem
+  // receives referentially stable props across streaming re-renders.
+  const reactionsByMessage = React.useMemo(() => {
+    const map = new Map<string, Reaction[]>();
+    for (const r of reactions) {
+      const arr = map.get(r.message_id);
+      if (arr) arr.push(r);
+      else map.set(r.message_id, [r]);
+    }
+    return map;
+  }, [reactions]);
+  const readReceiptsByMessage = React.useMemo(() => {
+    const map = new Map<string, ReadReceipt | null>();
+    if (isGroup) {
+      for (const m of messages) {
+        if (m.sender_type === "human" && m.sender_id === uid) {
+          map.set(m.id, computeReadReceipt(m, members, uid));
+        }
+      }
+    }
+    return map;
+  }, [messages, members, uid, isGroup]);
 
   const broadcastTyping = React.useRef(0);
-  const handleTyping = () => {
+  const handleTyping = React.useCallback(() => {
     if (DEMO_MODE || !isGroup || !profile) return;
     const now = Date.now();
     if (now - broadcastTyping.current < 1800) return;
@@ -274,7 +343,15 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
         event: "typing",
         payload: { user_id: profile.id, name: profile.display_name },
       });
-  };
+  }, [isGroup, profile, conversation.id]);
+
+  const handleStop = React.useCallback(() => {
+    aiHandle.current?.stop();
+    aiHandle.current = null;
+    setStreamingId(null);
+    clearStream();
+    void load();
+  }, [clearStream, load]);
 
   /* ---------------- derived ---------------- */
   const profilesById = React.useMemo(() => {
@@ -408,7 +485,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
                       </div>
                     )}
                     <MessageItem
-                      message={{ ...m, content }}
+                      message={isStreaming ? { ...m, content } : m}
                       author={
                         m.sender_id ? (profilesById.get(m.sender_id) ?? null) : null
                       }
@@ -419,25 +496,12 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
                       highlighted={m.id === highlightId}
                       currentUserId={uid}
                       canRegenerate={canRegenerate}
-                      reactions={reactions.filter((r) => r.message_id === m.id)}
-                      readReceipt={
-                        isGroup && m.sender_type === "human" && m.sender_id === uid
-                          ? computeReadReceipt(m, members, uid)
-                          : null
-                      }
-                      onReact={async (emoji) => {
-                        await toggleReaction(m.id, emoji);
-                        setReactions(await listReactions(conversation.id));
-                      }}
-                      onEdit={async (content) => {
-                        await editMessage(m.id, content);
-                        void load();
-                      }}
-                      onDelete={async () => {
-                        await deleteMessage(m.id);
-                        void load();
-                      }}
-                      onRegenerate={() => handleRegenerate(m)}
+                      reactions={reactionsByMessage.get(m.id) ?? EMPTY_REACTIONS}
+                      readReceipt={readReceiptsByMessage.get(m.id) ?? null}
+                      onReact={handleReact}
+                      onEdit={handleEditMessage}
+                      onDelete={handleDeleteMessage}
+                      onRegenerate={handleRegenerateId}
                     />
                   </React.Fragment>
                 );

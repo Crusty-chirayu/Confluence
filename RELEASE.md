@@ -86,6 +86,8 @@ The project has not been deployed to a production environment. Deployment requir
 | Token contrast | `npm run test:contrast` | ✅ **54 pairs checked**, both themes (WCAG AA) |
 | Production build | `npm run build` | ✅ **14 routes** compiled successfully |
 | Playwright collection | `npx playwright test --list` | ✅ **36 tests / 14 files** collected |
+| Playwright execution, serial (2026-09-19) | `npx playwright test --workers=1` | ✅ **35/36 pass** (7.9 min) — the only failure is the §2.7 `perf.spec.ts` frame budget |
+| Playwright execution, parallel (2026-09-19) | `npx playwright test` | ⚠️ **10/36 pass** — 25 of the 26 failures are 30 s navigation timeouts caused by cold `next dev` compilation under 6 workers; CI uses `workers: 1` |
 
 ### Tests Unavailable Due to Environment Limitations
 
@@ -289,11 +291,13 @@ git push
 
 2. **Database-Level Testing Unavailable**: No PostgreSQL or Supabase CLI is available in the current environment, so SQL execution, RLS policy validation, and retrieval RPC testing could not be performed. These are verified through code review only.
 
-3. **Playwright E2E Unavailable Locally**: Chromium cannot be installed in the current environment (`cdn.playwright.dev` unreachable), so Playwright E2E tests cannot be run locally. CI execution shows partial failures.
+3. **Playwright E2E now runs locally (2026-09-19)**: Chromium is installed in this environment and the suite executes — **35/36 pass with `--workers=1`**. The remaining caveat is different from the earlier one: running it in **parallel** (Playwright's local default) against a cold `next dev` server produces 30 s navigation timeouts, because on-demand Turbopack compilation of `/app/c/[id]` was measured at 51–72 s under six concurrent workers (filesystem-cache writes 15–21 s, compaction 29.7 s). Use `--workers=1` locally, as CI already does. This is a harness/environment effect, not an application defect.
 
 ### CI/CD Limitations
 
 1. **Performance Test Failure**: The `perf.spec.ts` test fails in CI with max frame times of 530-566ms under 4× CPU throttling, exceeding the 250ms enforced limit. This may indicate CI resource constraints or a genuine performance regression. The test remains strict to surface this issue.
+   - **Locally re-measured 2026-09-19** (serial, same harness): median 66.7–133.3 ms, p95 233–733 ms, max 600–1583 ms. Attribution settled the question of blame: **idle** at 4× throttle holds median/p95 16.7 ms with **zero** long tasks, while **streaming** produces 12 long tasks of 394–2618 ms. The stall is therefore the application's streaming render path, not machine load or the harness.
+   - Mitigations applied (behaviour-preserving): frame-aligned delta buffering and memoised/stable `MessageItem` props, which cut the streaming median from 133.3 ms to 66.7–83.3 ms with no regressions. **The p95 ≤ 50 ms / max ≤ 250 ms budget was deliberately NOT weakened**; it is still not met.
 
 2. **Command-Palette Flakiness**: Two command-palette tests show flakiness in CI (timeout waiting for command palette input). Visibility checks have been added to address this, but CI verification is pending.
 
@@ -360,6 +364,54 @@ git status -sb          # Shows: ## main...origin/main
 git log --oneline -5    # Shows latest commits including c3cc0bc
 git remote -v           # Shows Confluence.git URL
 ```
+
+---
+
+## 2026-09-19 SESSION — PLAYWRIGHT EXECUTION + §2.7 RENDER PATH
+
+Chromium became installable in this environment, so the E2E suite was executed
+for the first time (previously collection-only).
+
+### Results
+
+| Run | Command | Result |
+|---|---|---|
+| Parallel (local default, 6 workers) | `npx playwright test` | ⚠️ 10 passed / **26 failed** |
+| Serial | `npx playwright test --workers=1` | ✅ **35 passed / 1 failed** (8.3 min) |
+| Serial, after the work below | `npx playwright test --workers=1` | ✅ **35 passed / 1 failed** (7.9 min) |
+
+Toolchain after the changes: `npx tsc --noEmit` ✅ exit 0 ·
+`npm test` ✅ **255/255, 21 files** · `npx eslint src e2e tests` ✅ **0 errors**
+(17 pre-existing React-hooks warnings) · `npm run lint` reports 4 errors, all of
+them inside the unrelated `.kilo/worktrees/*` checkouts, not this tree.
+
+### Root causes established
+
+1. **25 of the 26 parallel failures were the harness, not the application.**
+   All died in the shared `e2e/helpers.ts` preamble on
+   `Test timeout of 30000ms exceeded` waiting for `**/app`; the dev-server log
+   shows `/app/c/[id]` compiling in 51–72 s under 6 concurrent workers.
+   Serial execution alone fixed them — no source change was required.
+2. **One run is discarded as invalid**: `31 passed / 6 failed` with a 10.7 h
+   duration and `net::ERR_NETWORK_IO_SUSPENDED` (host suspended mid-run). Its
+   failures were re-run in isolation: 9/9 passed, perf excepted.
+3. **The §2.7 frame budget failure is a real application defect.** Idle at 4×
+   throttle: median/p95 16.7 ms, max 66.7 ms, **no long tasks**. Streaming:
+   median 100 ms, p95 466.6 ms, max 2733 ms, 12 long tasks of 394–2618 ms.
+
+### Changes made
+
+`src/components/chat/chat-view.tsx` and `src/components/chat/message-item.tsx`:
+stream deltas are buffered and flushed at most once per animation frame;
+message-scoped callbacks (`onReact(messageId, emoji)`, `onEdit`, `onDelete`,
+`onRegenerate`) are wrapped in `useCallback` so `MessageItem`'s `memo` holds
+across deltas; reactions/read receipts are grouped with `useMemo` and share a
+stable `EMPTY_REACTIONS` identity. Streaming median improved **133.3 ms → 66.7–83.3 ms**.
+
+**Not done, on purpose:** thresholds, timeouts and assertions were left untouched.
+`perf.spec.ts` still fails (p95 233–483 ms, max 600–1400 ms vs p95 ≤ 50 ms /
+max ≤ 250 ms). Closing that gap needs a cheaper streaming render path (no full
+markdown re-parse per delta), not a higher limit.
 
 ---
 

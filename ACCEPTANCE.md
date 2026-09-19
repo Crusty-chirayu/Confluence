@@ -63,7 +63,7 @@ taken from previous reports.
 | Standalone `/pricing` (§3, P1) | 🟡 landing section only | `/pricing` route sharing one plan table with the landing teaser | GREEN |
 | Export my data (§3 settings) | ⛔ none | client-side JSON export of everything the account can read | GREEN |
 | Self-hosted fonts (§2.3) | 🟡 declared, resolved to system fallbacks | Inter + JetBrains Mono committed and served from origin via `next/font/local` | GREEN |
-| 60fps @ 4× CPU throttle (§2.7) | ⛔ not measured | measurement harness added (`e2e/perf.spec.ts`); **the number is still unmeasured** | **YELLOW** |
+| 60fps @ 4× CPU throttle (§2.7) | ⛔ not measured | measurement harness added (`e2e/perf.spec.ts`); **measured 2026-09-19 — the enforced ceiling is NOT met** (see *2026-09-19 E2E triage pass* at the end of this document) | **YELLOW** |
 
 **Accessibility (found and fixed, none of them visible to axe):**
 
@@ -129,6 +129,8 @@ not static review.
 
 **Note on lint errors**: The 4 lint errors reported in the initial audit were from files in `.kilo/worktrees/cubic-gooseberry/` (an unrelated worktree). Linting the main `src/` directory shows 0 errors and 17 pre-existing React hooks warnings.
 
+**Note on Playwright execution (superseded 2026-09-19)**: the `Playwright execution` rows above record the 2026-09-18 state, when Chromium could not be installed here. On 2026-09-19 Chromium was installed and the suite was executed for real: **35 of 36 tests pass serially** (`npx playwright test --workers=1`), the only failure being the §2.7 frame-budget test. `npx eslint src e2e tests` is **0 errors / 17 pre-existing warnings**.
+
 ### Defects found and fixed in this pass
 
 | Finding | Impact | Fix | Status |
@@ -190,7 +192,7 @@ not static review.
 | §2.6 focus ring, `prefers-reduced-motion` | ✅ | instant cut, not slower; dialogs now move/trap/restore focus |
 | §2.6 contrast audit at 4.5:1 | ✅ | `scripts/contrast.mjs` — **54/54 pairs pass**, both themes. Browser colour-contrast is in the Playwright axe spec (runs locally when Chromium is available; **not in CI yet**, see GitHub status) |
 | §2.7 motion tokens, all surfaces | ✅ | 5 one-offs replaced with `tExit()` |
-| §2.7 60fps under 4x CPU throttle | 🟡 | `e2e/perf.spec.ts` measures frame intervals under CDP 4× throttling and enforces a jank ceiling (p95 ≤ 50 ms, no frame > 250 ms). The 60 fps (16.7 ms) bar is **reported, not asserted**, until CI produces a first baseline — see the header note |
+| §2.7 60fps under 4x CPU throttle | 🟡 | `e2e/perf.spec.ts` measures frame intervals under CDP 4× throttling and enforces a jank ceiling (p95 ≤ 50 ms, no frame > 250 ms). The 60 fps (16.7 ms) bar is **reported, not asserted**, until CI produces a first baseline — see the header note. **Measured locally 2026-09-19 (serial): p95 233–483 ms, max 600–1400 ms — above the enforced ceiling.** The harness is not the cause: idle at 4× throttle holds median/p95 16.7 ms with **zero** long tasks, while streaming produces 394–2618 ms long tasks, so the cost is the application's streaming render path (see *2026-09-19 E2E triage pass*) |
 
 ---
 
@@ -253,7 +255,7 @@ not static review.
 | axe-core in CI, merge-blocking | ✅ | `tests/a11y/` (**13 tests**) runs inside `npm test`, which the `verify` CI job runs — so it is merge-blocking. jsdom covers structural rules; colour-contrast needs a real browser |
 | Unit test sample | ✅ | 83 tests / 9 files, including `tests/keyboard-focus.test.tsx` (15) and `tests/data-export.test.ts` (8) |
 | Integration test (fail-closed) | ✅ | `tests/moderation-fail-closed.test.ts` |
-| E2E Playwright (MU2) | 🟡 | `e2e/` — **31 tests / 12 files** (AI chat, group room, @ai + moderation, ⌘K palette, history, offline, attachments, **pinned**, **settings/export**, **fonts**, **perf**, browser axe in both themes). Chromium is unreachable in this sandbox and the `e2e` CI job is blocked, so **the suite has never been executed** — treat it as implemented-but-unverified |
+| E2E Playwright (MU2) | 🟡 | `e2e/` — **31 tests / 12 files** (AI chat, group room, @ai + moderation, ⌘K palette, history, offline, attachments, **pinned**, **settings/export**, **fonts**, **perf**, browser axe in both themes). Chromium is unreachable in this sandbox and the `e2e` CI job is blocked, **executed locally on 2026-09-19**: **35/36 pass** with `--workers=1` (Chromium is now installed here); the single failure is `perf.spec.ts` — see *2026-09-19 E2E triage pass* |
 | Design-token contrast (WCAG AA) | ✅ | `scripts/contrast.mjs` — **54/54 pairs PASS**, both themes. Runnable locally; CI wiring is in the held-back patch |
 | k6 50-member broadcast storm | 🟡 | `load/k6/broadcast.js` harness + `seed-room.mjs` + `load/k6/README.md` (methodology + explicit acceptance thresholds). **Measured results pending a live Supabase deployment** — no results are claimed (see `load/k6/README.md`). |
 | gitleaks | ✅ | wired into CI |
@@ -333,3 +335,77 @@ These are environmental/scope limitations rather than design decisions.
 3. **Notifications and connected accounts** are not implemented: the first
    needs a push/email provider, the second needs OAuth provider configuration.
    Both are infrastructure, not application code.
+
+---
+
+## 2026-09-19 E2E triage pass (Playwright execution + §2.7 streaming render path)
+
+Chromium became installable in this environment, so the Playwright suite was
+executed for real instead of remaining collection-only.
+
+### Playwright execution
+
+| Run | Command | Result |
+|---|---|---|
+| Parallel (Playwright's local default: 6 workers) | `npx playwright test` | ⚠️ **10 passed / 26 failed** |
+| Serial (what CI uses) | `npx playwright test --workers=1` | ✅ **35 passed / 1 failed** (8.3 min) |
+| Serial, after the render-path work below | `npx playwright test --workers=1` | ✅ **35 passed / 1 failed** (7.9 min) |
+
+**Root cause of the 25 non-perf parallel failures: the harness, not the app.**
+Every one died in the shared `e2e/helpers.ts` sign-in/navigation preamble with
+`Test timeout of 30000ms exceeded` while waiting for `**/app`. The dev-server log
+from the same run shows on-demand Turbopack compilation of `/app/c/[id]` taking
+**51–72 s**, filesystem-cache writes of 15.2 s / 21.4 s and cache compaction of
+29.7 s, with six headless Chromium workers hitting the server at once.
+`playwright.config.ts` sets `workers: 1` when `CI` is set, which is why CI never
+saw this. **No source change was needed** — serial execution alone turned all 25
+of those failures into passes.
+
+**One run must be discarded.** A full serial run reported `31 passed / 6 failed`
+with a **10.7 h** wall-clock duration and
+`net::ERR_NETWORK_IO_SUSPENDED at http://127.0.0.1:3000/app/settings` — the
+machine suspended mid-run. All of its failures (4 command-palette, 1 axe
+app-surface, 1 perf) were afterwards re-run in isolation: **9/9 passed**, perf
+excepted. Those five non-perf failures are sleep artifacts, not defects.
+
+### §2.7 frame budget — measured, still not met
+
+| Run | frames | median | p95 | max | Result |
+|---|---|---|---|---|---|
+| serial, pre-optimisation | 90 | 133.3 ms | 733.2 ms | 1416.6 ms | ❌ |
+| isolated, pre-optimisation | 83 | 133.4 ms | 766.6 ms | 1583.3 ms | ❌ |
+| after frame-aligned delta buffering | 81 | 83.3 ms | 283.4 ms | 1800.0 ms |  |
+| after memoised rows + stable callbacks | 77 | 83.3 ms | 366.7 ms | 1766.6 ms | ❌ |
+| after reaction/receipt memoisation | 84 | **66.7 ms** | **233.3 ms** | 1400.0 ms | ❌ |
+| serial, full suite, final | 80 | 83.3 ms | 483.3 ms | 599.9 ms | ❌ |
+
+Ceiling in force throughout: **p95 ≤ 50 ms, max ≤ 250 ms**. It was **not**
+weakened, and no assertion was relaxed.
+
+**Attribution — idle vs streaming, same harness, both at 4× CPU throttle:**
+
+| Phase | frames | median | p95 | max | long tasks |
+|---|---|---|---|---|---|
+| idle (25 s, post-settle) | 1497 | 16.7 ms | 16.8 ms | 66.7 ms | **none** |
+| streaming a reply | 169 | 100.0 ms | 466.6 ms | 2733.3 ms | 12 × 394–2618 ms |
+
+Idle holds the entire budget with zero long tasks, so neither the machine nor the
+harness is the limit: the stall is the **application's streaming render path** —
+a full markdown re-parse of the growing reply (plus a conversation re-render) per
+delta. This is a genuine §2.7 defect, not an environment artifact.
+
+**What was changed** (behaviour-preserving; no test, timeout or threshold edits):
+`src/components/chat/chat-view.tsx` now buffers stream deltas and flushes at most
+once per animation frame; `MessageItem` takes message-scoped callbacks
+(`onReact(messageId, emoji)`, …) wrapped in `useCallback` so its `memo` actually
+holds across deltas; reactions and read receipts are grouped into maps via
+`useMemo`, with a stable `EMPTY_REACTIONS` identity for the empty case.
+Result: streaming median **133.3 ms → 66.7–83.3 ms** (≈2× better) with **no
+regressions** — the full serial suite stayed at 35/36 and `npm test` stayed at
+255/255, `npx tsc --noEmit` clean, `npx eslint src e2e tests` 0 errors.
+
+**Open work.** p95/max remain 4.7–9.7× over budget and the run-to-run spread is
+wide (p95 233–483 ms, max 600–1400 ms). Meeting the ceiling requires a cheaper
+streaming path — e.g. rendering the in-flight reply without a full markdown
+re-parse and parsing once on completion — followed by re-profiling. It does not
+require a threshold change.
