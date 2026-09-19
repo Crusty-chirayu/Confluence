@@ -37,14 +37,26 @@ GitHub Actions workflows for the §1 "push everything" release policy.
 > `next`, so a frozen check would have failed on it regardless of the patch.
 >
 > One gate still cannot run locally: `tests/moderation-fail-closed.test.ts` imports
-`jsr:@std/assert@1` and `jsr.io` is unreachable from this environment, so `npm run
-test:edge` has no local evidence. `tests/pdf-extraction.test.ts` deliberately asserts with
-`node:assert` instead, so it runs anywhere Deno does.
-
-E2E status is unchanged: **no test in `e2e/` has ever been executed**. Chromium cannot
-> be installed in this environment (`cdn.playwright.dev` is unreachable — re-verified
-> 2026-09-18), so although CI now has an `e2e` job, the suite's only local evidence is
-> collection (`npx playwright test --list`, 36 tests / 14 files) and a clean typecheck.
+> `jsr:@std/assert@1` and `jsr.io` is unreachable from this environment, so `npm run
+> test:edge` has no local evidence. `tests/pdf-extraction.test.ts` deliberately asserts
+> with `node:assert` instead, so it runs anywhere Deno does.
+>
+> **E2E status changed 2026-09-18.** The `e2e` job now runs in CI: Chromium installs and
+> the suite executes — but the `Run Playwright suite` step exits 1. This is
+> **pre-existing**, reproduced on `357ca0d` (run 35358311915) before the V3 work began,
+> and on every run since. Which tests fail could not be determined: the Actions log hosts
+> are unreachable from the development sandbox and the job annotations carry only
+> "Process completed with exit code 1".
+>
+> Locally the position is unchanged — **no test in `e2e/` has ever been executed**,
+> because Chromium cannot be installed here (`cdn.playwright.dev` is unreachable,
+> re-verified 2026-09-18). The suite's only local evidence remains collection
+> (`npx playwright test --list`, 36 tests / 14 files) and a clean typecheck.
+>
+> **Release status.** Separately, the `Release` workflow has **never** completed: every
+> run fails in 10–16 s at `Link project`, before migrations or function deploys are
+> reached. See follow-up 2 in [`../AUDIT.md`](../AUDIT.md) — it means no migration has
+> been pushed and no Edge Function deployed by the pipeline.
 
 ## What they do
 

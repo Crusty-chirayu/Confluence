@@ -161,6 +161,24 @@ not static review.
 - Images are still not analysed and audio/video still not transcribed: the provider
   layer carries `content: string` only. That is a design limitation rather than a
   defect, and it is documented in the README.
+- **Nothing is deployed.** The `Release` workflow fails at its first Supabase step,
+  `Link project`, on every run — including runs from before this pass — so no V3
+  migration has been pushed to a project and no Edge Function (including
+  `attachment-processor`) has been deployed by the pipeline. V3 is merged and verified
+  as code; it is not live. Owner follow-up 2 in [`AUDIT.md`](./AUDIT.md).
+
+### What CI reported for this branch
+
+GitHub Actions ran on the pushed commits, which corroborates the local gates and adds
+two facts this sandbox cannot produce:
+
+| CI job | Result |
+|---|---|
+| `Typecheck, lint, build` | ✅ pass (1m3s on the merge commit) |
+| `Verify Edge Functions` | ✅ pass (17s) — with the regenerated `deno.lock` |
+| `Secret scan (gitleaks)` | ✅ pass |
+| `Playwright E2E + browser axe audit` | ❌ **fail — pre-existing**: the same step fails on `357ca0d`, the commit this pass branched from, and on every run since. Not caused by this work and not fixed here; the failing test names are unknown because the Actions log hosts are unreachable from this sandbox |
+| `Release` (on `main`) | ❌ **fail — pre-existing**: fails at `Link project` before any migration or deploy step, and has never completed successfully |
 
 ---
 
