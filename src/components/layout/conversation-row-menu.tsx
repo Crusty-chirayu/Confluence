@@ -21,8 +21,8 @@ import { cn } from "@/lib/utils";
  */
 
 export interface RowMenuActions {
-  /** Persist a new name for the conversation. */
-  onRename: (name: string) => Promise<void>;
+  /** Persist a new name for the conversation (rooms only). */
+  onRename?: (name: string) => Promise<void>;
   /** Flip the pinned flag (the layout handler owns optimism + refresh). */
   onTogglePin: () => void;
   /** Permanently delete the conversation. */
@@ -92,19 +92,23 @@ export function ConversationRowMenu({
         actions.onTogglePin();
       },
     },
-    {
-      id: "rename",
-      label: "Rename",
-      icon: Pencil,
-      run: () => {
-        setOpen(false);
-        setName(title);
-        setRenaming(true);
-      },
-    },
+    ...(actions.onRename
+      ? [
+          {
+            id: "rename",
+            label: "Rename",
+            icon: Pencil,
+            run: () => {
+              setOpen(false);
+              setName(title);
+              setRenaming(true);
+            },
+          },
+        ]
+      : []),
     {
       id: "delete",
-      label: "Delete room",
+      label: actions.onRename ? "Delete room" : "Delete conversation",
       icon: Trash2,
       run: () => {
         setOpen(false);
@@ -116,7 +120,7 @@ export function ConversationRowMenu({
   const submitRename = async (e: React.FormEvent) => {
     e.preventDefault();
     const next = name.trim();
-    if (!next || next === title || busy) return;
+    if (!next || next === title || busy || !actions.onRename) return;
     setBusy(true);
     try {
       await actions.onRename(next);

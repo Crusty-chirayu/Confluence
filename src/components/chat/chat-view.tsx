@@ -15,6 +15,7 @@ import { MessageListSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { useSession } from "@/components/session-provider";
 import { useNetworkStatus } from "@/components/network-provider";
+import { AppDataContext } from "@/app/app/app-data";
 import { DEMO_MODE } from "@/lib/env";
 import { demo } from "@/lib/data/demo-store";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
@@ -44,6 +45,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
   const params = useSearchParams();
   const toast = useToast();
   const { profile } = useSession();
+  const { refreshConversations } = React.useContext(AppDataContext);
   const { unavailable } = useNetworkStatus();
   const highlightId = params.get("m");
 
@@ -586,7 +588,10 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
           await load();
           router.refresh();
         }}
-        onLeft={() => router.push("/app")}
+        onLeft={() => {
+          refreshConversations();
+          router.push("/app");
+        }}
       />
     </div>
   );

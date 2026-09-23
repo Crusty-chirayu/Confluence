@@ -372,17 +372,15 @@ function ConversationRow({
         </button>
       )}
 
-      {isRoom && (
-        <ConversationRowMenu
-          title={title}
-          pinned={pinned}
-          actions={{
-            onTogglePin: onTogglePin ? () => onTogglePin(c.id, !pinned) : () => {},
-            onRename: renameConversation,
-            onDelete: removeConversation,
-          }}
-        />
-      )}
+      <ConversationRowMenu
+        title={title}
+        pinned={pinned}
+        actions={{
+          onTogglePin: onTogglePin ? () => onTogglePin(c.id, !pinned) : () => {},
+          onRename: isRoom ? renameConversation : undefined,
+          onDelete: removeConversation,
+        }}
+      />
     </motion.li>
   );
 }
