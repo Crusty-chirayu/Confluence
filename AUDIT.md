@@ -29,7 +29,7 @@ asserted without a source.
 | WCAG AA text/UI contrast | ✅ measured | `scripts/contrast.mjs` — **54/54 pairs pass**, exit 0 |
 | Component a11y (axe) | ✅ measured | `tests/a11y/components.axe.test.tsx` — **13 tests, 0 violations** |
 | Keyboard / focus behaviour | ✅ measured | `tests/keyboard-focus.test.tsx` — **15 tests** (focus in/trap/restore, combobox wiring, live regions) |
-| App a11y (browser axe) | ⛔ **not run** | `e2e/accessibility.spec.ts` exists and the CI `e2e` job has landed, but **no Chromium is obtainable in this sandbox** — see `Errors` |
+| App a11y (browser axe) | ⛔ **not run here** | `e2e/accessibility.spec.ts` exists and the CI `e2e` job runs it, but **no Chromium is obtainable in this sandbox** — and that CI job is currently **failing**, see `Errors` |
 | PDF extraction (V3) | ✅ measured 2026-09-18 | `tests/pdf-extraction.test.ts` — **4 tests** against the real `pdfjs-dist@4.8.69`. Broken until this pass: `workerSrc = false` failed every PDF |
 | `deno check` on all four Edge Functions | ✅ run 2026-09-18 | passes including under `--frozen`, Deno's default when `CI=true` |
 | V3 retrieval SQL / RLS execution | ⛔ **not run** | no PostgreSQL or Supabase CLI in the sandbox; static review only |
@@ -182,7 +182,18 @@ These are blocked on owner-held credentials or a `workflows`-permission push
    with the `workflows` permission.
 2. **Release secrets**: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`,
    `SUPABASE_DB_PASSWORD`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
-   `VERCEL_PROJECT_ID` (see `ci/README.md`).
+   `VERCEL_PROJECT_ID` (see `ci/README.md`). **This is blocking, not cosmetic —
+   the `Release` workflow has never completed successfully.** Every run fails in
+   10–16 s at the *first* Supabase step, `Link project`, before `Push
+   migrations` is reached (runs 35365483554, 35358311900, 35253803794,
+   35233911123, 35231085679 and further back — verified 2026-09-18). The
+   credentials are the likely cause, but the secrets API returns `403 Resource
+   not accessible by integration` for this credential, so that could not be
+   confirmed. **Consequence: no V3 migration has ever been applied to a project
+   and no Edge Function — including `attachment-processor` — has ever been
+   deployed by the pipeline.** V3 is merged and verified as code; it is not
+   live. The frontend still ships, because Vercel deploys through its own
+   GitHub integration independently of this workflow.
 3. **AI provider key**: `supabase secrets set OPENROUTER_API_KEY=sk-or-...`
    (server-side).
 4. **Run the load test** against a live deploy and record numbers in
@@ -198,7 +209,8 @@ Recorded so nothing here is mistaken for a passing gate.
 
 | Gate | Status | Blocker |
 |---|---|---|
-| `npx playwright test` (36 tests, 14 files) | **NOT RUN — ENVIRONMENT LIMITATION** | No Chromium binary and none is obtainable: `cdn.playwright.dev`, `storage.googleapis.com` and `playwright.azureedge.net` all fail TLS from this sandbox (re-verified 2026-09-18). The CI `e2e` job has landed, so this runs there. |
+| `npx playwright test` (36 tests, 14 files) | **NOT RUN — ENVIRONMENT LIMITATION** | No Chromium binary and none is obtainable: `cdn.playwright.dev`, `storage.googleapis.com` and `playwright.azureedge.net` all fail TLS from this sandbox (re-verified 2026-09-18). |
+| CI `Playwright E2E + browser axe audit` job | ❌ **FAILING — PRE-EXISTING** | Chromium installs and the suite runs, then "Run Playwright suite" exits 1. **Reproduced on `357ca0d`, the commit this pass branched from, before any of its changes** (run 35358311915), and on every CI run since (35363095410, 35365457103, 35365483549). Not caused by this work, and not fixed here. Which tests fail is unknown: the log hosts (`results-receiver.actions.githubusercontent.com`, `productionresultssa12.blob.core.windows.net`) are unreachable from this sandbox and the job annotations carry only "Process completed with exit code 1". |
 | `npx playwright test --list` | ✅ run | **36 tests / 14 files** collected; config valid |
 | Browser axe (`e2e/accessibility.spec.ts`) | **NOT RUN — ENVIRONMENT LIMITATION** | same as above |
 | Frame budget under 4× CPU throttle (`e2e/perf.spec.ts`) | **NOT RUN — ENVIRONMENT LIMITATION** | same as above |

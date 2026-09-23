@@ -346,6 +346,10 @@ renders nothing it cannot verify; no chip can be minted from prose alone.
   Function (it is verified against the real pdf.js locally, under Deno). See the
   verification status in [`ACCEPTANCE.md`](./ACCEPTANCE.md) for exactly what was and
   was not run.
+- **V3 is not deployed yet.** The `Release` workflow fails at its first Supabase step,
+  so no migration has been pushed and no Edge Function deployed by the pipeline —
+  a pre-existing configuration gap, recorded as an owner follow-up in
+  [`AUDIT.md`](./AUDIT.md).
 
 ---
 

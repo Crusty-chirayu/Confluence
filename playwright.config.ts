@@ -18,12 +18,19 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./e2e",
+  // Converts the JSON report into check-run annotations in CI, where step
+  // logs and report artifacts are not otherwise reachable (see the file).
+  globalTeardown: "./e2e/ci-report.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [
     ["list"],
+    // In CI (GITHUB_ACTIONS set) the `github` reporter writes one annotation
+    // per failing test — the only way to see which test failed without
+    // downloading the HTML report artifact.
+    ...(process.env.GITHUB_ACTIONS ? ([["github"]] as const) : []),
     ["html", { open: "never", outputFolder: "playwright-report" }],
   ],
   timeout: 30_000,

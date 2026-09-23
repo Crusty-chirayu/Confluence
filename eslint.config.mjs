@@ -1,6 +1,7 @@
-import { defineConfig, globalIgnores } from "eslint/config";
+﻿import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import reactHooks from "eslint-plugin-react-hooks";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -11,12 +12,17 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Deno runtime — typechecked separately by `deno check` in CI,
+    // Deno runtime â€” typechecked separately by `deno check` in CI,
     // not by the Next.js/Node ESLint program.
     "supabase/functions/**",
+      ".agents/**",
+      ".kilo/**",
   ]),
 
   {
+    plugins: {
+      "react-hooks": reactHooks,
+    },
     rules: {
       /**
        * The React Compiler lint flags any setState inside an effect. Our
@@ -36,3 +42,8 @@ const eslintConfig = defineConfig([
 ]);
 
 export default eslintConfig;
+
+
+
+
+
