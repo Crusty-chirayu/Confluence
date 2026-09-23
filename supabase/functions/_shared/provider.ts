@@ -27,16 +27,33 @@ export const OPENROUTER_CHAT_COMPLETIONS_URL =
 
 export type ProviderRole = "system" | "user" | "assistant";
 
+export interface TextContentPart {
+  type: "text";
+  text: string;
+}
+
+export interface ImageUrlContentPart {
+  type: "image_url";
+  image_url: {
+    url: string;
+    detail?: "auto" | "low" | "high";
+  };
+}
+
+export type MessageContentPart = TextContentPart | ImageUrlContentPart;
+
+export type MessageContent = string | MessageContentPart[];
+
 export interface ProviderMessage {
   role: ProviderRole;
-  content: string;
+  content: MessageContent;
 }
 
 /** The conversation messages (history), independent of the system prompt. */
-export type ConversationMessage = Omit<ProviderMessage, "role" | "content"> & {
+export interface ConversationMessage {
   role: "user" | "assistant";
-  content: string;
-};
+  content: MessageContent;
+}
 
 /** Exactly the OpenAI-compatible Chat Completions request body. */
 export interface ChatCompletionsBody {

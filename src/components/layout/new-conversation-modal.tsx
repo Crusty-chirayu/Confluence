@@ -169,42 +169,68 @@ export function NewConversationModal({
               <legend className="mb-2 text-[13px] font-medium tracking-[-0.005em] text-[--fg]">
                 AI participation
               </legend>
-              <div className="space-y-1.5" role="radiogroup" aria-label="AI participation">
-                {AI_MODES.map((m) => (
-                  <label
-                    key={m.v}
-                    className={cn(
-                      "flex w-full cursor-pointer items-start gap-3 rounded-[--r-md] border p-3 text-left transition-all duration-[--d-micro]",
-                      aiMode === m.v
-                        ? "border-[--accent]/60 bg-[--accent-subtle] shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset]"
-                        : "border-[--border] hover:border-[--border-strong] hover:bg-[--bg-hover]",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="ai-participation"
-                      value={m.v}
-                      checked={aiMode === m.v}
-                      onChange={() => setAiMode(m.v)}
-                      className="peer sr-only"
-                    />
-                    <span
-                      aria-hidden
+              <div
+                className="space-y-1.5"
+                role="radiogroup"
+                aria-label="AI participation"
+                onKeyDown={(e) => {
+                  const idx = AI_MODES.findIndex((m) => m.v === aiMode);
+                  if (idx === -1) return;
+                  if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+                    e.preventDefault();
+                    const next = AI_MODES[(idx + 1) % AI_MODES.length];
+                    setAiMode(next.v);
+                    document.getElementById(`ai-mode-${next.v}`)?.focus();
+                  } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+                    e.preventDefault();
+                    const prev = AI_MODES[(idx - 1 + AI_MODES.length) % AI_MODES.length];
+                    setAiMode(prev.v);
+                    document.getElementById(`ai-mode-${prev.v}`)?.focus();
+                  }
+                }}
+              >
+                {AI_MODES.map((m) => {
+                  const id = `ai-mode-${m.v}`;
+                  return (
+                    <label
+                      key={m.v}
+                      htmlFor={id}
+                      onClick={() => setAiMode(m.v)}
                       className={cn(
-                        "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 transition-colors duration-[--d-micro]",
-                        aiMode === m.v ? "border-[--accent]" : "border-[--border-strong]",
+                        "flex w-full cursor-pointer items-start gap-3 rounded-[--r-md] border p-3 text-left transition-all duration-[--d-micro]",
+                        "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[--accent] has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-[--bg-elevated]",
+                        aiMode === m.v
+                          ? "border-[--accent]/60 bg-[--accent-subtle] shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset]"
+                          : "border-[--border] hover:border-[--border-strong] hover:bg-[--bg-hover]",
                       )}
                     >
-                      {aiMode === m.v && <span className="h-1.5 w-1.5 rounded-full bg-[--accent]" />}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[13px] font-medium text-[--fg]">{m.label}</span>
-                      <span className="block text-[12px] leading-snug text-[--fg-muted]">
-                        {m.body}
+                      <input
+                        type="radio"
+                        id={id}
+                        name="ai-participation"
+                        value={m.v}
+                        checked={aiMode === m.v}
+                        onChange={() => setAiMode(m.v)}
+                        className="peer sr-only"
+                      />
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 transition-colors duration-[--d-micro]",
+                          aiMode === m.v ? "border-[--accent]" : "border-[--border-strong]",
+                        )}
+                      >
+                        {aiMode === m.v && <span className="h-1.5 w-1.5 rounded-full bg-[--accent]" />}
                       </span>
-                    </span>
-                  </label>
-                ))}
+                      <span className="min-w-0">
+                        <span className="block text-[13px] font-medium text-[--fg]">{m.label}</span>
+                        <span className="block text-[12px] leading-snug text-[--fg-muted]">
+                          {m.body}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </fieldset>
           </div>

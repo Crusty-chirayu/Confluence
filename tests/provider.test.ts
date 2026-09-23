@@ -86,6 +86,43 @@ describe("buildProviderRequest", () => {
       expect(body.messages).toEqual(messages);
     }
   });
+
+  it("builds multimodal messages with image_url and text content parts", () => {
+    const multimodalMessages = [
+      {
+        role: "user" as const,
+        content: [
+          { type: "text" as const, text: "Describe this image" },
+          {
+            type: "image_url" as const,
+            image_url: {
+              url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+            },
+          },
+        ],
+      },
+    ];
+
+    const body = buildChatCompletionsBody({
+      model: "anthropic/claude-sonnet-4.6",
+      maxTokens: 2048,
+      system: "You are a vision assistant.",
+      messages: multimodalMessages,
+    });
+
+    expect(body.messages[0]).toEqual({ role: "system", content: "You are a vision assistant." });
+    expect(body.messages[1]).toEqual(multimodalMessages[0]);
+
+    const { init } = buildProviderRequest({
+      model: "anthropic/claude-sonnet-4.6",
+      maxTokens: 2048,
+      system: null,
+      messages: multimodalMessages,
+      apiKey: KEY,
+    });
+    const parsed = JSON.parse(init.body as string);
+    expect(parsed.messages[0].content).toEqual(multimodalMessages[0].content);
+  });
 });
 
 describe("parseSSEFrame", () => {

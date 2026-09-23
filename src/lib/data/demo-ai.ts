@@ -18,10 +18,35 @@ function hash(s: string): number {
   return h;
 }
 
-export function composeDemoReply(prompt: string, isGroup: boolean, roomName?: string | null): string {
+export function composeDemoReply(
+  prompt: string,
+  isGroup: boolean,
+  roomName?: string | null,
+  options?: { hasImage?: boolean; filename?: string | null },
+): string {
   const clean = prompt.replace(/@ai\b/gi, "").trim();
   const h = hash(clean.toLowerCase());
   const topic = clean.length > 80 ? clean.slice(0, 77) + "…" : clean || "that";
+
+  if (options?.hasImage) {
+    return [
+      `I can see the image you uploaded${options.filename ? ` (\`${options.filename}\`)` : ""}.`,
+      ``,
+      `> **Demo mode notice**: You are currently in local demo mode, which runs purely in your browser without contacting an AI server. Demo mode cannot run computer vision analysis on images.`,
+      `>`,
+      `> Connect your Supabase backend and configure \`OPENROUTER_API_KEY\` to stream real multimodal analysis from Claude 3.5 Sonnet.`,
+    ].join("\n");
+  }
+
+  if (/\b(image|picture|photo|screenshot)\b/i.test(clean) && !options?.hasImage) {
+    return [
+      `I don't see any image attached to this message.`,
+      ``,
+      `Upload an image (PNG, JPEG, WebP) using the attachment icon in the composer. When connected to Supabase and OpenRouter, the AI model will inspect and explain it.`,
+      ``,
+      `> Running in **Demo mode** — this reply is generated locally.`,
+    ].join("\n");
+  }
 
   if (/^(hi|hey|hello|yo)\b/i.test(clean)) {
     return isGroup

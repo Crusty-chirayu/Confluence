@@ -21,6 +21,8 @@ import { moderate, logModeration } from "../_shared/moderation.ts";
 import {
   buildProviderRequest,
   ProviderSSEDecoder,
+  type ConversationMessage,
+  type MessageContentPart,
   type ProviderStreamEvent,
 } from "../_shared/provider.ts";
 import {
@@ -339,16 +341,122 @@ Deno.serve(async (req) => {
       await admin.from("messages").update({ status: "superseded" }).eq("id", body.supersedes_id);
     }
 
-    // --- 6. build provider messages -----------------------------------------
-    const providerMessages = ordered
-      .filter((m) => m.content.trim().length > 0)
-      .map((m) => ({
-        role: m.sender_type === "ai" ? ("assistant" as const) : ("user" as const),
-        content:
-          m.sender_type === "ai" || !isGroup
-            ? m.content
-            : `${nameById.get(m.sender_id!) ?? "Someone"}: ${m.content}`,
-      }));
+    // --- 6. resolve image attachments & build provider messages ------------
+    const candidateMessageIds: string[] = [];
+    if (body.trigger_message_id) {
+      candidateMessageIds.push(body.trigger_message_id);
+    }
+    if (trigger && !candidateMessageIds.includes(trigger.id)) {
+      candidateMessageIds.push(trigger.id);
+    }
+    const recentHumanIds = ordered
+      .filter((m) => m.sender_type === "human" && !candidateMessageIds.includes(m.id))
+      .slice(-2)
+      .map((m) => m.id);
+    candidateMessageIds.push(...recentHumanIds);
+
+    interface ImageAttachmentRow {
+      id: string;
+      message_id: string;
+      storage_path: string;
+      mime_type: string;
+      size_bytes: number;
+    }
+
+    const imagesByMessageId = new Map<string, string[]>();
+
+    if (candidateMessageIds.length > 0) {
+      const { data: attRows, error: attErr } = await admin
+        .from("message_attachments")
+        .select("id, message_id, storage_path, mime_type, size_bytes")
+        .in("message_id", candidateMessageIds)
+        .ilike("mime_type", "image/%")
+        .order("created_at", { ascending: true })
+        .limit(3);
+
+      if (attErr) {
+        console.error("ai-orchestrator: image_attachments_query_failed", attErr.message);
+      } else if (attRows && attRows.length > 0) {
+        const rows = attRows as ImageAttachmentRow[];
+        for (const att of rows) {
+          // Security checks:
+          // 1. Storage path must be strictly scoped to this conversation
+          if (!att.storage_path.startsWith(`${conversationId}/`)) continue;
+          // 2. MIME type must be an accepted image type
+          const mime = att.mime_type.toLowerCase();
+          if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(mime)) continue;
+          // 3. Size check: max 10MB per image
+          if (att.size_bytes <= 0 || att.size_bytes > 10 * 1024 * 1024) continue;
+
+          try {
+            const { data: blob, error: dlErr } = await admin
+              .storage
+              .from("attachments")
+              .download(att.storage_path);
+
+            if (dlErr || !blob) {
+              console.error("ai-orchestrator: image_download_failed", dlErr?.message);
+              continue;
+            }
+
+            const arrayBuffer = await blob.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = "";
+            const len = bytes.byteLength;
+            const chunkSize = 8192;
+            for (let i = 0; i < len; i += chunkSize) {
+              const chunk = bytes.subarray(i, Math.min(i + chunkSize, len));
+              binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+            }
+            const base64 = btoa(binary);
+            const dataUri = `data:${mime};base64,${base64}`;
+
+            const existing = imagesByMessageId.get(att.message_id) ?? [];
+            existing.push(dataUri);
+            imagesByMessageId.set(att.message_id, existing);
+          } catch (imgErr) {
+            console.error(
+              "ai-orchestrator: image_processing_error",
+              imgErr instanceof Error ? imgErr.message : imgErr,
+            );
+          }
+        }
+      }
+    }
+
+    const providerMessages: ConversationMessage[] = [];
+
+    for (const m of ordered) {
+      const messageImages = imagesByMessageId.get(m.id) ?? [];
+      const hasText = m.content.trim().length > 0;
+      const hasImages = messageImages.length > 0;
+
+      if (!hasText && !hasImages) continue;
+
+      const role = m.sender_type === "ai" ? ("assistant" as const) : ("user" as const);
+      const text =
+        m.sender_type === "ai" || !isGroup
+          ? m.content.trim()
+          : `${nameById.get(m.sender_id!) ?? "Someone"}: ${m.content.trim()}`;
+
+      if (hasImages && role === "user") {
+        const parts: MessageContentPart[] = [];
+        if (text.length > 0) {
+          parts.push({ type: "text", text });
+        } else {
+          parts.push({ type: "text", text: "Please analyze the attached image." });
+        }
+        for (const url of messageImages) {
+          parts.push({
+            type: "image_url",
+            image_url: { url },
+          });
+        }
+        providerMessages.push({ role, content: parts });
+      } else {
+        providerMessages.push({ role, content: text });
+      }
+    }
 
     // OpenAI-compatible providers accept an assistant-first message, but
     // keep the previous behavior of leading with a user turn so the

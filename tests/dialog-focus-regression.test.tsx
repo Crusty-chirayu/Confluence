@@ -22,6 +22,7 @@ import * as React from "react";
 import { ConfirmDialog, Modal } from "../src/components/ui/modal";
 import { NewConversationModal } from "../src/components/layout/new-conversation-modal";
 import { Button } from "../src/components/ui/button";
+import * as api from "../src/lib/data/api";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {}, back: () => {} }),
@@ -123,6 +124,82 @@ describe("dialog focus lifecycle — the typing regression", () => {
     expect((screen.getByRole("radio", { name: /Auto/ }) as HTMLInputElement).checked).toBe(true);
     expect(offInput.checked).toBe(false);
     expect(off.className).not.toContain("border-[--accent]/60");
+  });
+
+  it("reliably selects all three AI participation options via card and child text clicks and submits correctly", async () => {
+    const createSpy = vi.spyOn(api, "createConversation").mockResolvedValue("new-conv-id");
+    render(<Harness />);
+    await flushFrame();
+    fireEvent.click(screen.getByRole("button", { name: /Group room/ }));
+    await flushFrame();
+
+    const nameInput = screen.getByLabelText("Room name") as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: "Test Room" } });
+
+    const offRadio = screen.getByRole("radio", { name: /^Off/ }) as HTMLInputElement;
+    const mentionRadio = screen.getByRole("radio", { name: /^Mention only/ }) as HTMLInputElement;
+    const autoRadio = screen.getByRole("radio", { name: /^Auto/ }) as HTMLInputElement;
+
+    // Default initial selection is mention_only
+    expect(mentionRadio.checked).toBe(true);
+    expect(offRadio.checked).toBe(false);
+    expect(autoRadio.checked).toBe(false);
+
+    // 1. Click Off card directly
+    const offCard = offRadio.closest("label")!;
+    fireEvent.click(offCard);
+    await flushFrame();
+    expect(offRadio.checked).toBe(true);
+    expect(mentionRadio.checked).toBe(false);
+    expect(autoRadio.checked).toBe(false);
+
+    // 2. Click Auto by clicking its nested text span
+    const autoBodyText = screen.getByText("Replies to every message. Best for small rooms.");
+    fireEvent.click(autoBodyText);
+    await flushFrame();
+    expect(autoRadio.checked).toBe(true);
+    expect(offRadio.checked).toBe(false);
+    expect(mentionRadio.checked).toBe(false);
+
+    // 3. Click Mention only by clicking its label text
+    const mentionLabelText = screen.getByText("Mention only");
+    fireEvent.click(mentionLabelText);
+    await flushFrame();
+    expect(mentionRadio.checked).toBe(true);
+    expect(offRadio.checked).toBe(false);
+    expect(autoRadio.checked).toBe(false);
+
+    // 4. Keyboard arrow navigation: ArrowDown from mention moves to auto
+    const radiogroup = screen.getByRole("radiogroup", { name: "AI participation" });
+    fireEvent.keyDown(radiogroup, { key: "ArrowDown" });
+    await flushFrame();
+    expect(autoRadio.checked).toBe(true);
+    expect(mentionRadio.checked).toBe(false);
+    expect(offRadio.checked).toBe(false);
+
+    // Keyboard arrow navigation: ArrowUp from auto moves back to mention
+    fireEvent.keyDown(radiogroup, { key: "ArrowUp" });
+    await flushFrame();
+    expect(mentionRadio.checked).toBe(true);
+
+    // Keyboard arrow navigation: ArrowUp from mention moves to off
+    fireEvent.keyDown(radiogroup, { key: "ArrowUp" });
+    await flushFrame();
+    expect(offRadio.checked).toBe(true);
+
+    // Submit room with "off" selected
+    fireEvent.click(screen.getByRole("button", { name: "Create room" }));
+    await flushFrame();
+
+    expect(createSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "group",
+        name: "Test Room",
+        ai_mode: "off",
+      }),
+    );
+
+    createSpy.mockRestore();
   });
 
   it("does not re-run its focus work when the parent re-renders mid-typing", async () => {

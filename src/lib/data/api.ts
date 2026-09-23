@@ -758,7 +758,15 @@ export async function invokeAi(
     });
     cb.onStart?.(placeholder.id);
 
-    const reply = composeDemoReply(opts.prompt, opts.isGroup, opts.roomName);
+    const msgAtts = opts.triggerMessageId
+      ? [...demoAttachments.values()].filter((a) => a.message_id === opts.triggerMessageId)
+      : [];
+    const imageAtt = msgAtts.find((a) => a.mime_type.startsWith("image/"));
+    const filename = imageAtt ? imageAtt.storage_path.split("/").pop() ?? null : null;
+    const reply = composeDemoReply(opts.prompt, opts.isGroup, opts.roomName, {
+      hasImage: !!imageAtt,
+      filename,
+    });
     const handle = streamDemoReply(
       reply,
       (chunk) => cb.onDelta(chunk),
