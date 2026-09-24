@@ -6,6 +6,7 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-provider";
 import { Reveal, RevealItem, SectionHeading } from "@/components/landing/section";
 import { PLANS, PRICING_FAQ } from "@/lib/pricing";
+import { VERSION_LABEL } from "@/lib/version";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -166,7 +167,7 @@ export default function PricingPage() {
           <div className="flex items-center gap-2.5">
             <Logo className="h-6 w-6" />
             <span className="text-[13.5px] font-semibold">Confluence</span>
-            <span className="text-[12.5px] text-[--fg-subtle]">v2.0</span>
+            <span className="text-[12.5px] text-[--fg-subtle]">· {VERSION_LABEL}</span>
           </div>
           <nav
             aria-label="Footer"

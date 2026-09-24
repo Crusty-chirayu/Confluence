@@ -1,198 +1,250 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Tag } from "lucide-react";
+import { ArrowLeft, Tag } from "lucide-react";
 import { LandingNav } from "@/components/landing/nav";
-import { Reveal, RevealItem, SectionHeading } from "@/components/landing/section";
 import { Logo } from "@/components/logo";
-import { Markdown } from "@/components/chat/markdown";
+import { VERSION, VERSION_LABEL, RELEASE_NAME, RELEASE_DATE } from "@/lib/version";
 
 export const metadata: Metadata = {
-  title: "Changelog",
-  description: "Release notes for the AI chat platform, published from GitHub Releases.",
+  title: "Changelog · Confluence",
+  description: "Product updates, release notes, and improvements shipped to Confluence.",
 };
 
-// §1: releases are the source of truth; regenerate hourly.
-export const revalidate = 3600;
-
-const REPO = process.env.NEXT_PUBLIC_GITHUB_REPO ?? "Crusty-chirayu/Group-Chatbot";
-
-interface Release {
-  id: number;
-  name: string | null;
-  tag_name: string;
-  body: string | null;
-  html_url: string;
-  published_at: string | null;
-  prerelease: boolean;
+interface ChangelogEntry {
+  version: string;
+  label: string;
+  name: string;
+  date: string;
+  summary: string;
+  isLatest?: boolean;
+  newItems?: string[];
+  improvedItems?: string[];
+  fixedItems?: string[];
 }
 
-/** Shown when the GitHub API is unreachable or the repo has no releases yet. */
-const FALLBACK: Release[] = [
+const RELEASES: ChangelogEntry[] = [
   {
-    id: 0,
-    name: "AI chat platform v2.0",
-    tag_name: "v2.0.0",
-    published_at: null,
-    html_url: `https://github.com/${REPO}/releases`,
-    prerelease: false,
-    body: [
-      "### Added",
-      "- 1:1 AI chat with streaming, stop, regenerate and edit",
-      "- Group rooms with invites, roles, presence and typing indicators",
-      "- Opt-in AI participation per room (`off` / `mention_only` / `auto`)",
-      "- `@ai` mention autocomplete and a distinct teal identity for AI messages",
-      "- Command palette (⌘K), cross-conversation search (⌘/), reactions",
-      "- Two-stage moderation that fails closed, plus per-user rate limiting",
-      "",
-      "### Security",
-      "- Row Level Security on every table, scoped to room membership",
-      "- AI provider key confined to Edge Function secrets",
-    ].join("\n"),
+    version: VERSION,
+    label: VERSION_LABEL,
+    name: RELEASE_NAME,
+    date: RELEASE_DATE,
+    summary:
+      "A complete redesign of the user experience with restrained typography, disciplined 4px spacing, unified light/dark color systems, document-like message timelines, tactile composer controls, and a clearer AI participation model.",
+    isLatest: true,
+    newItems: [
+      "Separately designed Light and Dark themes with programmatic WCAG 2.2 AA contrast compliance across all surfaces.",
+      "Vertical timeline message experience replacing bubbly chat layouts with calm, document-like readability surfaces.",
+      "Tactile composer featuring auto-growing textarea, instant mode status, keyboard send shortcuts, and attachment drag previews.",
+      "Three-posture AI mode selector with distinct visual indicators for Off, Mention only, and Always on.",
+      "Unified modal and sheet system with exact-name confirmation gating for destructive room deletions.",
+    ],
+    improvedItems: [
+      "Rebuilt landing page centered around an interactive live product preview, segmented mode demos, and verified trust boundaries.",
+      "Streamlined application shell with a 280px sidebar, 56px sticky chat header, and responsive drawer navigation.",
+      "Strict keyboard accessibility with roving tabindex, dialog focus trapping, and polite ARIA announcements for streaming text.",
+      "Clear loading skeletons and human error cards providing direct recovery steps rather than raw error codes.",
+    ],
+    fixedItems: [
+      "Eliminated layout shifts during message streaming and sidebar toggling across mobile and desktop breakpoints.",
+      "Prevented accidental double-click room deletions via responsive debouncing and focus-safe dialogs.",
+    ],
+  },
+  {
+    version: "2.0.0",
+    label: "v2.0",
+    name: "v2.0 — group rooms with opt-in AI",
+    date: "January 2026",
+    summary:
+      "Introduced multi-member collaborative group rooms with configurable AI participation postures, invites, and presence tracking.",
+    isLatest: false,
+    newItems: [
+      "Group rooms with invite codes, member roles (owner, admin, member), and presence tracking.",
+      "Per-room AI participation modes allowing teams to choose when AI listens and replies.",
+      "@ai mention autocomplete for targeted AI invocation.",
+      "Two-stage moderation and per-user rate limiting persisted in Postgres.",
+    ],
+    improvedItems: [
+      "Database access enforced via Row-Level Security on all room and message tables.",
+      "Private storage bucket access for attachments with signed URLs.",
+    ],
   },
 ];
 
-async function getReleases(): Promise<{ releases: Release[]; live: boolean }> {
-  try {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=20`, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        ...(process.env.GITHUB_TOKEN
-          ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
-          : {}),
-      },
-      next: { revalidate },
-    });
-    if (!res.ok) return { releases: FALLBACK, live: false };
-    const data = (await res.json()) as Release[];
-    if (!Array.isArray(data) || data.length === 0) return { releases: FALLBACK, live: false };
-    return { releases: data, live: true };
-  } catch {
-    return { releases: FALLBACK, live: false };
-  }
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "Unreleased";
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
-
-export default async function ChangelogPage() {
-  const { releases, live } = await getReleases();
-
+export default function ChangelogPage() {
   return (
-    <div className="relative min-h-dvh bg-[--bg-app]">
-      {/* faint atmosphere so the page doesn't sit on flat, un-lit background */}
-      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
-        <div
-          className="absolute left-1/2 top-[-14rem] h-[30rem] w-[44rem] -translate-x-1/2 rounded-full opacity-[0.08] blur-[110px]"
-          style={{ background: "radial-gradient(circle, var(--accent), transparent 62%)" }}
-        />
-      </div>
-
+    <div className="relative min-h-dvh bg-[--bg-page] text-[--text-primary]">
       <LandingNav />
 
-      <main className="px-5 pb-24 pt-32 sm:pt-40">
-        <Reveal className="mx-auto max-w-3xl">
-          <SectionHeading
-            headingLevel="h1"
-            eyebrow="Changelog"
-            title="What's new"
-            subtitle="Published automatically from GitHub Releases on every tagged version."
-          />
+      <main className="px-5 pb-24 pt-28 sm:px-8 sm:pt-36">
+        <div className="mx-auto max-w-[800px]">
+          {/* Header */}
+          <div className="mb-12">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[--text-muted] transition-colors hover:text-[--text-primary]"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Back to home</span>
+            </Link>
+            <h1 className="mt-4 text-3xl font-semibold tracking-[-0.03em] text-[--text-primary] sm:text-4xl">
+              Changelog
+            </h1>
+            <p className="mt-2 text-[15px] text-[--text-secondary]">
+              Product releases, design updates, and architectural improvements.
+            </p>
+          </div>
 
-          {!live && (
-            <RevealItem>
-              <p className="mx-auto mt-8 max-w-xl rounded-[--r-lg] border border-[--border-default] bg-[--bg-surface] px-4 py-3 text-center text-[12.5px] leading-relaxed text-[--text-secondary]">
-                Showing the bundled release notes — no published GitHub Releases were found for{" "}
-                <code className="rounded-[--r-sm] border border-[--border-default] bg-[--bg-hover] px-1.5 py-0.5 font-mono">
-                  {REPO}
-                </code>
-                . Tag a version and this page fills in automatically.
-              </p>
-            </RevealItem>
-          )}
-
-          <div className="mt-14 space-y-2">
-            {releases.map((r) => (
-              <RevealItem key={r.id}>
-                <article className="group relative rounded-[--r-lg] border-l-2 border-[--border-default] py-6 pl-6 transition-colors duration-[--d-standard] hover:bg-[--bg-hover]/40 sm:pl-8">
+          {/* Merge Motif Timeline Spine (Section 41) */}
+          <div className="relative border-l border-[--border-subtle] pl-6 sm:pl-8 space-y-12">
+            {RELEASES.map((r) => (
+              <article key={r.version} className="relative">
+                {/* Timeline node */}
+                <span
+                  className="absolute -left-[31px] top-1.5 grid h-4 w-4 place-items-center rounded-full border border-[--border] bg-[--bg-page] sm:-left-[39px]"
+                  aria-hidden
+                >
                   <span
-                    className="absolute -left-[9px] top-[26px] grid h-4 w-4 place-items-center rounded-full bg-[--brand] ring-4 ring-[--bg-app]"
-                    aria-hidden
+                    className={`h-2 w-2 rounded-full ${
+                      r.isLatest ? "bg-[--accent]" : "bg-[--text-muted]"
+                    }`}
                   />
+                </span>
 
+                <div
+                  className={`rounded-[--r-xl] border p-6 sm:p-8 transition-colors ${
+                    r.isLatest
+                      ? "border-[--accent]/30 bg-[--surface-elevated] shadow-[--shadow-2]"
+                      : "border-[--border-subtle] bg-[--surface]"
+                  }`}
+                >
                   <header className="mb-4">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                      <h2 className="text-[18px] font-semibold tracking-tight text-[--text-primary]">
-                        {r.name || r.tag_name}
-                      </h2>
-                      <span className="inline-flex items-center gap-1 rounded-[--r-pill] border border-[--border-default] bg-[--bg-hover] px-2 py-0.5 font-mono text-[11px] text-[--text-secondary]">
-                        <Tag className="h-3 w-3" />
-                        {r.tag_name}
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-[--border-subtle] bg-[--surface] px-2.5 py-0.5 text-[12px] font-mono text-[--text-primary]">
+                        <Tag className="h-3 w-3 text-[--text-muted]" />
+                        {r.label}
                       </span>
-                      {r.prerelease && (
-                        <span className="rounded-[--r-pill] bg-[--warning-subtle] px-2 py-0.5 text-[11px] font-semibold text-[--warning]">
-                          Pre-release
+                      {r.isLatest && (
+                        <span className="rounded-full bg-[--accent-subtle] px-2.5 py-0.5 text-[11px] font-semibold text-[--accent-text]">
+                          Latest
                         </span>
                       )}
+                      <time className="text-[12.5px] text-[--text-muted]">{r.date}</time>
                     </div>
-                    <time
-                      className="mt-1.5 block text-[12.5px] text-[--text-secondary]"
-                      dateTime={r.published_at ?? undefined}
-                    >
-                      {formatDate(r.published_at)}
-                    </time>
+
+                    <h2 className="mt-2 text-[20px] font-semibold tracking-[-0.01em] text-[--text-primary]">
+                      {r.name}
+                    </h2>
+                    <p className="mt-1.5 text-[14px] leading-relaxed text-[--text-secondary]">
+                      {r.summary}
+                    </p>
                   </header>
 
-                  <div className="text-[14px] text-[--text-primary]">
-                    {r.body?.trim() ? (
-                      <Markdown content={r.body} />
-                    ) : (
-                      <p className="text-[--text-secondary]">No release notes for this version.</p>
-                    )}
-                  </div>
+                  {r.isLatest ? (
+                    <div className="mt-6 space-y-6 border-t border-[--border-subtle] pt-6">
+                      {r.newItems && r.newItems.length > 0 && (
+                        <div>
+                          <h3 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[--accent-text]">
+                            New
+                          </h3>
+                          <ul className="mt-2.5 space-y-2 text-[13.5px] leading-relaxed text-[--text-secondary]">
+                            {r.newItems.map((item, idx) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[--accent]" />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
 
-                  {live && (
-                    <a
-                      href={r.html_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-4 inline-block text-[13px] font-medium text-[--accent-text] transition-colors duration-[--d-micro] hover:underline"
-                    >
-                      View on GitHub →
-                    </a>
+                      {r.improvedItems && r.improvedItems.length > 0 && (
+                        <div>
+                          <h3 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[--ai]">
+                            Improved
+                          </h3>
+                          <ul className="mt-2.5 space-y-2 text-[13.5px] leading-relaxed text-[--text-secondary]">
+                            {r.improvedItems.map((item, idx) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[--ai]" />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {r.fixedItems && r.fixedItems.length > 0 && (
+                        <div>
+                          <h3 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[--success]">
+                            Fixed
+                          </h3>
+                          <ul className="mt-2.5 space-y-2 text-[13.5px] leading-relaxed text-[--text-secondary]">
+                            {r.fixedItems.map((item, idx) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[--success]" />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <details className="mt-4 border-t border-[--border-subtle] pt-4 text-[13.5px]">
+                      <summary className="cursor-pointer font-medium text-[--text-secondary] hover:text-[--text-primary] select-none">
+                        Show release details
+                      </summary>
+                      <div className="mt-4 space-y-4 pl-2">
+                        {r.newItems && (
+                          <div>
+                            <h4 className="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[--text-muted]">
+                              Added
+                            </h4>
+                            <ul className="mt-1.5 space-y-1.5 text-[13px] text-[--text-secondary]">
+                              {r.newItems.map((item, idx) => (
+                                <li key={idx} className="flex items-start gap-2">
+                                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[--text-muted]" />
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {r.improvedItems && (
+                          <div>
+                            <h4 className="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[--text-muted]">
+                              Security & Architecture
+                            </h4>
+                            <ul className="mt-1.5 space-y-1.5 text-[13px] text-[--text-secondary]">
+                              {r.improvedItems.map((item, idx) => (
+                                <li key={idx} className="flex items-start gap-2">
+                                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[--text-muted]" />
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </details>
                   )}
-                </article>
-              </RevealItem>
+                </div>
+              </article>
             ))}
           </div>
-        </Reveal>
+        </div>
       </main>
 
-      <footer className="relative border-t border-[--border-default] px-5 py-12">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
-          <div className="flex items-center gap-2.5">
-            <Logo className="h-6 w-6" />
-            <span className="text-[13.5px] font-semibold">Confluence</span>
+      <footer className="border-t border-[--border-subtle] bg-[--bg-page] px-5 py-8 sm:px-8">
+        <div className="mx-auto flex max-w-[800px] items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Logo size={24} />
+            <span className="text-[13px] font-semibold text-[--text-primary]">Confluence</span>
+            <span className="text-[12px] text-[--text-muted]">· {VERSION_LABEL}</span>
           </div>
-          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] text-[--text-secondary]">
-            <Link href="/" className="transition-colors duration-[--d-micro] hover:text-[--text-primary]">
-              Home
-            </Link>
-            <Link
-              href="/changelog"
-              className="transition-colors duration-[--d-micro] hover:text-[--text-primary]"
-            >
-              Changelog
-            </Link>
-            <Link href="/login" className="transition-colors duration-[--d-micro] hover:text-[--text-primary]">
-              Sign in
-            </Link>
-          </nav>
+          <p className="text-[12px] text-[--text-muted]">
+            © {new Date().getFullYear()} Confluence. All rights reserved.
+          </p>
         </div>
       </footer>
     </div>

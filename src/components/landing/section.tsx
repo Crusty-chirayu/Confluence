@@ -64,17 +64,17 @@ export function SectionHeading({
     <div className={cn("mx-auto max-w-2xl text-center", className)}>
       {eyebrow && (
         <RevealItem>
-          <p className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.14em] text-[--accent-text]">
+          <p className="mb-3 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[--accent-text]">
             {eyebrow}
           </p>
         </RevealItem>
       )}
       <RevealItem>
-        <Heading className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">{title}</Heading>
+        <Heading className="text-balance text-3xl font-semibold tracking-[-0.03em] text-[--text-primary] sm:text-4xl">{title}</Heading>
       </RevealItem>
       {subtitle && (
         <RevealItem>
-          <p className="mt-4 text-pretty text-[15px] leading-relaxed text-[--fg-muted]">
+          <p className="mt-4 text-pretty text-[15px] leading-relaxed text-[--text-secondary]">
             {subtitle}
           </p>
         </RevealItem>

@@ -52,23 +52,23 @@ const jetbrainsMono = localFont({
 
 export const metadata: Metadata = {
   title: {
-    default: "Confluence — AI chat, alone or together",
+    default: "Confluence — Private AI. Shared rooms.",
     template: "%s · Confluence",
   },
   description:
-    "A ChatGPT/Discord hybrid: private 1:1 AI chat plus opt-in AI participation inside multi-user rooms. Streaming, moderated, and built on Supabase.",
+    "Private conversations when you want focus. Shared rooms where AI answers only when you invite it. Built with Postgres Row-Level Security and private attachments.",
   openGraph: {
-    title: "Confluence — AI chat, alone or together",
+    title: "Confluence — Private AI. Shared rooms.",
     description:
-      "Private 1:1 AI chat plus opt-in AI participation inside multi-user rooms.",
+      "Private conversations when you want focus. Shared rooms where AI answers only when you invite it.",
     type: "website",
   },
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b0b0e" },
+    { media: "(prefers-color-scheme: light)", color: "#F7F8FA" },
+    { media: "(prefers-color-scheme: dark)", color: "#06070A" },
   ],
 };
 
