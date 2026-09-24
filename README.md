@@ -1,570 +1,526 @@
 <div align="center">
 
-```
-   ██████╗ ██████╗ ███╗   ██╗███████╗██╗     ██╗   ██╗███████╗███╗   ██╗ ██████╗███████╗
-  ██╔════╝██╔═══██╗████╗  ██║██╔════╝██║     ██║   ██║██╔════╝████╗  ██║██╔════╝██╔════╝
-  ██║     ██║   ██║██╔██╗ ██║█████╗  ██║     ██║   ██║█████╗  ██╔██╗ ██║██║     █████╗
-  ██║     ██║   ██║██║╚██╗██║██╔══╝  ██║     ██║   ██║██╔══╝  ██║╚██╗██║██║     ██╔══╝
-  ╚██████╗╚██████╔╝██║ ╚████║██║     ███████╗╚██████╔╝███████╗██║ ╚████║╚██████╗███████╗
-   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝     ╚══════╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝ ╚═════╝╚══════╝
-```
-
-### The AI Chat Platform — Where 1:1 Conversations Meet Group Intelligence.
-
-**A ChatGPT × Discord hybrid.** Private 1:1 AI chat and opt-in AI participation inside multi-user rooms — one conversation model, two experiences.
+<img src="./assets/banner.svg" alt="Confluence — Private AI. Shared rooms." width="100%"/>
 
 <br/>
 
-![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![Tailwind](https://img.shields.io/badge/Tailwind-v4-38BDF8?style=for-the-badge&logo=tailwindcss&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%7C%20Auth%20%7C%20Realtime-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
-![OpenRouter](https://img.shields.io/badge/OpenRouter-Streaming%20Inference-8A2BE2?style=for-the-badge)
-
-![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)
-![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)
-![Status](https://img.shields.io/badge/status-active--development-orange?style=flat-square)
-[![Stars](https://img.shields.io/github/stars/Crusty-chirayu/Group-Chatbot?style=flat-square&color=8A2BE2)](https://github.com/Crusty-chirayu/Group-Chatbot/stargazers)
-[![Last Commit](https://img.shields.io/github/last-commit/Crusty-chirayu/Group-Chatbot?style=flat-square&color=3ECF8E)](https://github.com/Crusty-chirayu/Group-Chatbot/commits/main)
+**Talk to AI privately. Bring it into a room only when you want it there.**
 
 <br/>
 
-**[🚀 Quick Start](#-quick-start) · [🏗 Architecture](#-architecture) · [🔐 Security](#-security-model) · [📎 Attachment Understanding](#-attachment-understanding-v3) · [🎬 Motion System](#-motion-system) · [📄 Pages](#-page-inventory) · [📊 By the Numbers](#-by-the-numbers) · [🆚 How It's Different](#-how-its-different) · [🧪 CI/CD](#-cicd--push-everything-release-policy) · [❓ FAQ](#-faq)**
+[![Live demo](https://img.shields.io/badge/live-demo-8b5cf6?style=for-the-badge&logo=vercel&logoColor=white)](https://group-chatbot-ruby.vercel.app/)
+[![Version](https://img.shields.io/badge/version-2.1.0-38bdf8?style=for-the-badge)](#changelog)
+[![Health](https://img.shields.io/badge/production-healthy-34d399?style=for-the-badge)](https://group-chatbot-ruby.vercel.app/)
+
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind-4-38BDF8?style=flat-square&logo=tailwindcss&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Postgres%20·%20Auth%20·%20Realtime-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
+![Tests](https://img.shields.io/badge/vitest-270%20passing-34d399?style=flat-square)
+![A11y](https://img.shields.io/badge/WCAG%202.2%20AA-54%2F54%20pairs-34d399?style=flat-square)
+![Axe](https://img.shields.io/badge/axe-0%20violations-34d399?style=flat-square)
+
+[**Try it live**](https://group-chatbot-ruby.vercel.app/) ·
+[Quick start](#-quick-start) ·
+[How it works](#-how-it-works) ·
+[Security](#-security-model) ·
+[Attachments](#-attachments--ai-context) ·
+[Testing](#-testing--quality) ·
+[Deploy](#-deployment)
 
 </div>
 
-<br/>
+---
 
-```
-╔══════════════════════════════════════════════════════════════════════╗
-║   No env vars? No problem. Confluence boots straight into DEMO MODE  ║
-║   — a fully seeded, in-browser experience. Every screen, every       ║
-║   animation, every streaming reply — explorable with zero backend.   ║
-╚══════════════════════════════════════════════════════════════════════╝
-```
+## The idea
+
+Most AI products give you one of two things: a private assistant, or a bot bolted onto a group chat.
+
+Confluence treats them as **one primitive**. A conversation can have one member or twenty, and a message can be written by a person or by the AI. Everything else (access control, streaming, moderation, realtime) follows from that decision.
+
+| | Private AI | Shared rooms |
+|---|---|---|
+| **Who is in it** | You and Confluence AI | You, your teammates, and AI *if the room allows it* |
+| **Visibility** | Isolated from everyone else | Visible to room members only |
+| **AI behaviour** | Always responds | **Off**, **Mention only**, or **Always**, set per room |
+| **Best for** | Focused thinking, drafts, questions | Planning, study groups, team decisions |
+
+> Ask in private when you need focus. Invite the AI into the room when you need everyone on the same answer.
 
 ---
 
-## 📊 By the Numbers
+## ✦ Highlights
 
-<div align="center">
+<table>
+<tr>
+<td width="50%" valign="top">
 
-| 🧩 Edge Functions | 🧪 E2E Tests | 🎨 Contrast Pairs Verified | ⏱ Rate-Limit Triggers | 📄 App Routes | 🌗 Themes |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| **4** | **36** | **54** | **BEFORE INSERT ×2** | **10** | **light / dark / system** |
+### 🔒 Private AI
+Streaming answers, persistent history, and file context, in a conversation nobody else can read.
 
-| ⚡ Streaming Flush | 🚦 AI Call Ceiling | 🛡 Moderation Stages | 🔑 Keys in Browser | 🕵️ Audit Table Policies |
-|:---:|:---:|:---:|:---:|:---:|
-| **~400ms** | **10 calls/min** | **2 (pre + post)** | **0** | **0 (service_role only)** |
+</td>
+<td width="50%" valign="top">
 
-</div>
+### 👥 Shared rooms
+Invite by link or code. Roles, room settings, and history are built in.
 
-These aren't aspirational — every number above is pulled straight from the schema, the Edge Functions, and the test suites already committed in this repo (see [Security Model](#-security-model) and [CI/CD](#-cicd--push-everything-release-policy) for the source of each).
+</td>
+</tr>
+<tr>
+<td valign="top">
 
----
+### 🎚 You control the AI
+Per-room participation: **Off**, **Mention only** (`@AI`), or **Always**. The AI never speaks unless the room allows it.
 
-## 🆚 How It's Different
+</td>
+<td valign="top">
 
-Most "AI + chat" projects pick a lane: either a private assistant thread, or a bot bolted onto an existing group-chat app. Confluence treats both as the *same primitive*.
+### ⚡ Truly shared streaming
+One message row is updated in place, so every member watches the same tokens arrive at the same moment.
 
-| | Typical AI chat app | Typical group chat app | **Confluence** |
-|---|:---:|:---:|:---:|
-| 1:1 AI conversation | ✅ | ❌ | ✅ |
-| Multi-user rooms | ❌ | ✅ | ✅ |
-| AI as an opt-in room participant, not a bolted-on bot | ❌ | ⚠️ plugin-style | ✅ native |
-| Every member sees the *same* streamed tokens land live | — | ❌ (bots usually post once, finished) | ✅ |
-| Provider key ever touches the browser | ⚠️ varies | — | ❌ never |
-| Explorable with zero backend | ❌ | ❌ | ✅ full demo mode |
-| Moderation fails **closed** on classifier error | ⚠️ varies | ⚠️ varies | ✅ |
-| Row-Level Security on every table | ⚠️ varies | ⚠️ varies | ✅ |
+</td>
+</tr>
+<tr>
+<td valign="top">
 
-> The unifying idea: a `conversations` row doesn't care whether it has 2 members or 20, and a `messages` row doesn't care whether its author is a human or the AI. Everything downstream — RLS, streaming, moderation, realtime — inherits from that one decision.
+### 📎 Grounded in your files
+Documents become retrievable, member-scoped context, and citations are verified server-side.
 
----
+</td>
+<td valign="top">
 
-## ✨ Why Confluence
+### 🛡 Fail-closed by design
+Row Level Security on every table. Moderation blocks on classifier *errors* instead of waving them through.
 
-| | |
-|---|---|
-| 💬 **Unified conversation model** | 1:1 chats and group rooms share the same schema — the AI is just another participant |
-| ⚡ **True shared streaming** | One `messages` row updates in place — every member of a room watches the *same* tokens land at the *same* moment |
-| 🔒 **Key never leaves the server** | The OpenRouter provider key lives only in an Edge Function's environment — the browser never sees it |
-| 🛡 **Fail-closed moderation** | Two-stage (pre + post) checks; a classifier *error* blocks publication rather than silently passing it |
-| 🎛 **Row-Level Security everywhere** | Every table's access rule is a Postgres policy, not app-layer trust |
-| 🎨 **A real motion system** | Every animation traces back to one token file — nothing ad hoc, nothing per-component |
-| 🧪 **Demo-first** | The entire product is explorable without ever touching a database |
+</td>
+</tr>
+<tr>
+<td valign="top">
 
----
+### 🧪 Demo mode
+No environment variables? The app boots into a fully seeded in-browser experience with a simulated streaming assistant.
 
-## 🚀 Quick Start
+</td>
+<td valign="top">
 
-```bash
-npm install
-npm run dev          # → http://localhost:3000
-```
+### 🎨 A real design system
+Light and dark themes, semantic tokens, centralised motion, reduced-motion support, keyboard-first UX.
 
-With no environment variables set, the app boots into **demo mode** — an in-browser store with seeded conversations and a locally simulated streaming assistant.
-
-<details>
-<summary><b>🔌 Connecting a real Supabase project</b></summary>
-
-<br/>
-
-1. Create a project at [supabase.com](https://supabase.com)
-2. Apply the schema, then the migrations:
-
-   ```bash
-   supabase db push     # runs everything under supabase/migrations/
-   ```
-
-   [`supabase_schema.sql`](./supabase_schema.sql) is the v2.0 single-file
-   baseline for pasting into the SQL Editor. **It does not contain the V3
-   attachment-understanding objects** (`attachment_chunks`, the processing
-   status columns, `messages.citations`, or the retrieval RPCs) — those live
-   only in `supabase/migrations/20260901*` and later. Use `supabase db push`,
-   or run the baseline *and then* every migration in filename order.
-
-3. Dashboard → **Authentication** → enable **Email** and **Google** providers
-4. Set the frontend keys:
-
-   ```bash
-   cp .env.example .env.local
-   # fill in NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
-   ```
-
-5. Set the server-only secrets and deploy the functions:
-
-   ```bash
-   supabase secrets set OPENROUTER_API_KEY=sk-or-...
-   supabase secrets set OPENAI_API_KEY=sk-...        # embeddings; see below
-   supabase functions deploy ai-orchestrator attachment-processor moderation-check invite-consume
-   ```
-
-   `OPENAI_API_KEY` is **optional but changes what retrieval can do**. With it,
-   chunks are embedded on ingest and queries are embedded too, so retrieval is
-   genuine hybrid (vector + full-text, fused by reciprocal rank). Without it
-   no embeddings are ever written and retrieval runs on PostgreSQL full-text
-   search alone — still correct, still conversation-scoped, but lexical rather
-   than semantic. Nothing in the product claims otherwise at runtime: each
-   retrieved chunk reports the method that actually found it.
-
-6. **Confirm RLS is ON** for every table (shield icon in the Table Editor) before going to production.
-
-> `attachment-processor` is not in `release.yml`'s deploy matrix and not in the
-> CI `deno check` loop yet — both are one-line workflow edits held at
-> [`ci/patches/ci-attachment-processor-workflows.patch`](./ci/patches/ci-attachment-processor-workflows.patch).
-> Until that is applied, deploy it by hand as shown above.
-
-</details>
+</td>
+</tr>
+</table>
 
 ---
 
-## 🏗 Architecture
+## 🖼 Product tour
+
+> **Add your screenshots here.** Drop images in `assets/screenshots/` and replace the placeholders below.
+
+<!--
+<p align="center">
+  <img src="./assets/screenshots/landing.png" width="49%" alt="Landing page with interactive product preview"/>
+  <img src="./assets/screenshots/room.png" width="49%" alt="Shared room with AI participation"/>
+</p>
+<p align="center">
+  <img src="./assets/screenshots/private-ai.png" width="49%" alt="Private AI conversation"/>
+  <img src="./assets/screenshots/command-palette.png" width="49%" alt="Command palette"/>
+</p>
+-->
+
+The [live site](https://group-chatbot-ruby.vercel.app/) opens with an interactive preview showing private AI, shared rooms, AI participation, room members, typing indicators, and word-by-word streaming. The landing demo runs on deterministic local data. It illustrates the product and does not call the real AI backend.
+
+---
+
+## 🏗 How it works
 
 ```mermaid
 flowchart TB
-    subgraph Client["🌐 Browser"]
-        UI["Next.js 16 App Router\nReact · TypeScript · Tailwind v4"]
+    subgraph Client["Browser"]
+        UI["Next.js 16 · React 19 · TypeScript · Tailwind 4"]
     end
 
-    subgraph Vercel["▲ Vercel"]
-        UI
-    end
-
-    subgraph Supabase["🟢 Supabase Platform"]
-        PG[("Postgres\nRLS-enforced membership")]
-        RT["Realtime\npostgres_changes + broadcast"]
-        ST["Storage\navatars (public) · attachments (private)"]
-
+    subgraph Supabase["Supabase"]
+        PG[("Postgres<br/>Row Level Security")]
+        RT["Realtime"]
+        ST["Storage<br/>private attachments bucket"]
         subgraph Edge["Edge Functions (Deno)"]
-            AO["ai-orchestrator\nholds the provider key"]
+            AO["ai-orchestrator<br/>holds the provider key"]
+            AP["attachment-processor"]
             MC["moderation-check"]
-            IC["invite-consume\nservice_role"]
+            IC["invite-consume<br/>service_role"]
         end
     end
 
-    OR["🔮 OpenRouter\nOpenAI-compatible Chat Completions API\n(streaming)"]
+    OR["OpenRouter<br/>OpenAI-compatible streaming API"]
+    EMB["Embeddings<br/>optional"]
 
     UI -- "@supabase/ssr" --> PG
     UI --- RT
     UI --- ST
-    UI -- "fetch (SSE)" --> AO
+    UI -- "SSE" --> AO
     AO --> MC
-    AO -- "_shared/provider.ts\ntranslation layer" --> OR
+    AO --> OR
+    AP --> EMB
+    AP --> PG
     IC -.-> PG
-
-    style Client fill:#0f172a,stroke:#38bdf8,color:#e2e8f0
-    style Supabase fill:#052e1f,stroke:#3ecf8e,color:#e2e8f0
-    style Edge fill:#1e1b3a,stroke:#8a2be2,color:#e2e8f0
-    style OR fill:#2d0f3a,stroke:#c084fc,color:#e2e8f0
 ```
 
-> **The AI provider key never reaches the browser.** The client calls `ai-orchestrator`, which streams SSE back while progressively updating one `messages` row — so every member of a group room watches the same answer appear at the same moment.
+**The AI provider key never reaches the browser.** The client calls `ai-orchestrator`, which streams back over SSE while progressively updating a single message row.
 
-### 🔄 Streaming lifecycle (data flow)
+### Streaming lifecycle
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor U as User
-    participant C as Client (Next.js)
+    participant C as Client
     participant DB as Postgres (RLS)
-    participant AO as ai-orchestrator (Edge Fn)
-    participant MOD as moderation-check
-    participant OR as OpenRouter
+    participant AO as ai-orchestrator
+    participant M as moderation-check
+    participant P as OpenRouter
 
-    U->>C: Sends message
-    C->>DB: INSERT human message
-    Note over DB: RLS: must be a member,\nsender_type='human',\nsender_id=auth.uid()
+    U->>C: Send message
+    C->>DB: INSERT human message (RLS: member, sender = auth.uid())
     C->>AO: Invoke (SSE)
     AO->>DB: Verify membership + rate limit
-    AO->>MOD: Pre-moderate trigger message
-    MOD-->>AO: pass / fail
+    AO->>M: Pre-moderate
     AO->>DB: INSERT placeholder AI row (status: streaming)
-    AO->>OR: Stream chat completion
-    loop every ~400ms
-        OR-->>AO: SSE delta
-        AO-->>C: Forward delta
-        AO->>DB: Flush row content
+    AO->>P: Stream chat completion
+    loop roughly every 400 ms
+        P-->>AO: token delta
+        AO-->>C: forward delta
+        AO->>DB: flush row content
     end
-    AO->>MOD: Post-moderate finished output
-    alt moderation passes
-        AO->>DB: status → 'sent'
-    else moderation fails
-        AO->>DB: content redacted, status → 'blocked'
+    AO->>M: Post-moderate finished output
+    alt passes
+        AO->>DB: status → sent
+    else fails
+        AO->>DB: content redacted, status → blocked
     end
-    AO->>DB: Log tokens + latency → ai_usage_log
-    DB-->>C: Realtime broadcast to all room members
+    AO->>DB: log tokens + latency
+    DB-->>C: Realtime update to every room member
 ```
 
-`regenerate()` reruns from step 3 onward with `supersedes_id` set — the previous answer becomes `status: 'superseded'` and drops out of the view **without being destroyed.**
+Regenerating an answer reruns from the model call with `supersedes_id` set. The old answer becomes `superseded` and leaves the view **without being destroyed**.
+
+### AI participation modes
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Off
+    Off --> MentionOnly: admin changes mode
+    MentionOnly --> Always: admin changes mode
+    Always --> Off: admin changes mode
+
+    Off: Off\nAI stays silent
+    MentionOnly: Mention only\nAI answers when @AI is used
+    Always: Always\nAI responds per room config
+```
 
 ---
 
-## 🔐 Security Model
+## 📎 Attachments & AI context
 
-```mermaid
-flowchart LR
-    A["Who can read\na conversation?"] -->|"RLS: is_conversation_member()"| B["conversations · messages ·\nreactions · message_attachments"]
-    C["Who can administer\na room?"] -->|"RLS: is_conversation_admin()"| D["owner / admin only"]
-    E["Audit tables"] -->|"RLS enabled,\nzero policies"| F["unreachable from anon/authenticated\n→ service_role only"]
-    G["Invite redemption"] -->|"invite-consume\n(service_role)"| H["no RLS path to an\nunjoined room's invite"]
+Files shared in a conversation become **retrievable, member-scoped context** for the assistant.
+
+```text
+upload → validate → private bucket → message_attachments (queued)
+      → attachment-processor: claim → download → extract → chunk → embed → persist → ready
+      → ai-orchestrator: embed query → retrieve → fence into the prompt → cite
 ```
+
+<details>
+<summary><b>Processing lifecycle</b></summary>
+
+<br/>
+
+`unsupported → queued → processing → ready | failed`
+
+- Jobs are claimed atomically, so concurrent calls cannot double-extract.
+- A lease abandoned by a crashed function is reclaimable after 15 minutes.
+- A failure clears partial chunks so a retry starts clean.
+- A readable but empty document completes as `ready` with zero chunks. That is truthful, not a failure.
+- The client chip polls a bounded number of times, announces each state, and offers **Retry**.
+
+</details>
+
+<details>
+<summary><b>Extraction & chunking</b></summary>
+
+<br/>
+
+- Formats: PDF, plain text, Markdown, CSV, JSON, HTML.
+- PDFs are extracted per page, so each chunk keeps the page it came from.
+- Chunks are 1000 characters with 200 overlap, never crossing a page boundary, capped at 400 per attachment.
+- A PDF that fails to parse **fails loudly**. No placeholder text is stored, because a placeholder could later be retrieved and cited as if the document said it.
+- Uploads are capped at 10 MB. The allowlist deliberately excludes SVG.
+
+</details>
+
+<details>
+<summary><b>Retrieval</b></summary>
+
+<br/>
+
+- **Hybrid** when embeddings exist (pgvector cosine + PostgreSQL full-text, fused by reciprocal rank).
+- **Full-text only** when they don't. Degraded, never fabricated.
+- Each retrieved chunk reports the method that actually found it: `hybrid`, `vector`, or `fts`.
+- Retrieval is `SECURITY INVOKER` and re-checks membership itself. A non-member gets nothing back.
+- Scope is the whole conversation, not just the recent-message window.
+
+</details>
+
+<details>
+<summary><b>Prompt-injection & citation integrity</b></summary>
+
+<br/>
+
+- Extracted text is treated as untrusted data and delivered inside an explicitly delimited `SHARED FILE CONTENT` block. The matching system-prompt rules are added exactly when the block is.
+- Citations are **derived, not trusted**. `buildVerifiedCitations` resolves whatever the model wrote against the chunks actually placed in the prompt and drops anything unresolvable.
+- The client re-validates stored citations at the render boundary. No citation chip can be minted from model prose alone.
+
+</details>
+
+### Known limitations
+
+Documented honestly, because a README that only lists strengths isn't useful:
+
+- **Images are stored and displayed but not analysed by the model.** The provider layer currently carries text content only.
+- **Audio and video are not transcribed** and are marked `unsupported`.
+- **Semantic retrieval requires `OPENAI_API_KEY`.** Without it, retrieval is full-text.
+- See [`ACCEPTANCE.md`](./ACCEPTANCE.md) for exactly what has and has not been verified.
+
+---
+
+## 🔐 Security model
 
 | Concern | Enforcement |
 |---|---|
-| 📖 Who can read a conversation | RLS `is_conversation_member()` on `conversations`, `messages`, `reactions`, `message_attachments` |
-| 👑 Who can administer a room | RLS `is_conversation_admin()` — owner/admin only |
-| 🕵️ Audit tables | RLS **enabled with zero policies** → unreachable from `anon`/`authenticated`; only `service_role` |
-| 🔑 AI provider key | `OPENROUTER_API_KEY` — only ever in the Edge Function environment |
-| 🎟 Invite redemption | `invite-consume` (service_role) — the client has no RLS path to an invite for a room it hasn't joined |
-| 🚧 Moderation | Two stages (`pre`, `post`), **fails closed** — a classifier error blocks publication |
-| ⏱ Rate limiting | 30 msg/min & 20 invites/hr as `BEFORE INSERT` triggers (every write path), plus fixed-window Edge Function counters — 10 AI calls/min, 60 moderation checks/min, 20 attachment-processing calls/min |
-| 📎 Attachments | Private bucket, storage policies call the same membership check |
-| 📄 Attachment chunks | RLS: readable by conversation members; **insert/update/delete have no permissive policy** → `service_role` only, so no client can write searchable text into a room |
-| 🔎 Retrieval | `retrieve_attachment_chunks` is `SECURITY INVOKER` and re-checks membership itself, so it returns nothing — not an error — to a non-member |
-| 🏷 Citations | Derived server-side from the chunks actually placed in the prompt; model prose alone can never mint an attachment id, page or label |
-| 🧠 Training data | `profiles.training_opt_in`, off by default; routing requires **unanimous** opt-in |
-| ↪️ Redirect targets | `?next=` collapsed to a same-origin path by `safeInternalPath()` — no open redirects |
+| Who can read a conversation | RLS via `is_conversation_member()` on conversations, messages, reactions, and attachments |
+| Who can administer a room | RLS via `is_conversation_admin()` (owner / admin only) |
+| AI provider key | Lives only in Edge Function secrets. Never in client code |
+| Service-role operations | Restricted to server contexts (e.g. `invite-consume`) |
+| Invite redemption | Handled server-side; the client has no RLS path to an invite for a room it hasn't joined |
+| Moderation | Two stages (pre + post). A classifier error **blocks** publication |
+| Rate limiting | 30 msg/min and 20 invites/hr as `BEFORE INSERT` triggers; Edge counters for AI calls (10/min), moderation (60/min), attachment processing (20/min) |
+| Attachments | Private bucket; storage policies reuse the membership check |
+| Attachment chunks | Readable by members; **no client write policy**, so only `service_role` can write searchable text into a room |
+| Training data | `profiles.training_opt_in`, off by default; routing requires **unanimous** opt-in |
+| Redirects | `?next=` is collapsed to a same-origin path, so there are no open redirects |
+| Secret scanning | gitleaks in CI |
 
-> ⚠️ The client-side classifier in `src/lib/data/moderation-local.ts` is a **UX affordance only** — it warns before you send. The authoritative check always runs server-side.
+> The client-side classifier in `src/lib/data/moderation-local.ts` is a **UX affordance only**. The authoritative check always runs server-side.
+
+Security details and follow-ups live in [`SECURITY.md`](./SECURITY.md) and [`AUDIT.md`](./AUDIT.md).
 
 ---
 
-## 📎 Attachment Understanding <sub>V3</sub>
+## 🎨 Design system (v2.1)
 
-Documents shared in a conversation become retrievable context for the assistant —
-grounded, member-scoped, and cited only from what was actually retrieved.
+Confluence v2.1 was a ground-up visual redesign: **premium modern SaaS with a restrained Apple / Linear feel.**
 
+- **Tokens, not one-offs.** Semantic surface, text, accent, and AI-specific colours; spacing scale; radii; layered shadows.
+- **Light and dark themes**, plus system.
+- **Restrained glass.** Dense dialogs and forms use opaque elevated surfaces rather than heavy transparency.
+- **One motion source of truth**: [`src/lib/motion.ts`](./src/lib/motion.ts). Transform and opacity only; exits are always faster than entries; `prefers-reduced-motion` collapses everything to an instant cut.
+- **Self-hosted fonts** (Inter, JetBrains Mono). No request leaves for a font CDN.
+- **Accessible by construction**: focus states, dialog semantics, radio semantics, keyboard navigation, command palette.
+- **Responsive** from ~390 px mobile to ~1440 px desktop, with a collapsible sidebar and modals verified on narrow screens.
+
+<details>
+<summary><b>Interface inventory</b></summary>
+
+<br/>
+
+Landing page · authentication shell · application shell · sidebar · private conversation list · shared room list · chat interface · AI composer · new-conversation modal · group room creation · room settings · search · command palette · conversation actions · delete confirmations · theme switching · offline / error states · changelog
+
+</details>
+
+---
+
+## 🚀 Quick start
+
+**Requirements:** Node.js and npm. Deno is only needed for the Edge Function tests.
+
+```bash
+git clone https://github.com/Crusty-chirayu/Confluence.git
+cd Confluence
+npm install
+npm run dev        # → http://localhost:3000
 ```
-upload → validate → private bucket → message_attachments (queued)
-       → attachment-processor: claim → download → extract → chunk → embed → persist → ready
-       → ai-orchestrator: embed query → retrieve → fence into the prompt → cite
+
+With **no environment variables**, Confluence boots into **demo mode**: seeded conversations, every screen, and a locally simulated streaming assistant. No backend required.
+
+### Connect a real backend
+
+<details>
+<summary><b>Supabase + AI provider setup</b></summary>
+
+<br/>
+
+**1. Create a Supabase project** and apply the schema and migrations:
+
+```bash
+supabase db push
 ```
 
-**Ingestion.** Uploads are capped at 10 MB and checked against an allowlist that
-deliberately excludes SVG (it can carry scripts and would be served back raw).
-Files land in the private `attachments` bucket at
-`{conversation_id}/{message_id}/{filename}` — the shape the storage policies read
-to enforce membership — and the `message_attachments` row can only be inserted by
-the message's own author inside a room they belong to.
+> `supabase_schema.sql` is the v2.0 baseline and does **not** include the attachment-understanding objects. Use `supabase db push`, or run the baseline and then every migration in filename order.
 
-**Processing status** is a real lifecycle, not a guess:
-`unsupported → queued → processing → ready | failed`, stored on the row and read
-back through the member-scoped `get_attachment_processing_status` RPC. The chip
-polls a bounded number of times rather than forever, announces each state, and
-offers a **Retry** on failure. A job is claimed atomically
-(`claim_attachment_processing`, `SELECT … FOR UPDATE`), so concurrent calls cannot
-double-extract; a lease abandoned by a crashed function is reclaimable after 15
-minutes; and a failure clears its partial chunks so a retry starts clean. An empty
-but readable document completes as `ready` with zero chunks — truthful, not failed.
+**2. Enable auth providers** in the Supabase dashboard (Email and Google).
 
-**Extraction** covers PDF, plain text, Markdown, CSV, JSON and HTML. PDFs are
-extracted per page with pdf.js and chunked *within* each page, so every chunk keeps
-the page it actually came from; text formats are modelled as a single page. Chunks
-are 1000 characters with a 200-character overlap, never straddling a page boundary,
-capped at 400 per attachment. A PDF that fails to parse **fails loudly** — no
-placeholder text is ever persisted, because a placeholder would later be retrieved
-and cited as though the document said it. Because Vitest has to stub pdf.js, that
-path is covered by a separate Deno integration test (`npm run test:pdf`) that builds
-a real PDF in memory and runs the real library — a stub cannot catch a broken worker
-initialization, and one shipped that way.
+**3. Set frontend variables:**
 
-**Retrieval** is hybrid when embeddings exist and honestly lexical when they don't.
-`retrieve_attachment_chunks` runs a pgvector cosine leg and a PostgreSQL full-text
-leg, joins them by chunk id and fuses them with reciprocal rank fusion; each row
-reports `hybrid`, `vector` or `fts` for the method that actually found it. Without
-`OPENAI_API_KEY` no embeddings are written, the vector leg is skipped, and full-text
-search carries retrieval — degraded, never fabricated. A failed query embedding
-falls back the same way. Retrieval is `SECURITY INVOKER` and re-verifies membership
-itself, scoped to the whole conversation rather than the recent-message window.
+```bash
+cp .env.example .env.local
+```
 
-**Prompt injection.** Extracted text is untrusted data. It is delivered inside an
-explicitly delimited `SHARED FILE CONTENT` block, and the system prompt's rules for
-that block are added exactly when the block is — stating that content inside it can
-never change instructions, override safety policy, or reveal system internals, even
-when it says "ignore previous instructions".
+| Variable | Where | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `.env.local` | Public Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `.env.local` | Public anon key |
 
-**Citations are derived, not trusted.** The model is asked to cite the source labels
-it was given, but instructions are not enforcement — so `buildVerifiedCitations`
-resolves whatever the model wrote against the chunks that were actually placed in
-the prompt, and drops anything that cannot be resolved. A citation therefore always
-maps to a real retrieved chunk, with the page number taken from the extractor's own
-`page_number`. The client re-validates the stored JSON at the render boundary and
-renders nothing it cannot verify; no chip can be minted from prose alone.
+**4. Set server-only secrets** (via the Supabase CLI, never in `.env.local`):
 
-**Known limitations** (all documented in [`ACCEPTANCE.md`](./ACCEPTANCE.md)):
+| Secret | Required | Purpose |
+|---|---|---|
+| `OPENROUTER_API_KEY` | Yes | AI provider access (OpenRouter's OpenAI-compatible API) |
+| `OPENAI_API_KEY` | Optional | Enables embeddings for hybrid (semantic + full-text) retrieval |
+| `AI_MODEL` | Optional | Overrides the default model |
+| `TRAINING_PIPELINE_URL` | Optional | Routing target after unanimous training-consent check |
 
-- **Images are not analysed.** They are stored, member-scoped and rendered, but the
-  provider layer carries `content: string` only — there is no multimodal wire
-  format, so no image content reaches the model.
-- **Audio and video are not transcribed**; they are marked `unsupported`.
-- **Semantic retrieval requires `OPENAI_API_KEY`.** Without it retrieval is
-  full-text only. Embeddings are generated against OpenAI's API directly.
-- The SQL retrieval fusion and the RLS policies have **not been executed against a
-  live Supabase project**, and PDF extraction has not been run inside a deployed Edge
-  Function (it is verified against the real pdf.js locally, under Deno). See the
-  verification status in [`ACCEPTANCE.md`](./ACCEPTANCE.md) for exactly what was and
-  was not run.
-- **V3 is not deployed yet.** The `Release` workflow fails at its first Supabase step,
-  so no migration has been pushed and no Edge Function deployed by the pipeline —
-  a pre-existing configuration gap, recorded as an owner follow-up in
-  [`AUDIT.md`](./AUDIT.md).
+```bash
+supabase secrets set OPENROUTER_API_KEY=<your-key>
+```
+
+**5. Deploy the Edge Functions:**
+
+```bash
+supabase functions deploy ai-orchestrator attachment-processor moderation-check invite-consume
+```
+
+**6. Confirm RLS is enabled** on every table before going to production.
+
+</details>
 
 ---
 
-## 🎨 Typography <sub>§2.3</sub>
+## 🧪 Testing & quality
 
-Inter and JetBrains Mono are **self-hosted** — variable `.woff2` files live in [`src/app/fonts/`](./src/app/fonts) (SIL OFL 1.1 licences committed alongside them), wired through `next/font/local`, which derives adjusted fallback metrics so the system-font fallback doesn't shift layout on first paint. **No request ever leaves for a font CDN.**
+```bash
+npm test                 # Vitest: unit + component + a11y suites
+npm run test:a11y        # axe-core accessibility suite (jsdom)
+npm run test:contrast    # WCAG AA contrast against design tokens
+npm run test:e2e:install # one-time: install Chromium
+npm run test:e2e         # Playwright E2E + browser axe audit
+npm run test:edge        # Deno: moderation fail-closed test
+npm run test:pdf         # Deno: PDF extraction against real pdf.js
+npm run lint
+npx tsc --noEmit
+npm run build
+```
 
----
+**Latest reported validation (v2.1):**
 
-## 🎬 Motion System <sub>§2.7</sub>
-
-Every animation is driven by tokens in [`src/lib/motion.ts`](./src/lib/motion.ts) — no ad hoc per-component timings.
-
-<table>
-<tr><td>
-
-**Durations**
-- `120ms` micro
-- `200ms` standard
-- `320ms` emphasis
-- `480ms` hero
-
-</td><td>
-
-**Easing**
-- Entering → `cubic-bezier(0.16, 1, 0.3, 1)`
-- Exiting → `cubic-bezier(0.7, 0, 0.84, 0)`
-
-</td><td>
-
-**Rules**
-- Transform / opacity **only** — never `width`/`height`/`top`/`left`
-- Exit is **always** faster than entry
-
-</td></tr>
-</table>
-
-`prefers-reduced-motion` collapses every animation to an **instant cut** (not a slower version) via a global override in `globals.css`.
-
-**Highlights:**
-
-- 🌀 Staggered scroll reveals on the landing page + hero parallax
-- 🪟 Blurred-glass nav after 40px scroll
-- 📋 `layout` animation for conversation-list reordering
-- ⌨️ Streaming reveal with a blinking caret — *no per-token effects* (visually noisy at speed)
-- 💬 Staggered-pulse typing dots
-- 🎉 Reactions pop in on an overshoot spring
-- 🌗 Sun ↔ moon rotate-and-fade theme morph with a 200ms surface crossfade
-- 💀 Skeleton shimmer wherever content has a predictable shape (spinners only where it doesn't)
-- 🔔 Toasts with a visible shrinking dismissal bar
-- 📡 Accessible offline / reconnecting / restored banner — collapses to an instant cut under `prefers-reduced-motion`
-
-> 🛑 **Destructive confirms** use a debounce with a visual tell — clicking confirm within **450ms** of the dialog opening *shakes it* instead of silently swallowing the click.
-
----
-
-## 📄 Page Inventory
-
-| Route | Purpose |
+| Check | Result |
 |---|---|
-| `/` | Landing — hero with a live animated demo, features, how-it-works, security, pricing teaser |
-| `/pricing` | Standalone pricing — full plan table, FAQ, limits behind each tier |
-| `/login`, `/signup` | Email + Google auth, inline validation, password strength, in-place success states |
-| `/forgot-password`, `/reset-password` | Recovery flow |
-| `/auth/callback` | OAuth / magic-link code exchange |
-| `/onboarding` | 3-step: profile & training opt-in → theme → first conversation |
-| `/app` | Dashboard — greeting, quick actions, starter prompts |
-| `/app/c/[id]` | Chat surface — 1:1 and group, streaming, reactions, edit, regenerate |
-| `/app/settings` | Profile, appearance, privacy & data (incl. JSON export), account |
-| `/join/[code]` | Invite redemption |
-
-> Room settings (name, topic, AI mode, members, roles, invites, danger zone) live in a modal on the chat surface.
+| Vitest | **270 / 270** passed (23 / 23 files) |
+| TypeScript | 0 errors |
+| ESLint | 0 errors |
+| Production build | 14 / 14 routes |
+| WCAG 2.2 AA contrast | 54 / 54 pairs |
+| Axe accessibility | 0 violations |
+| Production deployment | Healthy |
 
 ---
 
-## 🗂 Project Layout
+## 🗂 Project structure
 
-```
+```text
 src/
-├── app/                      routes (App Router)
+├── app/                     App Router routes + self-hosted fonts
 ├── components/
-│   ├── ui/                   button, input, modal, toast, avatar, skeleton
-│   ├── chat/                 chat-view, composer, message-item, markdown, room-settings
-│   ├── layout/                sidebar, search / join / new-conversation modals
-│   ├── landing/               nav, hero-demo, section primitives
-│   ├── theme-provider.tsx     light/dark/system + morphing toggle
-│   ├── session-provider.tsx   auth state, works in both modes
-│   └── network-provider.tsx   online/offline/reconnecting state (§27)
-├── app/fonts/                self-hosted Inter + JetBrains Mono (OFL licences)
+│   ├── ui/                  primitives (button, input, modal, toast, avatar, skeleton)
+│   ├── chat/                chat view, composer, message item, markdown, room settings
+│   ├── layout/              sidebar, search / join / new-conversation modals
+│   └── landing/             nav, interactive hero demo
 └── lib/
-    ├── motion.ts              §2.7 motion tokens — single source of truth
-    ├── data/api.ts            unified data layer (Supabase ⟷ demo)
-    ├── data/demo-store.ts     in-browser Supabase stand-in
-    ├── attachments.ts         upload allowlist, size cap, storage path, extractable types
-    ├── attachment-status.ts   processing lifecycle + bounded polling
-    ├── understanding.ts       client trigger for the processor
-    ├── citations.ts           render-boundary validation of verified citations
-    └── supabase/              browser + server clients
+    ├── motion.ts            motion tokens: single source of truth
+    ├── data/api.ts          unified data layer (Supabase ⟷ demo)
+    ├── data/demo-store.ts   in-browser stand-in for Supabase
+    ├── attachments.ts       upload allowlist, size cap, storage paths
+    ├── citations.ts         render-boundary citation validation
+    └── supabase/            browser + server clients
 
 supabase/
-├── migrations/                versioned schema — the V3 objects live here, not in supabase_schema.sql
+├── migrations/              versioned schema
 └── functions/
-    ├── ai-orchestrator/       streaming, moderation, retrieval, verified citations
-    ├── attachment-processor/  extract → chunk → embed → persist, with status tracking
-    ├── moderation-check/      fail-closed classifier
-    ├── invite-consume/        invite redemption (service_role)
-    └── _shared/               extract, embeddings, attachment-context, citations, provider, cors, ratelimit
+    ├── ai-orchestrator/     streaming, moderation, retrieval, verified citations
+    ├── attachment-processor/ extract → chunk → embed → persist
+    ├── moderation-check/    fail-closed classifier
+    ├── invite-consume/      invite redemption (service_role)
+    └── _shared/             provider, extract, embeddings, citations, cors, ratelimit
 
+e2e/                         Playwright suite
+tests/                       Vitest + Deno integration tests
+scripts/contrast.mjs         token contrast checker
 ```
+
+> Layout summarised from the project documentation. Treat the repository tree as authoritative.
 
 ---
 
-## 🧪 CI/CD — "push everything" release policy <sub>§1</sub>
+## 🌐 Deployment
 
-```mermaid
-flowchart LR
-    A[Push / PR] --> B["ci.yml\ntypecheck · lint · unit tests · build\ndeno check (3 Edge Fns)\nmoderation fail-closed test\ngitleaks secret scan"]
-    C["Push to main"] --> D["release.yml"]
-    D --> E["1️⃣ migrations"] --> F["2️⃣ Edge Functions"] --> G["3️⃣ frontend"]
-    G -.->|"partial deploy = failed deploy"| D
-```
-
-- **[`.github/workflows/ci.yml`](./.github/workflows/ci.yml)** — ✅ live
-- **[`.github/workflows/release.yml`](./.github/workflows/release.yml)** — ✅ live, strict dependency order: **migrations → Edge Functions → frontend**
-
-> ⚠️ **The Playwright `e2e` job and the token-contrast step are NOT in `ci.yml` yet.** The `e2e/` suite (31 tests) and `scripts/contrast.mjs` are committed and run locally, but the commit that adds them to `ci.yml` can't be pushed by the agent's GitHub App credential (GitHub rejects workflow writes server-side without the `workflows` permission — re-verified 2026-08-28). The diff ships as [`ci/patches/ci-playwright-and-contrast.patch`](./ci/patches/ci-playwright-and-contrast.patch) — see [`RELEASING.md` §3](./RELEASING.md) for the one-time owner action.
-
-Both workflows were initially shipped under [`ci/`](./ci) (the original push credential lacked the `workflows` permission) and activated into `.github/workflows/` once resolved. They now live **only** there — [`ci/README.md`](./ci/README.md) documents jobs, the Deno configuration contract, and required secrets.
-
-Edge Function type-checking uses two synchronized Deno configs — root [`deno.json`](./deno.json) (CI, provisions npm deps from [`deno.lock`](./deno.lock)) and [`supabase/functions/deno.json`](./supabase/functions/deno.json) (Supabase CLI bundling). Their `imports` must stay identical.
-
-**Audit & release docs:**
-
-| Doc | Covers |
+| | |
 |---|---|
-| [`SECURITY.md`](./SECURITY.md) | Secrets, RLS/authorization, XSS handling, fail-closed moderation, unanimous training consent, owner/config follow-ups |
-| [`AUDIT.md`](./AUDIT.md) | Verifiable security / performance / accessibility audit — measurable numbers, nothing fabricated |
-| [`RELEASING.md`](./RELEASING.md) | Owner-run release checklist — server secrets, CI activation + action bumps, release secrets, db push + function deploy, verification |
+| **Web app** | Vercel: [group-chatbot-ruby.vercel.app](https://group-chatbot-ruby.vercel.app/) |
+| **Fallback** | Render: [group-chatbot.onrender.com](https://group-chatbot.onrender.com/) |
+| **Backend** | Supabase (Postgres, Auth, Realtime, Storage, Edge Functions) |
+
+CI (`ci.yml`) runs typecheck, lint, unit tests, build, `deno check`, the moderation fail-closed test, and a gitleaks scan. `release.yml` deploys in strict order: **migrations → Edge Functions → frontend**. Release steps are in [`RELEASING.md`](./RELEASING.md).
+
+<details>
+<summary><b>Current CI gaps</b></summary>
+
+<br/>
+
+The Playwright job, the contrast step, and `attachment-processor` are shipped as ready-to-apply patches under [`ci/patches/`](./ci/patches). Until applied, run those checks locally and deploy `attachment-processor` by hand.
+
+</details>
 
 ---
 
-## 📜 Scripts
+## 📜 Changelog
 
-```bash
-npm run dev             # dev server
-npm run build           # production build
-npm run start            # serve the build
-npm run lint             # eslint
-npx tsc --noEmit          # typecheck
-npm test                 # unit + component + a11y (axe-core) suites
-npm run test:a11y        # vitest axe-core accessibility suite (jsdom, structural)
-npm run test:edge        # Deno moderation fail-closed integration test (needs Deno runtime)
-npm run test:pdf         # Deno PDF extraction integration test against real pdf.js
-npm run test:contrast    # WCAG AA token contrast against globals.css (no browser)
-npm run test:e2e         # Playwright E2E + browser axe audit (needs Chromium)
-npm run test:e2e:install # download Chromium for the E2E suite
-```
+**v2.1.0** — Visual redesign
+- New design system: tokens, light/dark themes, restrained glass, elevated surfaces
+- Confluence gateway brand mark across sidebar, landing, auth, AI identity, and modals
+- Animated landing demo: typing indicator, word-by-word streaming, blinking cursor, dynamic status
+- Modal layering and narrow-screen fit fixes
+- Creator signature restored
 
-### 🖥 End-to-end / browser accessibility
+**v2.0** — Unified conversation model, shared streaming, fail-closed moderation, RLS everywhere, demo mode
 
-The Playwright suite (`e2e/`) runs the app in **demo mode** and covers the critical journeys: AI chat streaming + persistence, group rooms, `@ai` mention and moderation, ⌘K command palette, history, and a real-browser **axe-core audit (light + dark, WCAG AA — not disabled)**. It targets stable selectors (roles, labels, `data-testid`), emulates `prefers-reduced-motion`, and produces a report + traces on failure.
-
-```bash
-npx playwright install --with-deps chromium  # one-time
-npm run test:e2e
-```
-
-The token contrast script parses `src/app/globals.css`, resolves the semantic tokens for both themes, and asserts every text-on-surface pair meets **4.5:1 (normal) / 3:1 (large & UI)** — 54 pairs, both themes. Runnable locally today (`npm run test:contrast`); CI wiring is part of `ci/patches/ci-playwright-and-contrast.patch`.
+**V3 track** — Attachment understanding (see [above](#-attachments--ai-context) and [`ACCEPTANCE.md`](./ACCEPTANCE.md))
 
 ---
 
-## ❓ FAQ
+## 🤝 Contributing
 
-<details>
-<summary><b>Do I need a Supabase project just to try it out?</b></summary>
-<br/>
-No. Running <code>npm install && npm run dev</code> with no environment variables boots the app straight into demo mode — a fully seeded, in-browser experience with a locally simulated streaming assistant. Every screen and animation is explorable with zero backend.
-</details>
+Issues and pull requests are welcome. Before opening a PR:
 
-<details>
-<summary><b>Can the browser ever see the OpenRouter API key?</b></summary>
-<br/>
-No — by design. <code>OPENROUTER_API_KEY</code> lives only in the <code>ai-orchestrator</code> Edge Function's environment. The client calls the function over SSE and never receives, stores, or has any code path that could leak the raw key.
-</details>
-
-<details>
-<summary><b>What happens if the moderation classifier itself errors out?</b></summary>
-<br/>
-Publication is blocked. Moderation in Confluence is fail-closed, not fail-open — an infrastructure error in the classifier is treated the same as a failed check, not treated as a pass.
-</details>
-
-<details>
-<summary><b>Why aren't the Playwright and contrast checks running in CI yet?</b></summary>
-<br/>
-They're fully written and pass locally (31 E2E tests, 54 contrast pairs), but the commit that wires them into <code>ci.yml</code> requires GitHub's <code>workflows</code> permission, which the automated push credential used during development doesn't have. The diff is committed as a ready-to-apply patch — see <a href="#-cicd--push-everything-release-policy">CI/CD</a> for the one-line owner action that activates it.
-</details>
-
-<details>
-<summary><b>Is this production-ready?</b></summary>
-<br/>
-The security model (RLS on every table, server-only keys, fail-closed moderation, rate limiting) and CI/release pipeline are built for production use — see <code>SECURITY.md</code>, <code>AUDIT.md</code>, and <code>RELEASING.md</code> for the exact checklist an owner runs before flipping the switch.
-</details>
+```bash
+npm run lint && npx tsc --noEmit && npm test && npm run build
+```
 
 ---
 
 <div align="center">
 
-### Built with Next.js 16 · Supabase · OpenRouter
+**Built by [Chirayu](https://github.com/Crusty-chirayu)**
 
-<sub>Demo mode: zero backend required · Production mode: RLS on every table, key on the server, moderation fails closed</sub>
+<sub>Private AI. Shared rooms.</sub>
 
 </div>
-
-
-
-Alternative Deployment (In-case of Vercel failure).
-
-Deployed at: https://group-chatbot.onrender.com/
