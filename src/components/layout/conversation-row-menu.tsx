@@ -141,10 +141,8 @@ export function ConversationRowMenu({
         aria-label={`More options for ${title}`}
         onClick={toggle}
         className={cn(
-          "press-fluid grid h-6 w-6 shrink-0 place-items-center rounded-[--r-sm] text-[--fg-subtle] transition-opacity duration-[--d-micro]",
-          "hover:bg-[--bg-active] hover:text-[--fg]",
-          // Revealed on hover / keyboard focus like the pin control, but
-          // stays visible while the menu is open.
+          "press-fluid grid h-6 w-6 shrink-0 place-items-center rounded-[--r-sm] text-[--text-muted] transition-opacity duration-[--dur-micro]",
+          "hover:bg-[--surface-active] hover:text-[--text-primary]",
           open
             ? "opacity-100"
             : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100",
@@ -167,7 +165,7 @@ export function ConversationRowMenu({
               exit="exit"
               variants={popIn}
               style={{ top: menuPos.top, left: menuPos.left }}
-              className="fixed z-[60] min-w-48 rounded-[--r-md] border border-[--border] bg-[--surface-raised] py-1 shadow-[--e3]"
+              className="fixed z-[60] min-w-48 rounded-[--r-md] border border-[--border] bg-[--surface-elevated] py-1 shadow-[--shadow-3]"
             >
               {items.map((item) => (
                 <button
@@ -176,8 +174,8 @@ export function ConversationRowMenu({
                   role="menuitem"
                   onClick={item.run}
                   className={cn(
-                    "flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors duration-[--d-micro] hover:bg-[--bg-hover]",
-                    item.id === "delete" ? "text-[--danger]" : "text-[--fg]",
+                    "flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors duration-[--dur-micro] hover:bg-[--surface-hover]",
+                    item.id === "delete" ? "text-[--error] hover:bg-[--error]/10" : "text-[--text-secondary] hover:text-[--text-primary]",
                   )}
                 >
                   <item.icon className="h-3.5 w-3.5 shrink-0" />

@@ -136,17 +136,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (sessionLoading || !profile) {
-    // no predictable shape yet -> spinner, per the motion spec
     return (
-      <div className="relative grid min-h-dvh place-items-center bg-[--bg]">
+      <div className="relative grid min-h-dvh place-items-center bg-[--bg-page] text-[--text-primary]">
         <motion.div
-          initial={{ opacity: 0, scale: 0.94 }}
+          initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={tEnter()}
-          className="glass-subtle flex flex-col items-center gap-3 rounded-[--r-xl] px-8 py-7"
+          className="flex flex-col items-center gap-3.5 rounded-[--r-xl] border border-[--border-subtle] bg-[--surface] px-8 py-7 shadow-[--shadow-2]"
         >
-          <Logo className="h-9 w-9 animate-pulse" />
-          <p className="text-[13px] text-[--fg-muted]">Checking your session…</p>
+          <Logo size={32} className="animate-pulse" />
+          <p className="text-[13px] font-normal text-[--text-muted]">Checking your session…</p>
         </motion.div>
       </div>
     );
@@ -171,33 +170,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={tEnter()}
-        className="relative flex h-dvh overflow-hidden bg-[--bg]"
+        className="relative flex h-dvh w-full overflow-hidden bg-[--bg-page] text-[--text-primary]"
       >
-        {/* desktop sidebar — a floating layered plane rather than a hard-
-            ruled rectangle: no flat border, just a soft gradient seam so
-            the sidebar reads as a distinct surface catching ambient light
-            from the shell behind it. Sidebar's own surface/glass treatment
-            is handled inside the Sidebar component itself. ⌘B collapses it
-            on desktop; a compact restore button takes its place. */}
+        {/* desktop sidebar: 280px persistent solid --bg-elevated with right hairline */}
         {!sidebarHidden && (
-          <aside className="relative hidden w-[17.5rem] shrink-0 lg:block">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-y-4 right-0 w-px bg-gradient-to-b from-transparent via-[--border-strong]/70 to-transparent"
-            />
+          <aside className="relative hidden w-[280px] shrink-0 border-r border-[--border-subtle] bg-[--bg-elevated] lg:block">
             {sidebar}
           </aside>
         )}
         {sidebarHidden && (
-          <div className="hidden shrink-0 items-start pt-4 pl-2 lg:flex">
+          <div className="hidden shrink-0 items-start border-r border-[--border-subtle] bg-[--bg-elevated] pt-3 pl-2 pr-2 lg:flex">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setSidebarHidden(false)}
               aria-label="Show sidebar"
               title="Show sidebar (Ctrl+B)"
+              className="text-[--text-muted] hover:text-[--text-primary]"
             >
-              <PanelLeft className="h-5 w-5" />
+              <PanelLeft className="h-4 w-4" />
             </Button>
           </div>
         )}
@@ -212,14 +203,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 animate="show"
                 exit="exit"
                 onClick={() => setDrawerOpen(false)}
-                className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+                className="absolute inset-0 bg-black/60"
               />
               <motion.aside
                 initial={{ x: "-100%" }}
                 animate={{ x: 0 }}
                 exit={{ x: "-100%" }}
-                transition={tEnter(0.32)}
-                className="glass-strong absolute inset-y-0 left-0 w-[17.5rem] overflow-hidden rounded-r-[--r-xl] shadow-[--e4]"
+                transition={tEnter(0.26)}
+                className="absolute inset-y-0 left-0 w-[min(320px,85vw)] border-r border-[--border-subtle] bg-[--bg-elevated] shadow-[--shadow-4]"
               >
                 {sidebar}
               </motion.aside>
@@ -227,23 +218,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
         </AnimatePresence>
 
-        <div className="relative flex min-w-0 flex-1 flex-col">
+        <div className="relative flex min-w-0 flex-1 flex-col bg-[--bg-page]">
           <OfflineBanner />
 
-          {/* mobile top bar — a soft glass tray instead of a hard-ruled
-              bar, so the shell keeps a single coherent material language
-              down to the smallest viewport. */}
-          <div className="glass-subtle relative z-10 flex h-14 shrink-0 items-center gap-2 px-3 lg:hidden">
+          {/* mobile top bar */}
+          <div className="relative z-10 flex h-14 shrink-0 items-center gap-2.5 border-b border-[--border-subtle] bg-[--bg-elevated] px-3 lg:hidden">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setDrawerOpen(true)}
               aria-label="Open menu"
+              className="text-[--text-secondary] hover:text-[--text-primary]"
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <Logo className="h-6 w-6" />
-            <span className="text-[14px] font-semibold">Confluence</span>
+            <Logo size={24} />
+            <span className="text-[14px] font-semibold tracking-[-0.02em] text-[--text-primary]">
+              Confluence
+            </span>
           </div>
 
           <main className="min-h-0 flex-1">{children}</main>

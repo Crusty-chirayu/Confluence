@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUp, Paperclip, ShieldAlert, Sparkles, Square, X } from "lucide-react";
+import { ArrowUp, Paperclip, ShieldAlert, Square, X } from "lucide-react";
 import { Avatar, AiAvatar } from "@/components/ui/avatar";
+import { AiMarkIcon } from "@/components/icons";
 import { classifyLocal, MAX_MESSAGE_LENGTH } from "@/lib/data/moderation-local";
 import type { ConversationMember } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -61,7 +62,7 @@ export function Composer({
   const options = React.useMemo<MentionOption[]>(() => {
     const base: MentionOption[] = [];
     if (aiMode !== "off") {
-      base.push({ id: "ai", label: "ai", sub: "Bring the assistant into this message", isAi: true });
+      base.push({ id: "ai", label: "ai", sub: "Bring Confluence AI into this message", isAi: true });
     }
     if (isGroup) {
       for (const m of members) {
@@ -80,7 +81,7 @@ export function Composer({
     return base.filter((o) => o.label.toLowerCase().startsWith(q)).slice(0, 6);
   }, [members, isGroup, aiMode, mentionQuery]);
 
-  // auto-resize (height on a textarea is unavoidable, but it's not animated)
+  // auto-resize (height on textarea)
   React.useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -135,6 +136,8 @@ export function Composer({
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.nativeEvent.isComposing) return;
+
     if (mentionQuery !== null && options.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -162,276 +165,280 @@ export function Composer({
     }
   };
 
-  // The popup is "open" for ARIA purposes only while it has options — an
-  // `aria-expanded="true"` with nothing to expand to is worse than false.
   const mentionOpen = mentionQuery !== null && options.length > 0;
-
   const willInvokeAi =
     aiMode === "auto" || (aiMode === "mention_only" && /@ai\b/i.test(value));
 
+  const placeholder = disabled
+    ? "You cannot post in this conversation."
+    : isGroup
+      ? aiMode === "off"
+        ? "Message the room…"
+        : aiMode === "mention_only"
+          ? "Message the room · @ai to ask AI…"
+          : "Message the room · AI is following along…"
+      : "Message Confluence AI…";
+
   return (
-    // A floating glass tray rather than a flat bar with a hard top rule —
-    // `.glass-subtle` (globals.css) supplies its own translucent fill,
-    // hairline border and inset top highlight, so the composer reads as
-    // a distinct material resting just above the conversation rather than
-    // a bolted-on toolbar.
-    <div className="glass-subtle relative px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
-      {/*
-        moderation pre-warning.
-        The live region is rendered unconditionally and only its contents
-        change: a `role="status"` node inserted *with* its text already in
-        it is missed by some screen readers, so the container has to be in
-        the DOM before the warning appears.
-      */}
-      <div role="status" aria-live="polite" className="empty:hidden">
-        <AnimatePresence initial={false}>
-          {verdict.verdict !== "pass" && (
-            <motion.div
-              initial={{ opacity: 0, y: 6, height: 0 }}
-              animate={{ opacity: 1, y: 0, height: "auto" }}
-              exit={{ opacity: 0, height: 0, transition: tExit() }}
-              transition={tEnter()}
-              className="mb-2 overflow-hidden"
-            >
-              <div className="flex items-start gap-2 rounded-[--r-md] border border-[--warning]/30 bg-[--warning-subtle]/85 px-3 py-2 text-[12.5px] text-[--warning] shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,var(--e1)] backdrop-blur-sm">
-                <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>
-                  <strong className="font-semibold">{verdict.label}.</strong>{" "}
-                  {tooLong
-                    ? `Trim it to ${MAX_MESSAGE_LENGTH.toLocaleString()} characters or fewer.`
-                    : "This won't pass moderation, so it can't be sent."}
-                </span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* pending attachments */}
-      <AnimatePresence>
-        {files.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0, transition: tExit() }}
-            transition={tEnter(0.16)}
-            className="mb-2 flex flex-wrap gap-1.5 overflow-hidden"
-          >
-            {files.map((f, i) => (
-              <span
-                key={`${f.name}-${f.size}-${i}`}
-                className="flex max-w-[15rem] items-center gap-1.5 rounded-full border border-[--border]/80 bg-[--surface]/90 py-1 pl-2.5 pr-1 text-[12px] font-medium text-[--fg] shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,var(--e1)] backdrop-blur-sm transition-colors duration-[--d-micro]"
-              >
-                <Paperclip className="h-3 w-3 text-[--fg-muted]" />
-                <span className="truncate">{f.name}</span>
-                <span className="shrink-0 text-[10.5px] text-[--fg-subtle]">{formatFileSize(f.size)}</span>
-                <button
-                  type="button"
-                  aria-label={`Remove ${f.name}`}
-                  onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
-                  className="press-fluid grid h-5 w-5 shrink-0 place-items-center rounded-full text-[--fg-subtle] transition-colors hover:bg-[--bg-active] hover:text-[--fg] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Same reasoning as the warning above: the region exists first. */}
-      <div role="alert" className="empty:hidden">
-        {fileError && <p className="mb-2 text-[12px] font-medium text-[--danger]">{fileError}</p>}
-      </div>
-
-      <div
-        className={cn(
-          "relative flex items-end gap-2 rounded-[--r-lg] border bg-[--surface]/90 px-3 py-2 shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,var(--e1)] backdrop-blur-sm",
-          "transition-[border-color,box-shadow,background-color] duration-[--d-standard] ease-[--ease-fluid]",
-          "focus-within:border-[--accent] focus-within:bg-[--surface]/95 focus-within:shadow-[0_1px_0_0_rgba(255,255,255,0.08)_inset,var(--e2)] focus-within:ring-4 focus-within:ring-[--accent]/12",
-          verdict.verdict !== "pass" ? "border-[--warning]/50" : "border-[--border]/80",
-        )}
-      >
-        {/*
-          WAI-ARIA combobox (ARIA 1.2). The role lives on the wrapper, not on
-          the textarea: `role="combobox"` is only defined for text *inputs*,
-          and axe flags it on a <textarea>. A combobox owns its textbox and,
-          when expanded, its listbox — hence both live inside this element.
-
-          Without this a screen-reader user gets no indication that @mention
-          suggestions exist, and the highlighted one is never announced
-          (WCAG 4.1.2).
-        */}
-        <div
-          role="combobox"
-          aria-haspopup="listbox"
-          aria-expanded={mentionOpen}
-          // Only set while the popup exists: an aria-controls pointing at an
-          // id that is not in the DOM is itself a validity error.
-          aria-controls={mentionOpen ? MENTION_LISTBOX_ID : undefined}
-          aria-label="Message"
-          className="relative min-w-0 flex-1"
-        >
-          <textarea
-            ref={ref}
-            rows={1}
-            value={value}
-            disabled={disabled}
-            data-testid="composer-input"
-            aria-autocomplete="list"
-            aria-activedescendant={
-              mentionOpen && options[cursor] ? mentionOptionId(cursor) : undefined
-            }
-            onChange={(e) => {
-              setValue(e.target.value);
-              detectMention(e.target.value, e.target.selectionStart);
-              onTyping?.();
-            }}
-            onKeyDown={onKeyDown}
-            onClick={(e) => detectMention(value, e.currentTarget.selectionStart)}
-            placeholder={
-              disabled
-                ? "You can't post in this conversation."
-                : isGroup
-                  ? aiMode === "off"
-                    ? "Message the room…"
-                    : "Message the room… type @ai to bring in the assistant"
-                  : "Ask anything…"
-            }
-            className="max-h-[200px] min-h-[24px] w-full resize-none bg-transparent py-1 text-[14px] leading-relaxed tracking-[-0.003em] text-[--fg] outline-none placeholder:text-[--fg-subtle] disabled:opacity-60"
-          />
-
-          {/* @mention autocomplete — scales+fades up from the input */}
-          <AnimatePresence>
-            {mentionOpen && (
+    <div className="relative w-full px-4 pb-4 pt-1 sm:px-6">
+      <div className="mx-auto max-w-[760px]">
+        {/* moderation pre-warning */}
+        <div role="status" aria-live="polite" className="empty:hidden">
+          <AnimatePresence initial={false}>
+            {verdict.verdict !== "pass" && (
               <motion.div
-                id={MENTION_LISTBOX_ID}
-                role="listbox"
-                aria-label="Mention suggestions"
-                variants={popover}
-                initial="hidden"
-                animate="show"
-                exit="exit"
-                style={{ transformOrigin: "bottom left" }}
-                className="absolute bottom-full left-0 z-30 mb-2 w-[min(20rem,100%)] overflow-hidden rounded-[--r-md] border border-[--border]/80 bg-[--surface-raised]/95 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,var(--e3)] backdrop-blur-md"
+                initial={{ opacity: 0, y: 4, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: "auto" }}
+                exit={{ opacity: 0, height: 0, transition: tExit() }}
+                transition={tEnter()}
+                className="mb-2 overflow-hidden"
               >
-                {options.map((o, i) => (
-                  <button
-                    key={o.id}
-                    id={mentionOptionId(i)}
-                    role="option"
-                    aria-selected={i === cursor}
-                    // The options are driven with the arrow keys from the
-                    // textarea (aria-activedescendant); a stray Tab would
-                    // move focus out of the popup and desync the cursor.
-                    tabIndex={-1}
-                    onMouseEnter={() => setCursor(i)}
-                    onClick={() => applyMention(o)}
-                    className={cn(
-                      "flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors duration-[--d-micro]",
-                      i === cursor ? "bg-[--bg-hover]" : "hover:bg-[--bg-hover]",
-                    )}
-                  >
-                    {o.isAi ? (
-                      <AiAvatar size="xs" />
-                    ) : (
-                      <Avatar name={o.sub} url={o.avatarUrl} size="xs" />
-                    )}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-medium">@{o.label}</span>
-                      <span className="block truncate text-[11.5px] text-[--fg-muted]">
-                        {o.sub}
-                      </span>
-                    </span>
-                  </button>
-                ))}
+                <div className="flex items-start gap-2 rounded-[--r-md] border border-[--warning]/30 bg-[--warning]/10 px-3 py-2 text-[12.5px] text-[--warning] shadow-[--shadow-1]">
+                  <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    <strong className="font-semibold">{verdict.label}.</strong>{" "}
+                    {tooLong
+                      ? `Trim it to ${MAX_MESSAGE_LENGTH.toLocaleString()} characters or fewer.`
+                      : "This message will not pass moderation."}
+                  </span>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* attach a file (private, member-scoped) */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          hidden
-          data-testid="attachment-input"
-          onChange={(e) => {
-            addFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={disabled}
-          aria-label="Attach a file"
-          className="press-fluid grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] text-[--fg-muted] transition-colors hover:bg-[--bg-active] hover:text-[--fg] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50"
-        >
-          <Paperclip className="h-4 w-4" />
-        </button>
-
-        <AnimatePresence mode="wait" initial={false}>
-          {streaming ? (
-            <motion.button
-              key="stop"
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.85 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.92 }}
-              transition={SPRING}
-              onClick={onStop}
-              aria-label="Stop generating"
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] bg-[--bg-active] text-[--fg] shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,var(--e1)] transition-colors hover:bg-[--border-strong] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50"
-            >
-              <Square className="h-3 w-3 fill-current" />
-            </motion.button>
-          ) : (
-            <motion.button
-              key="send"
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.85 }}
-              whileHover={canSend ? { scale: 1.05 } : undefined}
-              whileTap={canSend ? { scale: 0.92 } : undefined}
-              transition={SPRING}
-              onClick={send}
-              disabled={!canSend}
-              aria-label="Send message"
-              className={cn(
-                "grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] transition-[background-color,box-shadow] duration-[--d-micro] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50",
-                canSend
-                  ? "bg-[--accent] text-[--accent-fg] shadow-[0_1px_0_0_rgba(255,255,255,0.12)_inset,var(--e1)] hover:bg-[--accent-hover] hover:shadow-[0_1px_0_0_rgba(255,255,255,0.12)_inset,var(--e2)]"
-                  : "bg-[--bg-active] text-[--fg-subtle]",
-              )}
-            >
-              <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-            </motion.button>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <div className="mt-1.5 flex items-center justify-between gap-3 px-1">
-        <p className="text-[11px] text-[--fg-subtle]">
-          <kbd className="font-sans font-medium">Enter</kbd> to send ·{" "}
-          <kbd className="font-sans font-medium">Shift+Enter</kbd> for a new line
-        </p>
+        {/* pending attachment previews */}
         <AnimatePresence>
-          {willInvokeAi && value.trim().length > 0 && (
-            <motion.span
-              initial={{ opacity: 0, x: 4 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
-              transition={tEnter(0.12)}
-              className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-[--accent-text]"
+          {files.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0, transition: tExit() }}
+              transition={tEnter(0.14)}
+              className="mb-2 flex flex-wrap gap-2 overflow-hidden"
             >
-              <Sparkles className="h-3 w-3" />
-              AI will reply
-            </motion.span>
+              {files.map((f, i) => (
+                <span
+                  key={`${f.name}-${f.size}-${i}`}
+                  className="flex max-w-[15rem] items-center gap-1.5 rounded-[--r-sm] border border-[--border-subtle] bg-[--surface-elevated] py-1 pl-2.5 pr-1.5 text-[12px] font-medium text-[--text-primary] shadow-[--shadow-1]"
+                >
+                  <Paperclip className="h-3 w-3 text-[--text-muted]" />
+                  <span className="truncate">{f.name}</span>
+                  <span className="shrink-0 text-[10.5px] text-[--text-muted]">
+                    {formatFileSize(f.size)}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${f.name}`}
+                    onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                    className="press-fluid grid h-4 w-4 shrink-0 place-items-center rounded-full text-[--text-muted] hover:bg-[--surface-hover] hover:text-[--text-primary] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--focus-ring]"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </motion.div>
           )}
         </AnimatePresence>
+
+        <div role="alert" className="empty:hidden">
+          {fileError && <p className="mb-2 text-[12px] font-medium text-[--error]">{fileError}</p>}
+        </div>
+
+        {/* Section 25 Composer card: radius 12, --surface-input, 1px border, shadow-1 */}
+        <div
+          className={cn(
+            "relative flex flex-col rounded-[--r-lg] border bg-[--surface-input] p-2.5 shadow-[--shadow-1]",
+            "transition-[border-color,box-shadow] duration-[--dur-fast]",
+            "focus-within:border-[--accent]/60 focus-within:ring-4 focus-within:ring-[--accent-subtle]",
+            verdict.verdict !== "pass" ? "border-[--warning]/50" : "border-[--border]",
+            disabled && "opacity-60",
+          )}
+        >
+          <div
+            role="combobox"
+            aria-haspopup="listbox"
+            aria-expanded={mentionOpen}
+            aria-controls={mentionOpen ? MENTION_LISTBOX_ID : undefined}
+            aria-label="Message"
+            className="relative min-w-0 flex-1"
+          >
+            <textarea
+              ref={ref}
+              rows={1}
+              value={value}
+              disabled={disabled}
+              data-testid="composer-input"
+              aria-autocomplete="list"
+              aria-activedescendant={
+                mentionOpen && options[cursor] ? mentionOptionId(cursor) : undefined
+              }
+              onChange={(e) => {
+                setValue(e.target.value);
+                detectMention(e.target.value, e.target.selectionStart);
+                onTyping?.();
+              }}
+              onKeyDown={onKeyDown}
+              onClick={(e) => detectMention(value, e.currentTarget.selectionStart)}
+              placeholder={placeholder}
+              className="max-h-[200px] min-h-[36px] w-full resize-none bg-transparent px-1.5 py-1 text-[15px] sm:text-[15.5px] leading-[1.6] text-[--text-primary] outline-none placeholder:text-[--text-muted] disabled:opacity-50"
+            />
+
+            {/* @mention autocomplete listbox */}
+            <AnimatePresence>
+              {mentionOpen && (
+                <motion.div
+                  id={MENTION_LISTBOX_ID}
+                  role="listbox"
+                  aria-label="Mention suggestions"
+                  variants={popover}
+                  initial="hidden"
+                  animate="show"
+                  exit="exit"
+                  style={{ transformOrigin: "bottom left" }}
+                  className="absolute bottom-full left-0 z-30 mb-2 w-[min(20rem,100%)] overflow-hidden rounded-[--r-md] border border-[--border] bg-[--surface-elevated] shadow-[--shadow-3]"
+                >
+                  {options.map((o, i) => (
+                    <button
+                      key={o.id}
+                      id={mentionOptionId(i)}
+                      role="option"
+                      aria-selected={i === cursor}
+                      tabIndex={-1}
+                      onMouseEnter={() => setCursor(i)}
+                      onClick={() => applyMention(o)}
+                      className={cn(
+                        "flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors duration-[--dur-micro]",
+                        i === cursor ? "bg-[--surface-hover]" : "hover:bg-[--surface-hover]",
+                      )}
+                    >
+                      {o.isAi ? (
+                        <AiAvatar size="xs" />
+                      ) : (
+                        <Avatar name={o.sub} url={o.avatarUrl} size="xs" />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-medium text-[--text-primary]">
+                          @{o.label}
+                        </span>
+                        <span className="block truncate text-[11.5px] text-[--text-muted]">
+                          {o.sub}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Bottom control row: 32px height */}
+          <div className="mt-1 flex items-center justify-between pt-1">
+            <div className="flex items-center gap-1.5">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                hidden
+                data-testid="attachment-input"
+                onChange={(e) => {
+                  addFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled}
+                aria-label="Attach a file"
+                className="press-fluid grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] text-[--text-muted] transition-colors hover:bg-[--surface-hover] hover:text-[--text-primary] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--focus-ring]"
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
+
+              {isGroup && aiMode === "mention_only" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = ref.current;
+                    if (!el) return;
+                    setValue((v) => (v ? `${v} @ai ` : "@ai "));
+                    el.focus();
+                  }}
+                  className="inline-flex h-7 items-center gap-1 rounded-[--r-xs] border border-[--border-subtle] bg-[--surface] px-2 text-[11px] font-medium text-[--ai] hover:bg-[--ai-subtle] transition-colors"
+                  title="Mention Confluence AI"
+                >
+                  <AiMarkIcon size={12} />
+                  <span>@ai</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <AnimatePresence mode="wait" initial={false}>
+                {streaming ? (
+                  <motion.button
+                    key="stop"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={SPRING}
+                    onClick={onStop}
+                    aria-label="Stop generating"
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] bg-[--surface-active] text-[--text-primary] border border-[--border] shadow-[--shadow-1] transition-colors hover:bg-[--surface-hover] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--focus-ring]"
+                  >
+                    <Square className="h-3 w-3 fill-current" />
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    key="send"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    whileHover={canSend ? { scale: 1.04 } : undefined}
+                    whileTap={canSend ? { scale: 0.96 } : undefined}
+                    transition={SPRING}
+                    onClick={send}
+                    disabled={!canSend}
+                    aria-label="Send message"
+                    className={cn(
+                      "grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] transition-all duration-[--dur-fast] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--focus-ring]",
+                      canSend
+                        ? "bg-[--accent] text-white shadow-[--shadow-1] hover:bg-[--accent-hover]"
+                        : "bg-[--surface-active] text-[--text-disabled]",
+                    )}
+                  >
+                    <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 25 Hint row */}
+        <div className="mt-1.5 flex items-center justify-between gap-3 px-1 text-[11.5px] text-[--text-muted]">
+          <p className="hidden sm:inline">
+            <kbd className="font-sans font-medium text-[--text-secondary]">↵</kbd> send ·{" "}
+            <kbd className="font-sans font-medium text-[--text-secondary]">⇧↵</kbd> newline
+          </p>
+          <AnimatePresence>
+            {willInvokeAi && value.trim().length > 0 && (
+              <motion.span
+                initial={{ opacity: 0, x: 4 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0 }}
+                transition={tEnter(0.12)}
+                className="flex items-center gap-1 font-medium text-[--ai]"
+              >
+                <AiMarkIcon size={12} />
+                <span>AI will reply</span>
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

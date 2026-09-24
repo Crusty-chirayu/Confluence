@@ -98,7 +98,8 @@ export const MessageItem = React.memo(function MessageItem({
     setEditing(false);
   };
 
-  const name = isAi ? "Assistant" : (author?.display_name ?? (isOwn ? "You" : "Unknown"));
+  const name = isAi ? "Confluence AI" : (author?.display_name ?? (isOwn ? "You" : "Unknown"));
+  const isDirectOwn = !isGroup && isOwn && !isAi;
 
   return (
     <motion.div
@@ -109,53 +110,59 @@ export const MessageItem = React.memo(function MessageItem({
       transition={SPRING}
       id={`msg-${message.id}`}
       className={cn(
-        "group relative flex gap-3 rounded-[--r-md] px-2 py-1.5 transition-colors duration-[--d-standard]",
-        showHeader ? "mt-4" : "mt-0.5",
-        highlighted ? "bg-[--accent-subtle]" : "hover:bg-[--bg-hover]/50",
+        "group relative flex gap-3 transition-colors duration-[--dur-fast]",
+        showHeader ? "mt-4" : "mt-1",
+        isDirectOwn ? "justify-end" : "justify-start",
+        highlighted && "bg-[--accent-subtle] rounded-[--r-md] px-2 py-1",
       )}
     >
-      {/* gutter: avatar or hover timestamp */}
-      <div className="w-8 shrink-0">
-        {showHeader ? (
-          isAi ? (
-            <AiAvatar size="sm" />
+      {/* For left-aligned messages, show gutter with avatar or hover timestamp */}
+      {!isDirectOwn && (
+        <div className="w-8 shrink-0">
+          {showHeader ? (
+            isAi ? (
+              <AiAvatar size="sm" status={streaming ? "responding" : "normal"} />
+            ) : (
+              <Avatar name={name} url={author?.avatar_url} size="sm" />
+            )
           ) : (
-            <Avatar name={name} url={author?.avatar_url} size="sm" />
-          )
-        ) : (
-          <span className="mt-1 hidden text-[10px] tabular-nums text-[--fg-subtle] opacity-0 transition-opacity duration-[--d-micro] group-hover:opacity-100 sm:block">
-            {clockTime(message.created_at)}
-          </span>
-        )}
-      </div>
+            <span className="mt-1 hidden text-[11px] tabular-nums text-[--text-muted] opacity-0 transition-opacity duration-[--dur-micro] group-hover:opacity-100 sm:block">
+              {clockTime(message.created_at)}
+            </span>
+          )}
+        </div>
+      )}
 
-      <div className="min-w-0 flex-1">
-        {showHeader && (
-          <div className="mb-0.5 flex items-baseline gap-2">
+      <div className={cn("min-w-0", isDirectOwn ? "max-w-[80%]" : "flex-1")}>
+        {/* Header row for human room messages and AI messages */}
+        {showHeader && !isDirectOwn && (
+          <div className="mb-1 flex items-baseline gap-2">
             <span
               className={cn(
-                "text-[13px] font-semibold",
-                isAi ? "text-[--ai-accent]" : "text-[--fg]",
+                "text-[13px] font-medium",
+                isAi
+                  ? "text-[--ai]"
+                  : isOwn
+                    ? "text-[--accent-text] bg-[--accent-subtle] px-1.5 py-0.5 rounded-[--r-xs]"
+                    : "text-[--text-primary]",
               )}
             >
               {name}
             </span>
-            {isAi && (
-              <AiPill />
+            {isAi && <AiPill />}
+            {isGroup && !isAi && !isOwn && author?.display_name && (
+              <span className="text-[11px] text-[--text-muted]">member</span>
             )}
-            {isGroup && !isAi && isOwn && (
-              <span className="text-[10.5px] text-[--fg-subtle]">you</span>
-            )}
-            <span className="text-[11px] tabular-nums text-[--fg-subtle]">
+            <span className="text-[11.5px] tabular-nums text-[--text-muted]">
               {clockTime(message.created_at)}
             </span>
             {message.edited_at && (
-              <span className="text-[10.5px] text-[--fg-subtle]">(edited)</span>
+              <span className="text-[11px] text-[--text-muted]">(edited)</span>
             )}
           </div>
         )}
 
-        {/* body */}
+        {/* message body */}
         {editing ? (
           <div className="space-y-2 py-1">
             <Textarea
@@ -167,6 +174,7 @@ export const MessageItem = React.memo(function MessageItem({
                 if (e.key === "Escape") setEditing(false);
               }}
               autoFocus
+              className="border-[--border] bg-[--surface-input] text-[--text-primary]"
             />
             <div className="flex gap-2">
               <Button size="sm" onClick={saveEdit}>
@@ -180,78 +188,72 @@ export const MessageItem = React.memo(function MessageItem({
             </div>
           </div>
         ) : blocked ? (
-          <div className="flex items-start gap-2 rounded-[--r-md] border border-[--warning]/30 bg-[--warning-subtle] px-3 py-2.5 text-[13px] text-[--warning] shadow-[--e1]">
+          <div className="flex items-start gap-2.5 rounded-[--r-md] border border-[--warning]/30 bg-[--warning]/10 px-3.5 py-2.5 text-[13px] text-[--warning] shadow-[--shadow-1]">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
-              <strong className="font-semibold">Withheld by the safety filter.</strong> This content
-              didn&apos;t pass moderation, so it wasn&apos;t published to the room.
+              This message wasn&apos;t sent. It may break the room&apos;s safety rules. Edit it and try again.
             </span>
           </div>
         ) : errored ? (
-          <div className="flex items-start gap-2 rounded-[--r-md] border border-[--danger]/30 bg-[--danger-subtle] px-3 py-2.5 text-[13px] text-[--danger] shadow-[--e1]">
+          <div className="flex items-start gap-2.5 rounded-[--r-md] border border-[--error]/30 bg-[--error]/10 px-3.5 py-2.5 text-[13px] text-[--error] shadow-[--shadow-1]">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>{message.content || "The assistant couldn't respond."}</span>
+            <span>{message.content || "The assistant couldn't respond. Try again."}</span>
           </div>
-        ) : (
-          /* §2.2/§2.5: real bubbles — a background container carries the
-             sender identity. AI = teal, own = brand accent, others = neutral.
-             A hairline inset ring (rather than a heavier outer border) gives
-             AI/other bubbles a touch of edge definition and material depth
-             without competing with the message content; the solid own-
-             message bubble stays clean and unadorned. */
+        ) : isAi ? (
+          /* AI Message: Section 24 full-width document surface with 2px left rule */
           <div
             className={cn(
-              "bubble inline-block max-w-[68ch] rounded-[--r-lg] px-3.5 py-2.5 text-[14px] leading-[1.5] shadow-[--e1] transition-shadow duration-[--d-standard] group-hover:shadow-[--e2]",
-              message.status === "superseded" && "opacity-45",
-              isAi
-                ? "bg-[--bubble-ai-bg] text-[--bubble-ai-fg] ring-1 ring-inset ring-[--bubble-ai-ring]/25"
-                : isOwn
-                  ? "bg-[--bubble-user-bg] text-[--bubble-user-fg]"
-                  : "bg-[--bubble-other-bg] text-[--bubble-other-fg] ring-1 ring-inset ring-[--border]/60",
+              "border-l-2 pl-3.5 py-1 text-[15.5px] leading-[1.7] text-[--text-primary] transition-colors duration-[--dur-fast]",
+              streaming
+                ? "border-[--ai-live] ai-streaming-rule"
+                : "border-[--ai]/60",
             )}
           >
             <Markdown content={message.content} />
-            {/* streaming caret — the reveal IS the animation; no per-token effects */}
-            {streaming && message.content.length === 0 ? (
-              <span className="inline-flex items-center gap-1 py-1">
-                {[0, 1, 2].map((d) => (
-                  <span
-                    key={d}
-                    className="typing-dot h-1.5 w-1.5 rounded-full"
-                    style={{ animationDelay: `${d * 140}ms` }}
-                  />
-                ))}
-              </span>
-            ) : streaming ? (
-              <span className="stream-caret" />
-            ) : null}
-            {/* verified sources — server-derived, rendered only when present */}
+            {streaming && (
+              <span className="streaming-caret inline-block w-0.5 h-4 ml-0.5 align-middle bg-[--ai-live]" />
+            )}
             {!streaming && <CitationList citations={message.citations} />}
+          </div>
+        ) : isDirectOwn ? (
+          /* Direct chat user message: Section 24 right-aligned soft surface --surface-elevated, radius 16, 6px tail corner */
+          <div className="rounded-[16px] rounded-br-[6px] border border-[--border-subtle] bg-[--surface-elevated] px-4 py-2.5 text-[15.5px] leading-[1.6] text-[--text-primary] shadow-[--shadow-1]">
+            <Markdown content={message.content} />
+            <div className="mt-1 flex justify-end">
+              <span className="text-[10.5px] tabular-nums text-[--text-muted]">
+                {clockTime(message.created_at)}
+              </span>
+            </div>
+          </div>
+        ) : (
+          /* Group room human message: Section 24 compact row style */
+          <div className="text-[15px] leading-[1.6] text-[--text-primary]">
+            <Markdown content={message.content} />
           </div>
         )}
 
-        {/* attachments — private, member-scoped (§19/§35) */}
+        {/* attachments */}
         {message.attachments && message.attachments.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
+          <div className="mt-2 flex flex-wrap gap-2">
             {message.attachments.map((a) => (
               <AttachmentChip key={a.id} attachment={a} />
             ))}
           </div>
         )}
 
-        {/* read receipt — only for the sender's own human messages in a room */}
+        {/* read receipt */}
         {readReceipt && (
           <div className="mt-1 flex items-center gap-1 pl-1" aria-live="polite">
             <Check className="h-3 w-3 text-[--info]" aria-hidden />
-            <span className="text-[10.5px] text-[--fg-subtle]">
+            <span className="text-[11px] text-[--text-muted]">
               {readReceiptLabel(readReceipt) || "Sent"}
             </span>
           </div>
         )}
 
-        {/* reactions */}
+        {/* reactions: Section 24 24px pills */}
         {grouped.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
+          <div className="mt-2 flex flex-wrap gap-1.5">
             <AnimatePresence initial={false}>
               {grouped.map(([emoji, info]) => (
                 <motion.button
@@ -260,18 +262,18 @@ export const MessageItem = React.memo(function MessageItem({
                   initial="hidden"
                   animate="show"
                   exit="exit"
-                  whileTap={{ scale: 0.92 }}
+                  whileTap={{ scale: 0.94 }}
                   transition={SPRING}
                   onClick={() => onReact(message.id, emoji)}
                   className={cn(
-                    "flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] transition-colors duration-[--d-micro]",
+                    "flex h-6 items-center gap-1 rounded-full border px-2 text-[12px] transition-colors duration-[--dur-fast]",
                     info.mine
                       ? "border-[--accent] bg-[--accent-subtle] text-[--accent-text]"
-                      : "border-[--border] bg-[--surface] text-[--fg-muted] hover:border-[--border-strong]",
+                      : "border-[--border-subtle] bg-[--surface] text-[--text-secondary] hover:border-[--border-strong] hover:bg-[--surface-hover]",
                   )}
                 >
                   <span>{emoji}</span>
-                  <span className="tabular-nums font-medium">{info.count}</span>
+                  <span className="tabular-nums font-medium text-[11px]">{info.count}</span>
                 </motion.button>
               ))}
             </AnimatePresence>
@@ -283,8 +285,8 @@ export const MessageItem = React.memo(function MessageItem({
       {!editing && !streaming && (
         <div
           className={cn(
-            "absolute -top-3 right-2 flex items-center gap-0.5 rounded-[--r-md] border border-[--border]",
-            "bg-[--surface-raised]/95 p-0.5 opacity-0 shadow-[--e2] backdrop-blur-sm transition-opacity duration-[--d-micro]",
+            "absolute -top-3.5 right-2 flex items-center gap-0.5 rounded-[10px] border border-[--border]",
+            "bg-[--surface-elevated] p-0.5 opacity-0 shadow-[--shadow-2] transition-opacity duration-[--dur-fast]",
             "group-hover:opacity-100 focus-within:opacity-100",
           )}
         >
@@ -303,19 +305,19 @@ export const MessageItem = React.memo(function MessageItem({
                     initial="hidden"
                     animate="show"
                     exit="exit"
-                    className="absolute right-0 top-9 z-20 flex gap-0.5 rounded-[--r-md] border border-[--border] bg-[--surface-raised]/95 p-1 shadow-[--e3] backdrop-blur-sm"
+                    className="absolute right-0 top-8 z-20 flex gap-0.5 rounded-[--r-md] border border-[--border] bg-[--surface-elevated] p-1 shadow-[--shadow-3]"
                   >
                     {QUICK_EMOJI.map((e) => (
                       <motion.button
                         key={e}
-                        whileHover={{ scale: 1.22 }}
-                        whileTap={{ scale: 0.92 }}
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.94 }}
                         transition={SPRING}
                         onClick={() => {
                           onReact(message.id, e);
                           setPickerOpen(false);
                         }}
-                        className="grid h-7 w-7 place-items-center rounded-[--r-sm] text-[15px] hover:bg-[--bg-hover]"
+                        className="grid h-7 w-7 place-items-center rounded-[--r-sm] text-[15px] hover:bg-[--surface-hover]"
                       >
                         {e}
                       </motion.button>
@@ -378,15 +380,15 @@ function IconAction({
       onClick={onClick}
       aria-label={label}
       title={label}
-      whileTap={{ scale: 0.9 }}
+      whileTap={{ scale: 0.92 }}
       transition={tEnter(0.12)}
       className={cn(
-        "grid h-7 w-7 place-items-center rounded-[--r-sm] transition-colors duration-[--d-micro]",
+        "grid h-6 w-6 place-items-center rounded-[--r-xs] transition-colors duration-[--dur-fast]",
         danger
-          ? "text-[--fg-muted] hover:bg-[--danger-subtle] hover:text-[--danger]"
+          ? "text-[--text-muted] hover:bg-[--error]/10 hover:text-[--error]"
           : accent
             ? "text-[--success]"
-            : "text-[--fg-muted] hover:bg-[--bg-hover] hover:text-[--fg]",
+            : "text-[--text-muted] hover:bg-[--surface-hover] hover:text-[--text-primary]",
       )}
     >
       <Icon className="h-3.5 w-3.5" />

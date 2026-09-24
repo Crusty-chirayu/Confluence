@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowDown, Hash, Settings2, Sparkles, Users } from "lucide-react";
+import { ArrowDown, Hash, Settings2, Users } from "lucide-react";
 import { Composer } from "./composer";
 import { MessageItem } from "./message-item";
 import { RoomSettingsModal } from "./room-settings-modal";
@@ -11,6 +11,7 @@ import { StreamAnnouncer } from "./stream-announcer";
 import { AiModeBadge } from "@/components/layout/sidebar";
 import { AiAvatar, Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
 import { MessageListSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { useSession } from "@/components/session-provider";
@@ -371,76 +372,80 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
   const canRegenerate = !streamingId;
 
   return (
-    <div className="relative flex h-full flex-col">
-      {/* ambient conversation atmosphere — extremely restrained, purely decorative */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div
-          className="absolute left-1/2 top-[-14rem] h-[26rem] w-[38rem] -translate-x-1/2 rounded-full opacity-[0.05] blur-[110px]"
-          style={{ background: "radial-gradient(circle, var(--accent), transparent 65%)" }}
-        />
-        {!isGroup && (
-          <div
-            className="absolute bottom-[-12rem] right-[-6rem] h-[22rem] w-[26rem] rounded-full opacity-[0.05] blur-[110px]"
-            style={{ background: "radial-gradient(circle, var(--ai-accent, var(--accent)), transparent 65%)" }}
-          />
-        )}
-      </div>
+    <div className="relative flex h-full min-h-0 flex-1 flex-col bg-[--bg-page]">
+      {/* ---------- header (Section 23: 56px, --bg-page, bottom hairline, sticky) ---------- */}
+      <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-[--border-subtle] bg-[--bg-page] px-4">
+        <div className="flex min-w-0 items-center gap-3">
+          {isGroup ? (
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] border border-[--border-subtle] bg-[--surface] text-[--text-muted]">
+              <Hash className="h-4 w-4" />
+            </span>
+          ) : (
+            <AiAvatar size="sm" status={streamingId ? "responding" : "normal"} />
+          )}
 
-      {/* ---------- header ----------
-          A translucent tray rather than an opaque bar with a hard rule —
-          it lets the ambient field behind the shell read through faintly
-          while still separating the chrome from the message canvas via
-          its own soft border + shadow (see .glass-subtle in globals.css). */}
-      <header className="glass-subtle relative z-10 flex h-14 shrink-0 items-center gap-3 px-4">
-        {isGroup ? (
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[--r-md] border border-[--border]/60 bg-[--bg-active] text-[--fg-muted]">
-            <Hash className="h-4 w-4" />
-          </span>
-        ) : (
-          <AiAvatar size="sm" />
-        )}
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h1 className="truncate text-[14.5px] font-semibold tracking-[-0.005em]">{title}</h1>
-            <AiModeBadge mode={conversation.ai_mode} />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-[15px] font-medium tracking-[-0.01em] text-[--text-primary]">
+                {title}
+              </h1>
+              {isGroup && (
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen(true)}
+                  className="rounded-[--r-sm] transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--focus-ring]"
+                  aria-label="Change AI mode"
+                >
+                  <AiModeBadge mode={conversation.ai_mode} />
+                </button>
+              )}
+            </div>
+            <p className="truncate text-[12px] text-[--text-muted]">
+              {isGroup
+                ? conversation.topic ||
+                  `${members.length} member${members.length === 1 ? "" : "s"}`
+                : streamingId
+                  ? "Responding…"
+                  : "Private AI conversation"}
+            </p>
           </div>
-          <p className="truncate text-[11.5px] text-[--fg-muted]">
-            {isGroup
-              ? conversation.topic ||
-                `${members.length} member${members.length === 1 ? "" : "s"}`
-              : "Private conversation with the assistant"}
-          </p>
         </div>
 
-        {isGroup && (
-          <div className="hidden items-center -space-x-1.5 sm:flex">
-            {members.slice(0, 4).map((m) => (
-              <Avatar
-                key={m.user_id}
-                name={m.profile?.display_name ?? "?"}
-                url={m.profile?.avatar_url}
-                size="xs"
-                className="ring-2 ring-[--bg]"
-              />
-            ))}
-            {members.length > 4 && (
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-[--bg-active] text-[10px] font-semibold text-[--fg-muted] ring-2 ring-[--bg]">
-                +{members.length - 4}
-              </span>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {isGroup && (
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="hidden items-center -space-x-1.5 rounded-full p-1 transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--focus-ring] sm:flex"
+              aria-label={`${members.length} members`}
+            >
+              {members.slice(0, 4).map((m) => (
+                <Avatar
+                  key={m.user_id}
+                  name={m.profile?.display_name ?? "?"}
+                  url={m.profile?.avatar_url}
+                  size="xs"
+                  className="ring-2 ring-[--bg-page]"
+                />
+              ))}
+              {members.length > 4 && (
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-[--surface] border border-[--border-subtle] text-[10px] font-semibold text-[--text-muted] ring-2 ring-[--bg-page]">
+                  +{members.length - 4}
+                </span>
+              )}
+            </button>
+          )}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="press-fluid"
-          onClick={() => setSettingsOpen(true)}
-          aria-label={isGroup ? "Room settings" : "Conversation settings"}
-        >
-          <Settings2 className="h-4 w-4" />
-        </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="press-fluid text-[--text-muted] hover:text-[--text-primary]"
+            onClick={() => setSettingsOpen(true)}
+            aria-label={isGroup ? "Room settings" : "Conversation settings"}
+          >
+            <Settings2 className="h-4 w-4" />
+          </Button>
+        </div>
       </header>
 
       {/* ---------- messages ---------- */}
@@ -448,7 +453,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
         <div
           ref={scrollRef}
           onScroll={onScroll}
-          className="h-full scroll-smooth overflow-y-auto overscroll-contain px-2 pb-6 sm:px-6"
+          className="h-full scroll-smooth overflow-y-auto px-4 pb-6 sm:px-6"
         >
           {loading ? (
             <MessageListSkeleton />
@@ -456,7 +461,7 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
             <EmptyState isGroup={isGroup} aiMode={conversation.ai_mode} />
           ) : (
             <div
-              className="mx-auto max-w-4xl"
+              className="mx-auto max-w-[760px] space-y-4"
               role="log"
               aria-label={isGroup ? `Messages in ${title}` : "Conversation with the assistant"}
             >
@@ -480,8 +485,8 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
                 return (
                   <React.Fragment key={m.id}>
                     {newDay && (
-                      <div className="sticky top-2 z-10 my-4 flex justify-center">
-                        <span className="rounded-full border border-[--border]/70 bg-[--surface]/80 px-3 py-1 text-[11px] font-medium tracking-[-0.005em] text-[--fg-muted] shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,var(--e1)] backdrop-blur-sm">
+                      <div className="sticky top-2 z-10 my-6 flex justify-center">
+                        <span className="rounded-full border border-[--border-subtle] bg-[--surface] px-3 py-1 text-[11px] font-medium tracking-[-0.005em] text-[--text-muted] shadow-[--shadow-1]">
                           {dayLabel(m.created_at)}
                         </span>
                       </div>
@@ -509,26 +514,26 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
                 );
               })}
 
-              {/* typing indicator */}
+              {/* typing indicator: Section 24, 12px muted, opacity-only dots */}
               <AnimatePresence>
                 {typingUsers.length > 0 && (
                   <motion.div
-                    initial={{ opacity: 0, y: 8 }}
+                    initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, transition: tExit() }}
                     transition={tEnter(0.2)}
-                    className="mt-1 flex w-fit items-center gap-2 rounded-full border border-[--border]/60 bg-[--surface]/60 px-3 py-1.5 backdrop-blur-sm"
+                    className="mt-2 flex w-fit items-center gap-2 rounded-full border border-[--border-subtle] bg-[--surface] px-3 py-1.5 shadow-[--shadow-1]"
                   >
-                    <div className="flex w-8 justify-center">
+                    <div className="flex w-6 justify-center gap-1">
                       {[0, 1, 2].map((d) => (
                         <span
                           key={d}
-                          className="typing-dot mx-px h-1.5 w-1.5 rounded-full bg-[--fg-subtle]"
-                          style={{ animationDelay: `${d * 140}ms` }}
+                          className="h-1.5 w-1.5 rounded-full bg-[--text-muted] animate-pulse"
+                          style={{ animationDelay: `${d * 200}ms` }}
                         />
                       ))}
                     </div>
-                    <span className="text-[12px] text-[--fg-muted]">
+                    <span className="text-[12px] text-[--text-muted]">
                       {typingUsers.slice(0, 2).join(" and ")}
                       {typingUsers.length > 2 ? ` and ${typingUsers.length - 2} more` : ""}{" "}
                       {typingUsers.length === 1 ? "is" : "are"} typing…
@@ -546,24 +551,24 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
         <AnimatePresence>
           {!atBottom && !loading && (
             <motion.button
-              initial={{ opacity: 0, y: 8, scale: 0.94 }}
+              initial={{ opacity: 0, y: 8, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.94, transition: tExit() }}
+              exit={{ opacity: 0, y: 8, scale: 0.96, transition: tExit() }}
               transition={tEnter(0.2)}
               onClick={() => {
                 setAtBottom(true);
                 scrollToBottom();
               }}
-              className="press-fluid absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-[--border]/80 bg-[--surface-raised]/90 px-3.5 py-2 text-[12.5px] font-medium shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,var(--e3)] backdrop-blur-md transition-colors duration-[--d-micro] hover:border-[--border-strong] hover:bg-[--surface-raised]"
+              className="press-fluid absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-[--border] bg-[--surface-elevated] px-3.5 py-1.5 text-[12.5px] font-medium text-[--text-primary] shadow-[--shadow-2] transition-colors duration-[--dur-fast] hover:bg-[--surface-hover]"
             >
-              <ArrowDown className="h-3.5 w-3.5" />
-              Jump to latest
+              <ArrowDown className="h-3.5 w-3.5 text-[--accent]" />
+              New messages ↓
             </motion.button>
           )}
         </AnimatePresence>
       </div>
 
-      {/* §10: batched aria-live announcements for streamed tokens */}
+      {/* batched aria-live announcements for streamed tokens */}
       <StreamAnnouncer text={streamText} active={Boolean(streamingId)} />
 
       {/* ---------- composer ---------- */}
@@ -600,29 +605,25 @@ export function ChatView({ conversation: initial }: { conversation: Conversation
 function EmptyState({ isGroup, aiMode }: { isGroup: boolean; aiMode: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={tEnter(0.32)}
+      transition={tEnter(0.3)}
       className="mx-auto flex h-full max-w-md flex-col items-center justify-center px-6 text-center"
     >
-      <span
-        className={`mb-4 grid h-14 w-14 place-items-center rounded-[--r-lg] border border-[--border]/50 bg-[--accent-subtle] text-[--accent-text] shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,var(--e2)] ${
-          isGroup ? "" : "glow-ai"
-        }`}
-      >
-        {isGroup ? <Users className="h-6 w-6" /> : <Sparkles className="h-6 w-6" />}
-      </span>
-      <h2 className="text-[16px] font-semibold tracking-[-0.005em]">
-        {isGroup ? "The room is quiet" : "What's on your mind?"}
+      <div className="mb-4 grid h-12 w-12 place-items-center rounded-[--r-lg] border border-[--border-subtle] bg-[--surface] text-[--text-primary] shadow-[--shadow-1]">
+        {isGroup ? <Users className="h-5 w-5 text-[--text-muted]" /> : <Logo size={24} />}
+      </div>
+      <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-[--text-primary]">
+        {isGroup ? "This room is quiet" : "What are you working on?"}
       </h2>
-      <p className="mt-2 text-pretty text-[13.5px] leading-relaxed text-[--fg-muted]">
+      <p className="mt-2 text-pretty text-[13.5px] leading-relaxed text-[--text-secondary]">
         {isGroup
           ? aiMode === "off"
-            ? "Say hello. The assistant is switched off here, so this is a human-only space."
+            ? "AI is off in this room. Turn it on in room settings."
             : aiMode === "mention_only"
-              ? "Say hello, or write @ai when you want the assistant to weigh in."
-              : "Say hello — the assistant replies to every message in this room."
-          : "Ask a question, paste something to work through, or start with a half-formed thought. The assistant streams its answer as it writes."}
+              ? "Say something, or type @ai to ask the AI."
+              : "AI follows the conversation and joins in when it can help."
+          : "Start a conversation. Ask a question, work through a problem, or explore ideas."}
       </p>
     </motion.div>
   );
