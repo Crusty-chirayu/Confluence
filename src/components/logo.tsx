@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 
 export interface LogoProps {
-  size?: 16 | 24 | 32;
+  size?: number;
   className?: string;
   monochrome?: boolean;
 }

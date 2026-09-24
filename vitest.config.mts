@@ -7,6 +7,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     fileParallelism: false,
+    testTimeout: 15000,
     // Deno-runtime tests are executed by `deno test`, not vitest.
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     exclude: [

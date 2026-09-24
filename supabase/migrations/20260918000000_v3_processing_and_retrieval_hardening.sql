@@ -140,9 +140,13 @@ language plpgsql
 security invoker
 set search_path = public
 as $$
+#variable_conflict use_column
 declare
   v_limit int;
   v_has_embeddings boolean;
+  v_strict_tsquery tsquery;
+  v_loose_tsquery tsquery;
+  v_fts_tsquery tsquery;
 begin
   if not exists (
     select 1 from public.conversation_members
@@ -151,6 +155,31 @@ begin
 
   if p_query is null or btrim(p_query) = '' then return; end if;
   v_limit := greatest(1, least(coalesce(p_limit, 10), 50));
+
+  -- Build strict websearch tsquery and conversational fallback OR tsquery
+  v_strict_tsquery := websearch_to_tsquery('english', p_query);
+  begin
+    if plainto_tsquery('english', p_query)::text != '' then
+      v_loose_tsquery := to_tsquery('english', replace(plainto_tsquery('english', p_query)::text, ' & ', ' | '));
+    else
+      v_loose_tsquery := v_strict_tsquery;
+    end if;
+  exception when others then
+    v_loose_tsquery := v_strict_tsquery;
+  end;
+
+  if v_strict_tsquery is not null and exists (
+    select 1
+    from public.attachment_chunks ac
+    join public.message_attachments ma on ma.id = ac.attachment_id
+    join public.messages m on m.id = ma.message_id
+    where m.conversation_id = p_conversation_id
+      and ac.content_tsv @@ v_strict_tsquery
+  ) then
+    v_fts_tsquery := v_strict_tsquery;
+  else
+    v_fts_tsquery := coalesce(v_loose_tsquery, v_strict_tsquery);
+  end if;
 
   select exists (
     select 1
@@ -176,17 +205,18 @@ begin
   ), fts_hits as (
     select ac.id as chunk_id, ac.attachment_id, ac.chunk_index, ac.page_number,
       ac.content, ac.label,
-      ts_rank(ac.content_tsv, websearch_to_tsquery('english', p_query)) as raw_similarity,
+      ts_rank(ac.content_tsv, v_fts_tsquery) as raw_similarity,
       regexp_replace(ma.storage_path, '^.*/', '') as filename, ma.mime_type,
       row_number() over (
-        order by ts_rank(ac.content_tsv, websearch_to_tsquery('english', p_query)) desc
+        order by ts_rank(ac.content_tsv, v_fts_tsquery) desc
       )::int as fts_rank
     from public.attachment_chunks ac
     join public.message_attachments ma on ma.id = ac.attachment_id
     join public.messages m on m.id = ma.message_id
     where m.conversation_id = p_conversation_id
-      and ac.content_tsv @@ websearch_to_tsquery('english', p_query)
-    order by ts_rank(ac.content_tsv, websearch_to_tsquery('english', p_query)) desc
+      and v_fts_tsquery is not null
+      and ac.content_tsv @@ v_fts_tsquery
+    order by ts_rank(ac.content_tsv, v_fts_tsquery) desc
     limit v_limit
   ), fused as (
     select
@@ -202,19 +232,19 @@ begin
       coalesce(v.raw_similarity, f.raw_similarity)::float as raw_similarity
     from vector_hits v full outer join fts_hits f using (chunk_id)
   )
-  select chunk_id, attachment_id, chunk_index, page_number, content, label,
+  select fused.chunk_id, fused.attachment_id, fused.chunk_index, fused.page_number, fused.content, fused.label,
     (
-      case when vec_rank is not null then 1.0 / (60 + vec_rank) else 0 end +
-      case when fts_rank is not null then 1.0 / (60 + fts_rank) else 0 end
+      case when fused.vec_rank is not null then 1.0 / (60 + fused.vec_rank) else 0 end +
+      case when fused.fts_rank is not null then 1.0 / (60 + fused.fts_rank) else 0 end
     )::float as similarity,
     case
-      when vec_rank is not null and fts_rank is not null then 'hybrid'
-      when vec_rank is not null then 'vector'
+      when fused.vec_rank is not null and fused.fts_rank is not null then 'hybrid'
+      when fused.vec_rank is not null then 'vector'
       else 'fts'
     end as retrieval_method,
-    filename, mime_type
+    fused.filename, fused.mime_type
   from fused
-  order by similarity desc, chunk_id
+  order by similarity desc, fused.chunk_id
   limit v_limit;
 end;
 $$;

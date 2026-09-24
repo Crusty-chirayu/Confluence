@@ -123,7 +123,7 @@ export function Modal({
             animate="show"
             exit="exit"
             onClick={onClose}
-            className="absolute inset-0 bg-black/60"
+            className="absolute inset-0 bg-black/60 backdrop-blur-md dark:bg-black/80 dark:backdrop-blur-md"
           />
           <motion.div
             ref={panelRef}

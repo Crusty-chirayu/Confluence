@@ -116,8 +116,8 @@ export function NewConversationModal({
                 className={cn(
                   "group relative overflow-hidden rounded-[--r-lg] border p-4 text-left transition-all duration-[--dur-fast]",
                   kind === o.v
-                    ? "border-[--accent]/60 bg-[--accent-subtle]"
-                    : "border-[--border-subtle] hover:border-[--border] hover:bg-[--surface-hover]",
+                    ? "border-[--accent] bg-[--accent-subtle] shadow-[--shadow-1]"
+                    : "border-[--border-subtle] bg-[--surface] hover:border-[--border] hover:bg-[--surface-hover]",
                 )}
               >
                 <o.icon
@@ -133,8 +133,26 @@ export function NewConversationModal({
           </div>
         </div>
 
+        {kind === "direct_ai" && (
+          <div className="rounded-[--r-lg] border border-[--border-subtle] bg-[--surface] p-4 shadow-[--shadow-1]">
+            <p className="mb-2.5 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[--text-muted]">
+              Capabilities
+            </p>
+            <div className="space-y-2 text-[12.5px] text-[--text-secondary]">
+              <div className="flex items-start gap-2.5">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[--accent]" />
+                <span>Private streaming analysis for architecture, debugging, and code review.</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[--accent]" />
+                <span>Multimodal vision and document ingestion for private diagrams and attachments.</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {kind === "group" && (
-          <div className="space-y-5 rounded-[--r-lg] border border-[--border-subtle] bg-[--surface] p-4">
+          <div className="space-y-5 rounded-[--r-lg] border border-[--border-subtle] bg-[--surface] p-4 shadow-[--shadow-1]">
             <Field label="Room name" error={error} id="room-name">
               <Input
                 id="room-name"

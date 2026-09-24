@@ -1,31 +1,80 @@
 "use client";
 
 import * as React from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Check, Copy, Hash, Paperclip, Send } from "lucide-react";
 import { AiAvatar, Avatar } from "@/components/ui/avatar";
-import { AiMarkIcon, AiModeAlwaysIcon, AiModeMentionIcon, AiModeOffIcon } from "@/components/icons";
+import { AiMarkIcon, AiModeMentionIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
-type DemoMode = "off" | "mention_only" | "auto";
-
-interface DemoMessage {
-  id: string;
-  sender: string;
-  isAi?: boolean;
-  text: string;
-  time: string;
+interface DemoScenario {
+  roomName: string;
+  topic: string;
+  contextMessage?: {
+    name: string;
+    time: string;
+    text: string;
+  };
+  triggerMessage: {
+    name: string;
+    time: string;
+    mention: string;
+    text: string;
+  };
+  aiReply: string;
+  replyTime: string;
 }
 
+const SCENARIOS: DemoScenario[] = [
+  {
+    roomName: "product-sync",
+    topic: "3 members · Launch readiness",
+    contextMessage: {
+      name: "Maya Chen",
+      time: "10:42 AM",
+      text: "Can someone summarize the final release status before we sign off?",
+    },
+    triggerMessage: {
+      name: "Alex Rivera",
+      time: "10:43 AM",
+      mention: "@ai",
+      text: "give us the TL;DR on launch blockers and rollback safety.",
+    },
+    aiReply:
+      "Launch blockers are cleared. Staging passed with 0 test regressions, and the database migration reversibility was verified. Remaining risk is low (on-call rotation required).",
+    replyTime: "10:43 AM",
+  },
+  {
+    roomName: "infrastructure",
+    topic: "4 members · Reliability & failover",
+    contextMessage: {
+      name: "Liam Ortiz",
+      time: "10:47 AM",
+      text: "We are reviewing DR procedures for the primary Postgres cluster.",
+    },
+    triggerMessage: {
+      name: "Elena Rostova",
+      time: "10:48 AM",
+      mention: "@ai",
+      text: "what is the failover strategy if our primary database replica drops?",
+    },
+    aiReply:
+      "Automated failover promotes the warm standby replica within 12 seconds with zero data loss. Client connections automatically re-route through PgBouncer connection pooling.",
+    replyTime: "10:48 AM",
+  },
+];
+
+type DemoPhase = "entering" | "thinking" | "streaming" | "completed";
+
 export function ProductPreview() {
-  const [mode, setMode] = React.useState<DemoMode>("mention_only");
-  const [streamProgress, setStreamProgress] = React.useState(0);
+  const [scenarioIndex, setScenarioIndex] = React.useState(0);
+  const [phase, setPhase] = React.useState<DemoPhase>("entering");
+  const [streamedWords, setStreamedWords] = React.useState<number>(0);
   const [copied, setCopied] = React.useState(false);
   const [isHovered, setIsHovered] = React.useState(false);
   const [reducedMotion, setReducedMotion] = React.useState(false);
 
-  const aiReply =
-    "Launch blockers are cleared. Staging passed with 0 test regressions, and the database migration reversibility was verified. Remaining risk is low (on-call rotation required).";
+  const scenario = SCENARIOS[scenarioIndex];
+  const words = React.useMemo(() => scenario.aiReply.split(" "), [scenario.aiReply]);
 
   React.useEffect(() => {
     setReducedMotion(
@@ -34,45 +83,64 @@ export function ProductPreview() {
     );
   }, []);
 
-  // Streaming text animation loop
+  // Orchestrate the live demo timeline
   React.useEffect(() => {
     if (reducedMotion) {
-      setStreamProgress(aiReply.length);
+      setPhase("completed");
+      setStreamedWords(words.length);
       return;
     }
 
+    let timer: ReturnType<typeof setTimeout>;
     let interval: ReturnType<typeof setInterval>;
-    let timeout: ReturnType<typeof setTimeout>;
 
-    const cycle = () => {
-      setStreamProgress(0);
-      timeout = setTimeout(() => {
-        let i = 0;
+    // Step 1: Entering (0 -> 500ms)
+    setPhase("entering");
+    setStreamedWords(0);
+
+    timer = setTimeout(() => {
+      // Step 2: AI Thinking / Typing indicator (500ms -> 1300ms)
+      setPhase("thinking");
+
+      timer = setTimeout(() => {
+        // Step 3: Progressive streaming (1300ms onward)
+        setPhase("streaming");
+        let currentWord = 0;
+
         interval = setInterval(() => {
-          i += 3;
-          if (i >= aiReply.length) {
-            setStreamProgress(aiReply.length);
+          currentWord += 2;
+          if (currentWord >= words.length) {
+            setStreamedWords(words.length);
+            setPhase("completed");
             clearInterval(interval);
-            timeout = setTimeout(cycle, 5000);
+
+            // Step 4: Dwell on completed state, then transition to next scenario
+            timer = setTimeout(() => {
+              setScenarioIndex((prev) => (prev + 1) % SCENARIOS.length);
+            }, 5500);
           } else {
-            setStreamProgress(i);
+            setStreamedWords(currentWord);
           }
-        }, 50);
-      }, 1200);
-    };
+        }, 65);
+      }, 800);
+    }, 500);
 
-    cycle();
     return () => {
+      clearTimeout(timer);
       clearInterval(interval);
-      clearTimeout(timeout);
     };
-  }, [reducedMotion, mode]);
+  }, [scenarioIndex, reducedMotion, words.length]);
 
-  const displayedAiText = aiReply.slice(0, streamProgress);
-  const isStreaming = streamProgress > 0 && streamProgress < aiReply.length;
+  const displayedAiText = React.useMemo(() => {
+    if (phase === "completed" || reducedMotion) {
+      return scenario.aiReply;
+    }
+    return words.slice(0, streamedWords).join(" ");
+  }, [phase, reducedMotion, scenario.aiReply, words, streamedWords]);
 
   const handleCopy = () => {
     setCopied(true);
+    navigator.clipboard?.writeText?.(scenario.aiReply);
     setTimeout(() => setCopied(false), 1400);
   };
 
@@ -104,15 +172,38 @@ export function ProductPreview() {
             <p className="px-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[--text-muted]">
               Rooms
             </p>
-            <div className="flex items-center gap-2 rounded-[--r-md] bg-[--surface-active] px-2.5 py-1.5 text-[12.5px] font-medium text-[--text-primary]">
+            <button
+              type="button"
+              onClick={() => setScenarioIndex(0)}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-[--r-md] px-2.5 py-1.5 text-[12.5px] font-medium transition-colors text-left",
+                scenarioIndex === 0
+                  ? "bg-[--surface-active] text-[--text-primary]"
+                  : "text-[--text-secondary] hover:bg-[--surface-hover]",
+              )}
+            >
               <Hash className="h-3.5 w-3.5 text-[--text-secondary]" />
               <span className="truncate">product-sync</span>
-              <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[--accent]" />
-            </div>
-            <div className="flex items-center gap-2 rounded-[--r-md] px-2.5 py-1.5 text-[12.5px] text-[--text-secondary] hover:bg-[--surface-hover]">
+              {scenarioIndex === 0 && (
+                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[--accent]" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setScenarioIndex(1)}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-[--r-md] px-2.5 py-1.5 text-[12.5px] font-medium transition-colors text-left",
+                scenarioIndex === 1
+                  ? "bg-[--surface-active] text-[--text-primary]"
+                  : "text-[--text-secondary] hover:bg-[--surface-hover]",
+              )}
+            >
               <Hash className="h-3.5 w-3.5 text-[--text-muted]" />
               <span className="truncate">infrastructure</span>
-            </div>
+              {scenarioIndex === 1 && (
+                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[--accent]" />
+              )}
+            </button>
           </div>
 
           <div className="mt-4 space-y-1">
@@ -121,14 +212,14 @@ export function ProductPreview() {
             </p>
             <div className="flex items-center gap-2 rounded-[--r-md] px-2.5 py-1.5 text-[12.5px] text-[--text-secondary] hover:bg-[--surface-hover]">
               <AiMarkIcon className="h-3.5 w-3.5 text-[--ai]" />
-              <span className="truncate">Refactoring plan</span>
+              <span className="truncate">Architecture review</span>
             </div>
           </div>
         </aside>
 
         {/* Main conversation column */}
         <div className="flex min-w-0 flex-1 flex-col bg-[--bg-page]">
-          {/* Header (Section 23) */}
+          {/* Header */}
           <div className="flex h-14 shrink-0 items-center justify-between border-b border-[--border-subtle] px-4 sm:px-6">
             <div className="flex items-center gap-3">
               <span className="grid h-7 w-7 place-items-center rounded-[--r-md] border border-[--border-subtle] bg-[--surface] text-[--text-muted]">
@@ -136,37 +227,23 @@ export function ProductPreview() {
               </span>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-[14px] font-medium text-[--text-primary]">product-sync</h3>
-                  {/* Clickable mode chip to test interaction */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setMode((m) =>
-                        m === "mention_only" ? "auto" : m === "auto" ? "off" : "mention_only",
-                      )
-                    }
-                    className="flex items-center gap-1.5 rounded-full border border-[--border-subtle] bg-[--surface] px-2.5 py-0.5 text-[11px] font-medium text-[--text-secondary] transition-colors hover:border-[--border] hover:text-[--text-primary]"
-                    title="Click to cycle AI mode"
-                  >
-                    {mode === "off" ? (
-                      <>
-                        <AiModeOffIcon className="h-3 w-3 text-[--text-muted]" />
-                        <span>AI: Off</span>
-                      </>
-                    ) : mode === "auto" ? (
-                      <>
-                        <AiModeAlwaysIcon className="h-3 w-3 text-[--ai]" />
-                        <span className="text-[--ai]">AI: Always on</span>
-                      </>
-                    ) : (
-                      <>
-                        <AiModeMentionIcon className="h-3 w-3 text-[--ai]" />
-                        <span>AI: Mention only</span>
-                      </>
-                    )}
-                  </button>
+                  <h3 className="text-[14px] font-medium text-[--text-primary]">
+                    {scenario.roomName}
+                  </h3>
+                  {/* Dynamic AI Mode Status Pill */}
+                  {phase === "thinking" || phase === "streaming" ? (
+                    <span className="flex items-center gap-1.5 rounded-full border border-[--ai-subtle] bg-[--ai-subtle] px-2.5 py-0.5 text-[11px] font-medium text-[--ai]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[--ai] animate-pulse" />
+                      <span>AI: Responding to @ai</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 rounded-full border border-[--border-subtle] bg-[--surface] px-2.5 py-0.5 text-[11px] font-medium text-[--text-secondary]">
+                      <AiModeMentionIcon className="h-3 w-3 text-[--ai]" />
+                      <span>AI: Mention only</span>
+                    </span>
+                  )}
                 </div>
-                <p className="text-[11.5px] text-[--text-muted]">3 members · Launch readiness</p>
+                <p className="text-[11.5px] text-[--text-muted]">{scenario.topic}</p>
               </div>
             </div>
 
@@ -189,94 +266,128 @@ export function ProductPreview() {
 
           {/* Timeline */}
           <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
-            {/* Human message 1 */}
-            <div className="flex gap-3 text-left">
-              <Avatar name="Maya Chen" size="sm" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[13px] font-medium text-[--text-primary]">Maya</span>
-                  <span className="text-[11px] text-[--text-muted]">10:42 AM</span>
+            {/* Context message */}
+            {scenario.contextMessage && (
+              <div className="flex items-start gap-3 text-left">
+                <Avatar name={scenario.contextMessage.name} size="sm" />
+                <div className="min-w-0 flex-1 max-w-[85%]">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[13px] font-medium text-[--text-primary]">
+                      {scenario.contextMessage.name.split(" ")[0]}
+                    </span>
+                    <span className="text-[11px] text-[--text-muted]">
+                      {scenario.contextMessage.time}
+                    </span>
+                  </div>
+                  <div className="mt-1 rounded-[16px] rounded-tl-[4px] bg-[--surface-active] px-4 py-2.5 text-[14px] text-[--text-primary]">
+                    {scenario.contextMessage.text}
+                  </div>
                 </div>
-                <p className="mt-0.5 text-[14px] text-[--text-primary]">
-                  Can someone summarize the final release status before we sign off?
-                </p>
               </div>
-            </div>
+            )}
 
-            {/* Human message 2 with @ai */}
-            <div className="flex gap-3 text-left">
-              <Avatar name="Alex Rivera" size="sm" />
-              <div className="min-w-0 flex-1">
+            {/* Trigger message with @ai */}
+            <div className="flex items-start gap-3 text-left">
+              <Avatar name={scenario.triggerMessage.name} size="sm" />
+              <div className="min-w-0 flex-1 max-w-[85%]">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-[13px] font-medium text-[--text-primary]">Alex</span>
-                  <span className="text-[11px] text-[--text-muted]">10:43 AM</span>
-                </div>
-                <p className="mt-0.5 text-[14px] text-[--text-primary]">
-                  <span className="mr-1.5 inline-flex items-center gap-1 rounded-[--r-xs] bg-[--ai-subtle] px-1.5 py-0.5 text-[12px] font-medium text-[--ai]">
-                    @ai
-                  </span>
-                  give us the TL;DR on launch blockers and rollback safety.
-                </p>
-              </div>
-            </div>
-
-            {/* AI Document surface message (Section 24) */}
-            <div
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-              className={cn(
-                "relative rounded-[--r-lg] border border-[--border-subtle] bg-[--surface-elevated] p-4 text-left transition-all",
-                isStreaming
-                  ? "border-l-2 border-l-[--ai-live]"
-                  : "border-l-2 border-l-[--ai]",
-              )}
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <AiAvatar size="xs" status={isStreaming ? "responding" : "normal"} />
                   <span className="text-[13px] font-medium text-[--text-primary]">
-                    Confluence AI
+                    {scenario.triggerMessage.name.split(" ")[0]}
                   </span>
-                  <span className="text-[11px] text-[--text-muted]">Responding to @ai</span>
+                  <span className="text-[11px] text-[--text-muted]">
+                    {scenario.triggerMessage.time}
+                  </span>
                 </div>
-
-                {/* Hover toolbar */}
-                <div
-                  className={cn(
-                    "flex items-center gap-1 transition-opacity duration-[--dur-fast]",
-                    isHovered ? "opacity-100" : "opacity-0",
-                  )}
-                >
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-1 rounded-[--r-sm] border border-[--border-subtle] bg-[--surface] px-2 py-0.5 text-[11px] text-[--text-muted] hover:text-[--text-primary]"
-                    aria-label="Copy AI message"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="h-3 w-3 text-[--success]" />
-                        <span>Copied</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3 w-3" />
-                        <span>Copy</span>
-                      </>
-                    )}
-                  </button>
+                <div className="mt-1 rounded-[16px] rounded-tl-[4px] bg-[--surface-active] px-4 py-2.5 text-[14px] text-[--text-primary]">
+                  <span className="mr-1.5 inline-flex items-center gap-1 rounded-[--r-xs] bg-[--ai-subtle] px-1.5 py-0.5 text-[11.5px] font-medium text-[--ai]">
+                    {scenario.triggerMessage.mention}
+                  </span>
+                  {scenario.triggerMessage.text}
                 </div>
-              </div>
-
-              <div className="text-[14px] leading-relaxed text-[--text-primary]">
-                {displayedAiText}
-                {isStreaming && (
-                  <span className="inline-block h-3.5 w-0.5 ml-0.5 translate-y-0.5 bg-[--ai-live] animate-pulse" />
-                )}
               </div>
             </div>
+
+            {/* AI Response row (Canonical grid) */}
+            {(phase === "thinking" || phase === "streaming" || phase === "completed") && (
+              <div
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                className="flex items-start gap-3 text-left transition-all duration-200"
+              >
+                <AiAvatar
+                  size="sm"
+                  status={phase === "streaming" || phase === "thinking" ? "responding" : "normal"}
+                />
+                <div className="min-w-0 flex-1 max-w-[85%]">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[13px] font-medium text-[--text-primary]">
+                        Confluence AI
+                      </span>
+                      <span className="text-[11px] text-[--text-muted]">
+                        {phase === "thinking"
+                          ? "Thinking..."
+                          : phase === "streaming"
+                            ? "Responding to @ai"
+                            : "Responded to @ai"}
+                      </span>
+                    </div>
+
+                    {/* Copy action on completed */}
+                    {phase === "completed" && (
+                      <button
+                        type="button"
+                        onClick={handleCopy}
+                        className={cn(
+                          "flex items-center gap-1 rounded-[--r-sm] border border-[--border-subtle] bg-[--surface] px-2 py-0.5 text-[11px] text-[--text-muted] transition-opacity hover:text-[--text-primary]",
+                          isHovered ? "opacity-100" : "opacity-0",
+                        )}
+                        aria-label="Copy AI message"
+                      >
+                        {copied ? (
+                          <>
+                            <Check className="h-3 w-3 text-[--success]" />
+                            <span>Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  <div
+                    className={cn(
+                      "mt-1 rounded-[16px] rounded-tl-[4px] border border-[--border-subtle] bg-[--surface-elevated] px-4 py-3 text-[14px] leading-relaxed text-[--text-primary] shadow-[--shadow-1] transition-colors",
+                      phase === "streaming"
+                        ? "border-l-2 border-l-[--ai-live]"
+                        : "border-l-2 border-l-[--ai]",
+                    )}
+                  >
+                    {phase === "thinking" ? (
+                      <div className="flex items-center gap-1.5 py-1 px-0.5" aria-label="AI is thinking">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[--ai] animate-pulse" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-[--ai] animate-pulse [animation-delay:150ms]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-[--ai] animate-pulse [animation-delay:300ms]" />
+                      </div>
+                    ) : (
+                      <div>
+                        <span>{displayedAiText}</span>
+                        {phase === "streaming" && (
+                          <span className="inline-block h-3.5 w-0.5 ml-0.5 translate-y-0.5 bg-[--ai-live] animate-pulse" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Composer (Section 25) */}
+          {/* Composer */}
           <div className="border-t border-[--border-subtle] p-3 sm:p-4">
             <div className="flex items-center gap-2 rounded-[--r-lg] border border-[--border] bg-[--surface-input] px-3 py-2.5 shadow-[--shadow-1]">
               <button

@@ -253,8 +253,12 @@ export default function LandingPage() {
           </nav>
         </div>
 
-        <div className="mx-auto mt-8 max-w-[1200px] border-t border-[--border-subtle] pt-6 text-center text-[12px] text-[--text-muted]">
+        <div className="mx-auto mt-8 flex max-w-[1200px] flex-col items-center justify-between gap-3 border-t border-[--border-subtle] pt-6 text-[12px] text-[--text-muted] sm:flex-row">
           <p>© {new Date().getFullYear()} Confluence. All rights reserved.</p>
+          <div className="flex items-center gap-1.5 font-medium text-[--text-secondary]">
+            <Logo size={14} className="opacity-75" />
+            <span>Built by Chirayu</span>
+          </div>
         </div>
       </footer>
     </div>

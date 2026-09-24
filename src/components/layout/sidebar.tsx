@@ -187,8 +187,8 @@ export function Sidebar({
         )}
       </div>
 
-      {/* footer: 56px */}
-      <div className="h-14 shrink-0 border-t border-[--border-subtle] px-2 flex items-center">
+      {/* footer: user profile & creator signature */}
+      <div className="shrink-0 border-t border-[--border-subtle] px-2 py-1.5 flex flex-col gap-0.5">
         <div className="flex w-full items-center gap-2 rounded-[--r-md] px-2 py-1.5 transition-colors duration-[--dur-fast] hover:bg-[--surface-hover]">
           <Avatar name={profile?.display_name ?? "You"} url={profile?.avatar_url} size="sm" />
           <div className="min-w-0 flex-1">
@@ -216,6 +216,13 @@ export function Sidebar({
           >
             <LogOut className="h-4 w-4" />
           </Button>
+        </div>
+        <div className="flex items-center justify-between px-2 pt-0.5 pb-1 text-[11px] text-[--text-muted]">
+          <span className="flex items-center gap-1.5 opacity-70 transition-opacity hover:opacity-100">
+            <Logo size={12} className="opacity-80" />
+            <span>Built by Chirayu</span>
+          </span>
+          <span className="font-mono text-[10px] text-[--text-muted]/60">v2.1</span>
         </div>
       </div>
     </div>

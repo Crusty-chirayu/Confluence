@@ -68,22 +68,32 @@ export function TwoSpacesComparison() {
 
             {/* Chat Timeline Mock */}
             <div className="space-y-4">
-              <div className="flex justify-end">
-                <div className="max-w-[85%] rounded-[16px] rounded-br-[6px] bg-[--surface-elevated] px-4 py-3 text-[14px] text-[--text-primary] shadow-[--shadow-1]">
-                  Review this architecture decision: what breaks if we move authentication to session tokens instead of JWTs?
+              <div className="flex items-start gap-3 text-left">
+                <Avatar name="You" size="sm" />
+                <div className="min-w-0 flex-1 max-w-[85%]">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[13px] font-medium text-[--text-primary]">You</span>
+                    <span className="text-[11px] text-[--text-muted]">10:14 AM</span>
+                  </div>
+                  <div className="mt-1 rounded-[16px] rounded-tl-[4px] bg-[--surface-active] px-4 py-3 text-[14px] text-[--text-primary] shadow-[--shadow-1]">
+                    Review this architecture decision: what breaks if we move authentication to session tokens instead of JWTs?
+                  </div>
                 </div>
               </div>
 
-              <div className="rounded-[--r-lg] border-l-2 border-l-[--ai] bg-[--surface-elevated] p-4 text-left">
-                <div className="mb-2 flex items-center gap-2">
-                  <AiAvatar size="xs" />
-                  <span className="text-[13px] font-medium text-[--text-primary]">
-                    Confluence AI
-                  </span>
+              <div className="flex items-start gap-3 text-left">
+                <AiAvatar size="sm" />
+                <div className="min-w-0 flex-1 max-w-[85%]">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[13px] font-medium text-[--text-primary]">
+                      Confluence AI
+                    </span>
+                    <span className="text-[11px] text-[--text-muted]">Direct response</span>
+                  </div>
+                  <div className="mt-1 rounded-[16px] rounded-tl-[4px] border border-[--border-subtle] bg-[--surface-elevated] px-4 py-3 text-[14px] leading-relaxed text-[--text-primary] shadow-[--shadow-1]">
+                    Session tokens require server-side state or Redis lookups for validation on each request, adding single-digit millisecond latency. However, they allow immediate revocation on password resets, eliminating the stale token window inherent to stateless JWTs.
+                  </div>
                 </div>
-                <p className="text-[14px] leading-relaxed text-[--text-primary]">
-                  Session tokens require server-side state or Redis lookups for validation on each request, adding single-digit millisecond latency. However, they allow immediate revocation on password resets, eliminating the stale token window inherent to stateless JWTs.
-                </p>
               </div>
             </div>
           </div>
@@ -110,46 +120,48 @@ export function TwoSpacesComparison() {
 
             {/* Room Timeline Mock */}
             <div className="space-y-3.5">
-              <div className="flex gap-3 text-left">
+              <div className="flex items-start gap-3 text-left">
                 <Avatar name="Kavita Rao" size="sm" />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 max-w-[85%]">
                   <div className="flex items-baseline gap-2">
                     <span className="text-[13px] font-medium text-[--text-primary]">Kavita</span>
                     <span className="text-[11px] text-[--text-muted]">11:05 AM</span>
                   </div>
-                  <p className="mt-0.5 text-[14px] text-[--text-primary]">
+                  <div className="mt-1 rounded-[16px] rounded-tl-[4px] bg-[--surface-active] px-4 py-2.5 text-[14px] text-[--text-primary]">
                     Our API endpoint latency spiked during the database backup window.
-                  </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 text-left">
+              <div className="flex items-start gap-3 text-left">
                 <Avatar name="Liam Ortiz" size="sm" />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 max-w-[85%]">
                   <div className="flex items-baseline gap-2">
                     <span className="text-[13px] font-medium text-[--text-primary]">Liam</span>
                     <span className="text-[11px] text-[--text-muted]">11:06 AM</span>
                   </div>
-                  <p className="mt-0.5 text-[14px] text-[--text-primary]">
+                  <div className="mt-1 rounded-[16px] rounded-tl-[4px] bg-[--surface-active] px-4 py-2.5 text-[14px] text-[--text-primary]">
                     <span className="mr-1.5 inline-flex items-center rounded-[--r-xs] bg-[--ai-subtle] px-1.5 py-0.5 text-[11.5px] font-medium text-[--ai]">
                       @ai
                     </span>
                     suggest a zero-downtime backup configuration for Postgres under high load.
-                  </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="rounded-[--r-lg] border-l-2 border-l-[--ai] bg-[--surface-elevated] p-4 text-left">
-                <div className="mb-2 flex items-center gap-2">
-                  <AiAvatar size="xs" />
-                  <span className="text-[13px] font-medium text-[--text-primary]">
-                    Confluence AI
-                  </span>
-                  <span className="text-[11px] text-[--text-muted]">Responding to @ai</span>
+              <div className="flex items-start gap-3 text-left">
+                <AiAvatar size="sm" />
+                <div className="min-w-0 flex-1 max-w-[85%]">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[13px] font-medium text-[--text-primary]">
+                      Confluence AI
+                    </span>
+                    <span className="text-[11px] text-[--text-muted]">Responding to @ai</span>
+                  </div>
+                  <div className="mt-1 rounded-[16px] rounded-tl-[4px] border border-[--border-subtle] bg-[--surface-elevated] px-4 py-3 text-[14px] leading-relaxed text-[--text-primary] shadow-[--shadow-1]">
+                    Switch pg_dump from exclusive locks to snapshot-based backups via standby replicas, or enable continuous archiving with WAL archiving to Amazon S3. This isolates I/O load completely from primary read/write queries.
+                  </div>
                 </div>
-                <p className="text-[14px] leading-relaxed text-[--text-primary]">
-                  Switch pg_dump from exclusive locks to snapshot-based backups via standby replicas, or enable continuous archiving with WAL archiving to Amazon S3. This isolates I/O load completely from primary read/write queries.
-                </p>
               </div>
             </div>
           </div>

@@ -71,7 +71,7 @@ export function JoinModal({
       onClose={close}
       title="Join a room"
       description="Paste the invite code or the full link someone shared with you."
-      className="max-w-md overflow-hidden border-[--border]/70 bg-[--bg-elevated] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_24px_60px_-20px_rgba(0,0,0,0.55)] backdrop-blur-xl supports-[backdrop-filter]:bg-[--bg-elevated]/85"
+      className="max-w-md overflow-hidden border border-[--border] bg-[--surface-modal] shadow-[--shadow-4]"
       footer={
         <>
           <Button variant="ghost" onClick={close}>
