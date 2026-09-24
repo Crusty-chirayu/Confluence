@@ -501,7 +501,16 @@ Deno.serve(async (req) => {
         .from("messages")
         .update({ content: "_The assistant is unavailable right now._", status: "error" })
         .eq("id", aiMessageId);
-      throw new HttpError(502, "provider_error", "The model provider rejected the request.");
+      let reason = `HTTP ${upstream.status}`;
+      try {
+        const parsed = JSON.parse(detail);
+        if (parsed?.error?.message) {
+          reason += `: ${String(parsed.error.message).slice(0, 200)}`;
+        }
+      } catch {
+        // detail was not JSON
+      }
+      throw new HttpError(502, "provider_error", `The model provider rejected the request (${reason}).`);
     }
 
     // --- 7. stream to client + persist progressively -------------------------
