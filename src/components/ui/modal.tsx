@@ -123,7 +123,7 @@ export function Modal({
             animate="show"
             exit="exit"
             onClick={onClose}
-            className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/60"
           />
           <motion.div
             ref={panelRef}
@@ -138,25 +138,31 @@ export function Modal({
             animate="show"
             exit="exit"
             className={cn(
-              "relative flex max-h-[calc(100dvh-3rem)] w-full max-w-lg flex-col rounded-t-[--r-xl] border border-[--border] bg-[--surface-raised]",
-              "shadow-[--e4] sm:rounded-[--r-xl]",
+              "relative flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded-t-[--r-xl] border border-[--border] bg-[--surface-modal] text-[--text-primary]",
+              "shadow-[--shadow-4] sm:rounded-[--r-xl]",
               className,
             )}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-[--border] px-5 py-4">
+            <div className="flex items-start justify-between gap-4 border-b border-[--border-subtle] px-5 py-4">
               <div className="min-w-0">
-                <h2 className="text-[15px] font-semibold text-[--fg]">{title}</h2>
+                <h2 className="text-[16px] font-semibold text-[--text-primary]">{title}</h2>
                 {description && (
-                  <p className="mt-0.5 text-[13px] text-[--fg-muted]">{description}</p>
+                  <p className="mt-0.5 text-[13px] text-[--text-secondary]">{description}</p>
                 )}
               </div>
-              <Button variant="ghost" size="iconSm" onClick={onClose} aria-label="Close">
+              <Button
+                variant="ghost"
+                size="iconSm"
+                onClick={onClose}
+                aria-label="Close"
+                className="text-[--text-muted] hover:text-[--text-primary]"
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
             {children && <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>}
             {footer && (
-              <div className="flex items-center justify-end gap-2 border-t border-[--border] px-5 py-3.5">
+              <div className="flex items-center justify-end gap-2 border-t border-[--border-subtle] px-5 py-3.5">
                 {footer}
               </div>
             )}
@@ -169,8 +175,8 @@ export function Modal({
 }
 
 /**
- * Destructive confirm. Guards accidental double-clicks with a debounce
- * that has a VISUAL TELL (shake), never a silent one.
+ * Destructive confirm dialog (Section 31).
+ * Optionally requires exact name match for room deletions.
  */
 export function ConfirmDialog({
   open,
@@ -180,6 +186,7 @@ export function ConfirmDialog({
   description,
   confirmLabel = "Confirm",
   destructive = true,
+  matchName,
 }: {
   open: boolean;
   onClose: () => void;
@@ -188,7 +195,9 @@ export function ConfirmDialog({
   description?: string;
   confirmLabel?: string;
   destructive?: boolean;
+  matchName?: string;
 }) {
+  const [typed, setTyped] = React.useState("");
   const [shake, setShake] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const openedAt = React.useRef(0);
@@ -197,16 +206,21 @@ export function ConfirmDialog({
     if (open) {
       openedAt.current = Date.now();
       setBusy(false);
+      setTyped("");
+      setShake(false);
     }
   }, [open]);
 
+  const matches = matchName ? typed === matchName : true;
+
   const handle = async () => {
-    // too fast = almost certainly a double-click carried over
+    // Guard accidental double clicks carried over
     if (Date.now() - openedAt.current < 450) {
       setShake(true);
       setTimeout(() => setShake(false), 420);
       return;
     }
+    if (!matches) return;
     setBusy(true);
     try {
       await onConfirm();
@@ -225,19 +239,36 @@ export function ConfirmDialog({
       className="max-w-md"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
           <Button
             variant={destructive ? "danger" : "primary"}
             onClick={handle}
             loading={busy}
+            disabled={!matches}
             className={shake ? "shake" : undefined}
           >
             {confirmLabel}
           </Button>
         </>
       }
-    />
+    >
+      {matchName && (
+        <div className="space-y-2 py-2">
+          <p className="text-[13px] text-[--text-secondary]">
+            Type <strong className="font-semibold text-[--text-primary] select-all">{matchName}</strong> to confirm:
+          </p>
+          <input
+            type="text"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder={matchName}
+            autoFocus
+            className="w-full rounded-[--r-md] border border-[--border] bg-[--surface-input] px-3 py-2 text-[14px] text-[--text-primary] outline-none focus:border-[--accent] focus:ring-2 focus:ring-[--accent-subtle]"
+          />
+        </div>
+      )}
+    </Modal>
   );
 }

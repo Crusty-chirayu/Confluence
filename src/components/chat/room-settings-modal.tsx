@@ -158,21 +158,16 @@ export function RoomSettingsModal({
         }
       >
         {/* ambient top sheen — purely decorative, non-interactive */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[--accent]/[0.06] to-transparent"
-        />
-
         {/* tabs */}
-        <div className="relative mb-5 flex gap-1 border-b border-[--border]/80">
+        <div className="relative mb-5 flex gap-1 border-b border-[--border-subtle]">
           {TABS.filter((t) => t.show).map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                "relative rounded-t-[--r-sm] px-3 py-2 text-[13px] font-medium tracking-[-0.005em] transition-colors duration-[--d-micro]",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[--bg-elevated]",
-                tab === t.id ? "text-[--fg]" : "text-[--fg-muted] hover:text-[--fg]",
+                "relative rounded-t-[--r-sm] px-3 py-2 text-[13px] font-medium tracking-[-0.005em] transition-colors duration-[--dur-fast]",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--focus-ring]",
+                tab === t.id ? "text-[--text-primary]" : "text-[--text-muted] hover:text-[--text-primary]",
               )}
             >
               {t.label}
@@ -180,7 +175,7 @@ export function RoomSettingsModal({
                 <motion.span
                   layoutId="room-tab"
                   transition={SPRING}
-                  className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[--accent] shadow-[0_0_10px_-1px_var(--accent)]"
+                  className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[--accent]"
                 />
               )}
             </button>
@@ -200,7 +195,7 @@ export function RoomSettingsModal({
             {tab === "general" && (
               <div className="space-y-6">
                 {isGroup && (
-                  <div className="space-y-5 rounded-[--r-lg] border border-[--border]/70 bg-[--bg-subtle]/40 p-4">
+                  <div className="space-y-4 rounded-[--r-lg] border border-[--border-subtle] bg-[--surface] p-4">
                     <Field label="Room name" id="rs-name">
                       <Input
                         id="rs-name"
@@ -227,7 +222,7 @@ export function RoomSettingsModal({
                 )}
 
                 <div>
-                  <p className="mb-2 text-[13px] font-medium tracking-[-0.005em] text-[--fg]">
+                  <p className="mb-2 text-[13px] font-medium tracking-[-0.005em] text-[--text-primary]">
                     AI participation
                   </p>
                   <div className="space-y-1.5">
@@ -240,17 +235,17 @@ export function RoomSettingsModal({
                           disabled={(isGroup && !isAdmin) || locked}
                           onClick={() => setAiMode(m.v)}
                           className={cn(
-                            "flex w-full items-start gap-3 rounded-[--r-md] border p-3 text-left transition-all duration-[--d-micro]",
-                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--accent]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[--bg-elevated]",
+                            "flex w-full items-start gap-3 rounded-[--r-md] border p-3 text-left transition-all duration-[--dur-fast]",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--focus-ring]",
                             aiMode === m.v
-                              ? "border-[--accent]/60 bg-[--accent-subtle] shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset]"
-                              : "border-[--border] hover:border-[--border-strong] hover:bg-[--bg-hover]",
+                              ? "border-[--accent]/60 bg-[--accent-subtle] shadow-[--shadow-1]"
+                              : "border-[--border] hover:border-[--border-strong] hover:bg-[--surface-hover]",
                             (locked || (isGroup && !isAdmin)) && "cursor-not-allowed opacity-45",
                           )}
                         >
                           <span
                             className={cn(
-                              "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 transition-colors duration-[--d-micro]",
+                              "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 transition-colors duration-[--dur-fast]",
                               aiMode === m.v ? "border-[--accent]" : "border-[--border-strong]",
                             )}
                           >
@@ -259,10 +254,10 @@ export function RoomSettingsModal({
                             )}
                           </span>
                           <span className="min-w-0">
-                            <span className="block text-[13px] font-medium text-[--fg]">
+                            <span className="block text-[13px] font-medium text-[--text-primary]">
                               {m.label}
                             </span>
-                            <span className="block text-[12px] leading-snug text-[--fg-muted]">
+                            <span className="block text-[12px] leading-snug text-[--text-secondary]">
                               {locked ? "Not applicable to a 1:1 AI chat." : m.body}
                             </span>
                           </span>
@@ -273,7 +268,7 @@ export function RoomSettingsModal({
                 </div>
 
                 {isGroup && !isAdmin && (
-                  <p className="text-[12.5px] text-[--fg-subtle]">
+                  <p className="text-[12.5px] text-[--text-muted]">
                     Only owners and admins can change room settings.
                   </p>
                 )}
@@ -471,9 +466,14 @@ export function RoomSettingsModal({
       <ConfirmDialog
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
-        title={isGroup ? "Delete this room?" : "Delete this conversation?"}
-        description="This cannot be undone. Every message will be permanently removed."
-        confirmLabel="Delete permanently"
+        title={isGroup ? `Delete “${conversation.name ?? "room"}”?` : "Delete conversation?"}
+        description={
+          isGroup
+            ? `This permanently deletes the room, its messages, and its attachments for all ${members.length} members.`
+            : "This permanently deletes this conversation and its messages."
+        }
+        confirmLabel={isGroup ? "Delete room" : "Delete conversation"}
+        matchName={isGroup ? (conversation.name ?? undefined) : undefined}
         onConfirm={async () => {
           await deleteConversation(conversation.id);
           onClose();

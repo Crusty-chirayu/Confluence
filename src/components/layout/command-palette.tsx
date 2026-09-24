@@ -14,10 +14,10 @@ import {
   Moon,
   Search,
   Settings,
-  Sparkles,
   Sun,
   UserPlus,
 } from "lucide-react";
+import { AiMarkIcon } from "@/components/icons";
 import { useTheme } from "@/components/theme-provider";
 import { signOut, createConversation } from "@/lib/data/api";
 import type { ConversationSummary } from "@/lib/types";
@@ -101,7 +101,7 @@ export function CommandPalette({
         label: "New AI chat",
         hint: "Private thread with the assistant",
         group: "Actions",
-        icon: Sparkles,
+        icon: AiMarkIcon,
         keywords: "create start direct",
         run: act(async () => {
           const id = await createConversation({ type: "direct_ai", ai_mode: "auto" });
@@ -194,7 +194,7 @@ export function CommandPalette({
         label: conversationTitle(c),
         hint: c.type === "group" ? "Room" : "AI chat",
         group: "Conversations",
-        icon: c.type === "group" ? Hash : Sparkles,
+        icon: c.type === "group" ? Hash : AiMarkIcon,
         keywords: c.topic ?? "",
         run: act(() => router.push(`/app/c/${c.id}`)),
       });
@@ -266,7 +266,7 @@ export function CommandPalette({
             animate="show"
             exit="exit"
             onClick={onClose}
-            className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/60"
           />
           <motion.div
             role="dialog"
@@ -276,16 +276,10 @@ export function CommandPalette({
             initial="hidden"
             animate="show"
             exit="exit"
-            className="relative w-full max-w-xl overflow-hidden rounded-[--r-xl] border border-[--border-default]/70 bg-[--bg-surface-raised]/90 shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_24px_60px_-20px_rgba(0,0,0,0.55)] backdrop-blur-xl supports-[backdrop-filter]:bg-[--bg-surface-raised]/80"
+            className="relative w-full max-w-[560px] overflow-hidden rounded-[--r-xl] border border-[--border] bg-[--surface-modal] shadow-[--shadow-4]"
           >
-            {/* ambient top sheen — purely decorative, non-interactive */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-[--text-primary]/[0.04] to-transparent"
-            />
-
-            <div className="relative flex items-center gap-2.5 border-b border-[--border-default]/70 px-4">
-              <Search className="h-4 w-4 shrink-0 text-[--text-secondary]" />
+            <div className="relative flex items-center gap-2.5 border-b border-[--border-subtle] px-4">
+              <Search className="h-4 w-4 shrink-0 text-[--text-muted]" />
               <input
                 ref={inputRef}
                 autoFocus
@@ -294,22 +288,22 @@ export function CommandPalette({
                 onKeyDown={onKeyDown}
                 placeholder="Type a command or jump to a conversation…"
                 aria-label="Command palette input"
-                className="h-12 flex-1 bg-transparent text-[14px] tracking-[-0.005em] text-[--text-primary] outline-none placeholder:text-[--text-secondary]"
+                className="h-12 flex-1 bg-transparent text-[14px] text-[--text-primary] outline-none placeholder:text-[--text-muted]"
               />
-              <kbd className="hidden rounded border border-[--border-default]/80 bg-[--bg-hover]/60 px-1.5 py-0.5 font-mono text-[10px] text-[--text-secondary] sm:block">
+              <kbd className="hidden rounded-[--r-xs] border border-[--border] bg-[--surface] px-1.5 py-0.5 font-mono text-[10px] text-[--text-muted] sm:block">
                 ESC
               </kbd>
             </div>
 
             <div ref={listRef} className="relative max-h-[min(24rem,52vh)] overflow-y-auto p-2">
               {flat.length === 0 ? (
-                <p className="py-10 text-center text-[13px] text-[--text-secondary]">
+                <p className="py-10 text-center text-[13px] text-[--text-muted]">
                   No commands match <span className="font-medium text-[--text-primary]">{query}</span>.
                 </p>
               ) : (
                 grouped.map(([group, items]) => (
                   <div key={group} className="mb-1.5 last:mb-0">
-                    <p className="px-2 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[--text-secondary]">
+                    <p className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[--text-muted]">
                       {group}
                     </p>
                     {items.map((c) => {
@@ -323,23 +317,23 @@ export function CommandPalette({
                           onMouseEnter={() => setCursor(myIdx)}
                           onClick={() => void c.run()}
                           className={cn(
-                            "flex w-full items-center gap-2.5 rounded-[--r-sm] border border-transparent px-2 py-2 text-left transition-all duration-[--d-micro]",
+                            "flex w-full items-center gap-2.5 rounded-[--r-sm] border border-transparent px-2.5 py-2 text-left transition-colors duration-[--dur-fast]",
                             active
-                              ? "border-[--border-default]/60 bg-[--bg-hover]"
-                              : "hover:bg-[--bg-hover]",
+                              ? "bg-[--surface-active] text-[--text-primary]"
+                              : "text-[--text-secondary] hover:bg-[--surface-hover] hover:text-[--text-primary]",
                           )}
                         >
-                          <c.icon className="h-4 w-4 shrink-0 text-[--text-secondary]" />
-                          <span className="min-w-0 flex-1 truncate text-[13.5px] text-[--text-primary]">
+                          <c.icon className="h-4 w-4 shrink-0 text-[--text-muted]" />
+                          <span className="min-w-0 flex-1 truncate text-[13.5px]">
                             {c.label}
                           </span>
                           {c.hint && (
-                            <span className="hidden shrink-0 text-[11.5px] text-[--text-secondary] sm:block">
+                            <span className="hidden shrink-0 text-[11.5px] text-[--text-muted] sm:block">
                               {c.hint}
                             </span>
                           )}
                           {active && (
-                            <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-[--text-secondary]" />
+                            <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-[--text-muted]" />
                           )}
                         </button>
                       );
@@ -349,13 +343,13 @@ export function CommandPalette({
               )}
             </div>
 
-            <div className="relative flex items-center gap-3 border-t border-[--border-default]/70 px-4 py-2 text-[11px] text-[--text-secondary]">
+            <div className="relative flex items-center gap-3 border-t border-[--border-subtle] px-4 py-2 text-[11px] text-[--text-muted]">
               <span className="flex items-center gap-1">
-                <kbd className="rounded border border-[--border-default]/80 px-1 font-mono">↑↓</kbd>
+                <kbd className="rounded-[--r-xs] border border-[--border] bg-[--surface] px-1 font-mono">↑↓</kbd>
                 navigate
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="rounded border border-[--border-default]/80 px-1 font-mono">↵</kbd>
+                <kbd className="rounded-[--r-xs] border border-[--border] bg-[--surface] px-1 font-mono">↵</kbd>
                 run
               </span>
             </div>

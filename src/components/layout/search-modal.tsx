@@ -3,7 +3,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Hash, Loader2, Search, Sparkles } from "lucide-react";
+import { Hash, Loader2, Search } from "lucide-react";
+import { AiMarkIcon } from "@/components/icons";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { searchMessages } from "@/lib/data/api";
@@ -96,19 +97,13 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
       open={open}
       onClose={onClose}
       title="Search messages"
-      className="max-w-2xl overflow-hidden border-[--border]/70 bg-[--bg-elevated] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_24px_60px_-20px_rgba(0,0,0,0.55)] backdrop-blur-xl supports-[backdrop-filter]:bg-[--bg-elevated]/85"
+      className="max-w-2xl overflow-hidden border border-[--border] bg-[--surface-modal] shadow-[--shadow-4]"
     >
-      {/* ambient top sheen — purely decorative, non-interactive */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[--accent]/[0.06] to-transparent"
-      />
-
       <div className="relative">
-        <div className="relative rounded-[--r-lg] border border-[--border]/70 bg-[--bg-subtle]/40 transition-colors duration-[--d-micro] focus-within:border-[--accent]/50 focus-within:bg-[--bg-subtle]/60">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[--fg-subtle]" />
+        <div className="relative rounded-[--r-lg] border border-[--border] bg-[--surface-input] transition-colors duration-[--dur-fast] focus-within:border-[--accent]/60 focus-within:ring-2 focus-within:ring-[--accent-subtle]">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[--text-muted]" />
           {loading && (
-            <Loader2 className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[--fg-subtle]" />
+            <Loader2 className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[--text-muted]" />
           )}
           <Input
             value={query}
@@ -116,7 +111,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
             onKeyDown={onKeyDown}
             placeholder="Search across every conversation you're in…"
             autoFocus
-            className="border-0 bg-transparent pl-10 pr-10 text-[14px] tracking-[-0.005em] shadow-none focus-visible:ring-0"
+            className="border-0 bg-transparent pl-10 pr-10 text-[14px] text-[--text-primary] shadow-none focus-visible:ring-0 placeholder:text-[--text-muted]"
           />
         </div>
       </div>
@@ -130,7 +125,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={tEnter(0.15)}
-              className="py-10 text-center text-[13px] text-[--fg-subtle]"
+              className="py-10 text-center text-[13px] text-[--text-muted]"
             >
               Type at least two characters. Results respect room membership — you only ever see what
               you have access to.
@@ -142,9 +137,9 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={tEnter(0.15)}
-              className="py-10 text-center text-[13px] text-[--fg-subtle]"
+              className="py-10 text-center text-[13px] text-[--text-muted]"
             >
-              No messages match <span className="font-medium text-[--fg]">{query}</span>.
+              No messages match <span className="font-medium text-[--text-primary]">{query}</span>.
             </motion.p>
           ) : (
             <motion.ul
@@ -161,22 +156,22 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
                     onMouseEnter={() => setCursor(i)}
                     onClick={() => goto(h)}
                     className={cn(
-                      "flex w-full gap-3 rounded-[--r-md] border border-transparent px-3 py-2.5 text-left transition-all duration-[--d-micro]",
+                      "flex w-full gap-3 rounded-[--r-md] border border-transparent px-3 py-2.5 text-left transition-all duration-[--dur-fast]",
                       i === cursor
-                        ? "border-[--border]/70 bg-[--bg-hover]"
-                        : "hover:bg-[--bg-hover]",
+                        ? "border-[--border-subtle] bg-[--surface-hover]"
+                        : "hover:bg-[--surface-hover]",
                     )}
                   >
-                    <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-[--r-sm] border border-[--border]/60 bg-[--bg-active] text-[--fg-muted]">
+                    <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-[--r-sm] border border-[--border-subtle] bg-[--surface] text-[--text-muted]">
                       {h.sender_type === "ai" ? (
-                        <Sparkles className="h-3.5 w-3.5 text-[--ai-accent]" />
+                        <AiMarkIcon size={14} className="text-[--ai]" />
                       ) : (
                         <Hash className="h-3.5 w-3.5" />
                       )}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">
-                        <span className="truncate text-[12.5px] font-semibold text-[--fg]">
+                        <span className="truncate text-[12.5px] font-semibold text-[--text-primary]">
                           {h.conversation_name ??
                             (h.conversation_type === "direct_ai" ? "Direct AI chat" : "Room")}
                         </span>

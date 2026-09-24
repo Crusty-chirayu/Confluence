@@ -45,10 +45,10 @@ export function OfflineBanner() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, transition: tExit() }}
             transition={tEnter(0.2)}
-            className="sticky top-0 z-40 border-b border-[--warning]/25 bg-[--warning-subtle]/70 backdrop-blur-md supports-[backdrop-filter]:bg-[--warning-subtle]/55"
+            className="sticky top-0 z-40 border-b border-[--warning]/30 bg-[--warning]/10 text-[--warning]"
           >
-            <div className="flex items-center justify-center gap-2 px-4 py-1.5 text-[12.5px] font-medium tracking-[-0.005em] text-[--warning]">
-              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[--warning]/12">
+            <div className="flex items-center justify-center gap-2 px-4 py-1.5 text-[12.5px] font-medium tracking-[-0.005em]">
+              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[--warning]/20">
                 {status === "offline" ? (
                   <CloudOff className="h-3 w-3 shrink-0" />
                 ) : (
@@ -57,8 +57,7 @@ export function OfflineBanner() {
               </span>
               {status === "offline" ? (
                 <span>
-                  You&apos;re offline. Messages may not reach the server — they&apos;ll
-                  be kept locally and you can retry once you reconnect.
+                  You&apos;re offline. Reconnect to send messages.
                 </span>
               ) : (
                 <span>Reconnecting…</span>

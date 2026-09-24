@@ -77,7 +77,7 @@ export function NewConversationModal({
       onClose={close}
       title="New conversation"
       description="A private thread with the assistant, or a room you can invite people to."
-      className="overflow-hidden border-[--border]/70 bg-[--bg-elevated] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_24px_60px_-20px_rgba(0,0,0,0.55)] backdrop-blur-xl supports-[backdrop-filter]:bg-[--bg-elevated]/85"
+      className="overflow-hidden border border-[--border] bg-[--surface-modal] shadow-[--shadow-4]"
       footer={
         <>
           <Button variant="ghost" onClick={close}>
@@ -89,15 +89,9 @@ export function NewConversationModal({
         </>
       }
     >
-      {/* ambient top sheen — purely decorative, non-interactive */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[--accent]/[0.06] to-transparent"
-      />
-
       <div className="relative space-y-6">
         <div>
-          <p className="mb-2 text-[13px] font-medium tracking-[-0.005em] text-[--fg]">
+          <p className="mb-2 text-[13px] font-medium tracking-[-0.005em] text-[--text-primary]">
             What are you creating?
           </p>
           <div className="grid grid-cols-2 gap-3">
@@ -120,27 +114,27 @@ export function NewConversationModal({
                 type="button"
                 onClick={() => setKind(o.v)}
                 className={cn(
-                  "group relative overflow-hidden rounded-[--r-lg] border p-4 text-left transition-all duration-[--d-micro]",
+                  "group relative overflow-hidden rounded-[--r-lg] border p-4 text-left transition-all duration-[--dur-fast]",
                   kind === o.v
-                    ? "border-[--accent]/60 bg-[--accent-subtle] shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset]"
-                    : "border-[--border] hover:border-[--border-strong] hover:bg-[--bg-hover]",
+                    ? "border-[--accent]/60 bg-[--accent-subtle]"
+                    : "border-[--border-subtle] hover:border-[--border] hover:bg-[--surface-hover]",
                 )}
               >
                 <o.icon
                   className={cn(
-                    "mb-2 h-5 w-5 transition-colors duration-[--d-micro]",
-                    kind === o.v ? "text-[--accent-text]" : "text-[--fg-muted] group-hover:text-[--fg]",
+                    "mb-2 h-5 w-5 transition-colors duration-[--dur-fast]",
+                    kind === o.v ? "text-[--accent-text]" : "text-[--text-muted] group-hover:text-[--text-primary]",
                   )}
                 />
-                <p className="text-[13.5px] font-semibold text-[--fg]">{o.title}</p>
-                <p className="mt-1 text-[12px] leading-snug text-[--fg-muted]">{o.body}</p>
+                <p className="text-[13.5px] font-semibold text-[--text-primary]">{o.title}</p>
+                <p className="mt-1 text-[12px] leading-snug text-[--text-secondary]">{o.body}</p>
               </button>
             ))}
           </div>
         </div>
 
         {kind === "group" && (
-          <div className="space-y-5 rounded-[--r-lg] border border-[--border]/70 bg-[--bg-subtle]/40 p-4">
+          <div className="space-y-5 rounded-[--r-lg] border border-[--border-subtle] bg-[--surface] p-4">
             <Field label="Room name" error={error} id="room-name">
               <Input
                 id="room-name"
@@ -166,7 +160,7 @@ export function NewConversationModal({
             </Field>
 
             <fieldset>
-              <legend className="mb-2 text-[13px] font-medium tracking-[-0.005em] text-[--fg]">
+              <legend className="mb-2 text-[13px] font-medium tracking-[-0.005em] text-[--text-primary]">
                 AI participation
               </legend>
               <div
@@ -197,11 +191,11 @@ export function NewConversationModal({
                       htmlFor={id}
                       onClick={() => setAiMode(m.v)}
                       className={cn(
-                        "flex w-full cursor-pointer items-start gap-3 rounded-[--r-md] border p-3 text-left transition-all duration-[--d-micro]",
-                        "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[--accent] has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-[--bg-elevated]",
+                        "flex w-full cursor-pointer items-start gap-3 rounded-[--r-md] border p-3 text-left transition-all duration-[--dur-fast]",
+                        "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[--focus-ring] has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-[--bg-page]",
                         aiMode === m.v
-                          ? "border-[--accent]/60 bg-[--accent-subtle] shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset]"
-                          : "border-[--border] hover:border-[--border-strong] hover:bg-[--bg-hover]",
+                          ? "border-[--accent]/60 bg-[--accent-subtle]"
+                          : "border-[--border-subtle] hover:border-[--border] hover:bg-[--surface-hover]",
                       )}
                     >
                       <input
@@ -216,15 +210,15 @@ export function NewConversationModal({
                       <span
                         aria-hidden
                         className={cn(
-                          "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 transition-colors duration-[--d-micro]",
+                          "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 transition-colors duration-[--dur-fast]",
                           aiMode === m.v ? "border-[--accent]" : "border-[--border-strong]",
                         )}
                       >
                         {aiMode === m.v && <span className="h-1.5 w-1.5 rounded-full bg-[--accent]" />}
                       </span>
                       <span className="min-w-0">
-                        <span className="block text-[13px] font-medium text-[--fg]">{m.label}</span>
-                        <span className="block text-[12px] leading-snug text-[--fg-muted]">
+                        <span className="block text-[13px] font-medium text-[--text-primary]">{m.label}</span>
+                        <span className="block text-[12px] leading-snug text-[--text-secondary]">
                           {m.body}
                         </span>
                       </span>
