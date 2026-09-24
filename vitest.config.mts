@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "jsdom",
+    fileParallelism: false,
     // Deno-runtime tests are executed by `deno test`, not vitest.
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     exclude: [

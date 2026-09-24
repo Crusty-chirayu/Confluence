@@ -1,11 +1,11 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { AiMarkIcon } from "@/components/icons";
 import { cn, hueFrom, initials } from "@/lib/utils";
 
 const sizes = {
   xs: "h-6 w-6 text-[10px]",
-  sm: "h-8 w-8 text-[11px]",
+  sm: "h-7 w-7 text-[11px]",
   md: "h-9 w-9 text-xs",
   lg: "h-12 w-12 text-sm",
   xl: "h-20 w-20 text-xl",
@@ -26,7 +26,7 @@ export function Avatar({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full font-semibold",
+        "inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full font-semibold border border-[--border-subtle]",
         sizes[size],
         className,
       )}
@@ -34,11 +34,11 @@ export function Avatar({
         url
           ? undefined
           : {
-              background: `linear-gradient(140deg, hsl(${hue} 62% 58%), hsl(${(hue + 42) % 360} 62% 48%))`,
-              color: "white",
+              background: `linear-gradient(140deg, hsl(${hue} 45% 42%), hsl(${(hue + 36) % 360} 45% 32%))`,
+              color: "#F3F5F8",
             }
       }
-      aria-hidden
+      aria-hidden="true"
     >
       {url ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -53,32 +53,46 @@ export function Avatar({
 export function AiAvatar({
   size = "md",
   className,
+  status = "normal",
 }: {
   size?: keyof typeof sizes;
   className?: string;
+  status?: "normal" | "listening" | "following" | "responding" | "off";
 }) {
+  const isOff = status === "off";
+  const isLive = status === "responding";
+
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-full",
-        // §2.5: ai-teal-500 2px avatar ring
-        "bg-[--ai-teal-900] text-[--ai-teal-500] ring-2 ring-[--bubble-ai-ring]",
+        "relative inline-flex shrink-0 items-center justify-center rounded-full bg-[--surface-elevated] text-[--ai] transition-all duration-[--dur-fast]",
+        isOff
+          ? "opacity-50 ring-1 ring-[--border-strong] text-[--text-muted]"
+          : isLive
+            ? "ring-2 ring-[--ai-live] text-[--ai-live]"
+            : "ring-2 ring-[--ai]",
         sizes[size],
         className,
       )}
-      aria-hidden
+      aria-hidden="true"
     >
-      <Sparkles className="h-1/2 w-1/2" strokeWidth={2.25} />
+      <AiMarkIcon className="h-1/2 w-1/2" />
+      {isLive && (
+        <span
+          className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-[--ai-live] ring-2 ring-[--bg-page]"
+          aria-hidden="true"
+        />
+      )}
     </span>
   );
 }
 
-/** §2.5 "AI" pill label — accompanies every AI message. */
+/** Section 6 & 24 "Confluence AI" pill badge */
 export function AiPill({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "rounded-[--r-pill] bg-[--ai] px-1.5 py-px text-[10px] font-semibold uppercase leading-[14px] tracking-wide text-[--ai-foreground]",
+        "inline-flex items-center rounded-[--r-xs] border border-[--ai]/30 bg-[--ai-subtle] px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-[12px] tracking-[0.08em] text-[--ai]",
         className,
       )}
     >

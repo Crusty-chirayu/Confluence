@@ -52,3 +52,4 @@ e2e-run.log
 supabase/.temp/
 
 e2e-serial.log
+.agents/

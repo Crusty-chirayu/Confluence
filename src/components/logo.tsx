@@ -1,54 +1,69 @@
+import React from "react";
 import { cn } from "@/lib/utils";
 
-/** Two streams converging into one — "confluence". */
-export function Logo({ className }: { className?: string }) {
+export interface LogoProps {
+  size?: 16 | 24 | 32;
+  className?: string;
+  monochrome?: boolean;
+}
+
+/**
+ * Confluence Brand Mark — The Merge
+ * Two thin lines (1.5px) converging into one stream on a 24x24 grid.
+ * Precision over decoration: rounded terminals, no fills, disciplined stroke.
+ */
+export function Logo({ size = 24, className, monochrome = false }: LogoProps) {
+  const dim = size;
+
   return (
     <svg
-      viewBox="0 0 32 32"
+      width={dim}
+      height={dim}
+      viewBox="0 0 24 24"
       fill="none"
+      xmlns="http://www.w3.org/2000/svg"
       className={cn("shrink-0", className)}
-      aria-hidden
+      aria-hidden="true"
       role="presentation"
     >
-      <defs>
-        <linearGradient id="cf-g" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor="var(--ai-accent)" />
-          <stop offset="0.55" stopColor="var(--accent)" />
-          <stop offset="1" stopColor="var(--accent)" stopOpacity="0.92" />
-        </linearGradient>
-        <linearGradient id="cf-sheen" x1="16" y1="0" x2="16" y2="18" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.16" />
-          <stop offset="1" stopColor="white" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id="cf-edge" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.35" />
-          <stop offset="1" stopColor="white" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
-      {/* base surface */}
-      <rect width="32" height="32" rx="9" fill="url(#cf-g)" />
-      {/* hairline inner edge for a polished, faceted rim */}
-      <rect x="0.5" y="0.5" width="31" height="31" rx="8.5" stroke="url(#cf-edge)" strokeWidth="1" />
-      {/* soft top sheen for controlled depth, no glow/blur cost */}
-      <rect width="32" height="18" rx="9" fill="url(#cf-sheen)" />
-
+      {/* Stream 1 (Left / Private): Curves inward to merge */}
       <path
-        d="M9 9.5c0 4.4 3.1 6.5 7 6.5s7 2.1 7 6.5"
-        stroke="white"
-        strokeWidth="2.4"
+        d="M 5 4.5 C 5 10.5 12 11.5 12 16 L 12 20"
+        stroke={monochrome ? "currentColor" : "var(--accent)"}
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
-        opacity="0.96"
       />
+      {/* Stream 2 (Right / Room / AI): Curves inward and merges at the confluence trunk */}
       <path
-        d="M23 9.5c0 4.4-3.1 6.5-7 6.5s-7 2.1-7 6.5"
-        stroke="white"
-        strokeWidth="2.4"
+        d="M 19 4.5 C 19 10.5 12 11.5 12 16"
+        stroke={monochrome ? "currentColor" : "var(--ai)"}
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
-        opacity="0.55"
       />
     </svg>
+  );
+}
+
+/** Full brand lockup: Logo Mark + Wordmark */
+export function BrandLockup({
+  size = 24,
+  className,
+  markOnly = false,
+}: {
+  size?: 16 | 24 | 32;
+  className?: string;
+  markOnly?: boolean;
+}) {
+  return (
+    <div className={cn("inline-flex items-center gap-2.5 select-none", className)}>
+      <Logo size={size} />
+      {!markOnly && (
+        <span className="text-[14px] font-semibold tracking-[-0.02em] text-[--text-primary]">
+          Confluence
+        </span>
+      )}
+    </div>
   );
 }

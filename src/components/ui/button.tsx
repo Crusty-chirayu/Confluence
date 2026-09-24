@@ -58,6 +58,34 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
 
   // Single interactive element: the anchor carries the button styling.
   if (asChild) {
+    let targetHref = href;
+    let content = children;
+    if (
+      !targetHref &&
+      React.isValidElement(children) &&
+      (children.props as { href?: string })?.href
+    ) {
+      targetHref = (children.props as { href?: string }).href;
+      content = (children.props as { children?: React.ReactNode }).children;
+    }
+
+    if (!targetHref) {
+      return (
+        <motion.button
+          ref={ref}
+          className={classes}
+          whileTap={disabled || loading ? undefined : { scale: 0.97 }}
+          whileHover={disabled || loading ? undefined : { scale: 1.015 }}
+          transition={SPRING}
+          disabled={disabled || loading}
+          {...props}
+        >
+          {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+          {children}
+        </motion.button>
+      );
+    }
+
     const MotionLink = motion.create(Link);
     // framer-motion's onDrag collides with the anchor's onDrag type; the
     // public API stays fully typed, the spread is widened at the boundary.
@@ -70,11 +98,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
         whileHover={disabled || loading ? undefined : { scale: 1.015 }}
         transition={SPRING}
         aria-disabled={disabled || loading || undefined}
-        href={href}
+        href={targetHref}
         {...anchorProps}
       >
         {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-        {children}
+        {content}
       </MotionLink>
     );
   }

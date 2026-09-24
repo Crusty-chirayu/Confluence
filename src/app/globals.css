@@ -1,395 +1,294 @@
 @import "tailwindcss";
 
 /* =====================================================================
-   AI Chat Platform — Design System (v3.0 "Liquid Display")
-   Implements the §6 semantic palette (light + dark), §2.4 spacing/radius/
-   elevation, §2.6 accessibility tokens, §2.7 motion tokens.
-
-   The §6-named semantic variables are canonical. Legacy names used across
-   the component tree (--fg, --accent, --ai-accent, …) are ALIASES that
-   resolve to those canonical values, so every component renders the spec
-   colors without a mass rename.
-
-   All text-on-surface pairs are validated against WCAG AA (≥4.5:1 normal,
-   ≥3:1 large/UI) by `scripts/contrast.mjs`. Where a §6 literal falls below
-   AA on a raised surface, the token is nudged slightly and documented below.
-
-   v3.0 adds a "liquid display" visual layer — glass surfaces, depth,
-   ambient light, gradient borders and a fluid motion vocabulary — as a
-   pure ADDITIVE layer of new tokens + new utility classes. Nothing in the
-   v2.0 token/selector contract below was renamed, removed, or repurposed:
-   every existing variable, class, and keyframe still resolves exactly as
-   it did, so the app keeps compiling and rendering with zero component
-   changes. New material lives in the "LIQUID DISPLAY LAYER" section.
+   Confluence — Precision Design System (v2.1)
+   Restrained premium design system: tonal depth, hairlines, disciplined
+   spacing, purposeful motion, and WCAG AA contrast.
    ===================================================================== */
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* ---------------- PRIMITIVES ---------------- */
-  --neutral-0: #ffffff;
-  --neutral-50: #f8faf9;
-  --neutral-100: #f1f4f4;
-  --neutral-200: #dce5e5;
-  --neutral-300: #c3d0d0;
-  --neutral-500: #5a6a6c;
-  --neutral-700: #465557;
-  --neutral-750: #333b3c;
-  --neutral-800: #262c2d;
-  --neutral-850: #1a2021;
-  --neutral-900: #101617;
-  --neutral-950: #080a0c;
+  /* ---------------- §6.2 LIGHT THEME PALETTE ---------------- */
+  --bg-page: #F7F8FA;
+  --bg-elevated: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --surface-hover: #F1F3F6;
+  --surface-active: #E9ECF1;
+  --surface-input: #FFFFFF;
+  --surface-modal: #FFFFFF;
 
-  --accent-500: #5555ee;
-  --accent-600: #4747d8;
-  --accent-100: #e7e7fe;
-  --accent-900: #22206b;
-  --accent-border: #c5c5fb;
+  --border-subtle: rgba(12, 16, 24, 0.07);
+  --border: rgba(12, 16, 24, 0.12);
+  --border-strong: rgba(12, 16, 24, 0.20);
+  --border-default: var(--border);
 
-  /* §6 AI identity — LIGHT theme is the deeper §6 value so it clears AA
-     with white text (the DARK value #0fb8a6 is overridden in `.dark`). */
-  --ai-teal-500: #087f74;
-  --ai-teal-100: #d8f6f1;
-  --ai-teal-900: #0b3733;
-  --ai-strong: #066a62;
-  --ai-foreground: #ffffff;
+  --text-primary: #0D1117;
+  --text-secondary: #3E4756;
+  --text-muted: #66707F;
+  --text-disabled: #A0A8B4;
 
-  --success-500: #087a4b;
-  --warning-500: #875f00;
-  --danger-500: #b4232d;
-  --danger-100: #fce6e5;
-  --danger-900: #3e1917;
-  --info-500: #175cd3;
-
-  /* ---------------- §6 SEMANTIC TOKENS (light) ---------------- */
-  --background: #f8fafa;
-  --surface: #ffffff;
-  --surface-elevated: #f1f5f5;
-  --bg-app: var(--background);
-  --bg-surface: #ffffff;
-  --bg-surface-raised: #f1f5f5;
-  --bg-subtle: #eef2f2;
-  --bg-hover: #e8eeee;
-  --bg-active: #e0e8e8;
-  --border-default: #dce5e5;
-  --border-strong: #c3d0d0;
-  --border: var(--border-default);
-  --bg: var(--bg-app);
-  --surface: var(--bg-surface);
-  --surface-raised: var(--bg-surface-raised);
-  --ai-bubble: var(--bubble-ai-bg);
-  --foreground: #101617;
-  --foreground-muted: #4f5f5f;
-  /* AA-safe muted/subtle (nudged from §6 #667678 so it clears 4.5:1 on the
-     lightest raised surface). */
-  --text-primary: var(--foreground);
-  --text-secondary: #465557;
-  --fg: var(--foreground);
-  --fg-muted: #4f5f5f;
-  --fg-subtle: #5a6a6c;
-  --fg-inverse: #ffffff;
-
-  --brand: #5555ee;
-  --brand-hover: #4747d8;
-  --accent: var(--brand);
-  --accent-hover: var(--brand-hover);
-  --accent-active: var(--accent-600);
-  --accent-subtle: var(--accent-100);
-  --accent-foreground: #ffffff;
+  --accent: #4F46E5;
+  --accent-hover: #4338CA;
+  --accent-active: #3730A3;
+  --accent-text: #4338CA;
+  --accent-subtle: #EEF2FF;
+  --accent-foreground: #FFFFFF;
   --accent-fg: var(--accent-foreground);
-  --accent-text: #3f3fd0;
 
-  --success: var(--success-500);
-  --success-subtle: #e3f6ec;
-  --warning: var(--warning-500);
-  --warning-subtle: #fdf3e3;
-  --danger: var(--danger-500);
-  --danger-subtle: var(--danger-100);
-  --danger-hover: #9a1e27;
-  --info: var(--info-500);
-  --info-subtle: #e4edfb;
+  --ai: #7C3AED;
+  --ai-subtle: #F5F3FF;
+  --ai-live: #0891B2;
+  --ai-foreground: #FFFFFF;
 
-  /* §6 AI identity. bubble-ai-ring = signature AI teal (rings/outlines). */
-  --ai: var(--bubble-ai-ring);
-  --ai-accent: var(--bubble-ai-ring);
+  --success: #047857;
+  --success-subtle: #ECFDF5;
+  --warning: #B45309;
+  --warning-subtle: #FFFBEB;
+  --error: #DC2626;
+  --error-subtle: #FEF2F2;
+  --danger: var(--error);
+  --danger-hover: #B91C1C;
+  --danger-subtle: var(--error-subtle);
+  --info: #2563EB;
+  --info-subtle: #EFF6FF;
 
-  /* Bubbles (§2.2) */
-  --bubble-user-bg: var(--accent-500);
-  --bubble-user-fg: #ffffff;
-  --bubble-other-bg: var(--bg-subtle);
-  --bubble-other-fg: var(--foreground);
-  --bubble-ai-bg: var(--ai-teal-100);
-  --bubble-ai-fg: var(--foreground);
-  --bubble-ai-ring: var(--ai-teal-500);
+  --focus-ring: #4F46E5;
+  --focus: var(--focus-ring);
 
-  /* §2.6 focus ring — identical everywhere */
-  --focus: var(--accent-500);
+  /* ---------------- §8 SPACING (4px base scale) ---------------- */
+  --space-0: 0px;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --space-7: 24px;
+  --space-8: 32px;
+  --space-9: 40px;
+  --space-10: 48px;
+  --space-11: 64px;
+  --space-12: 80px;
+  --space-13: 96px;
+  --space-14: 128px;
+  --space-15: 160px;
 
-  /* ---------------- §2.4 RADIUS ---------------- */
-  --r-sm: 6px; /* inputs / buttons */
-  --r-md: 6px; /* inputs / buttons */
-  --r-lg: 12px; /* cards / bubbles */
-  --r-xl: 20px; /* modals */
-  --r-pill: 999px; /* avatars / pills */
+  /* ---------------- §9 RADIUS SYSTEM ---------------- */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-2xl: 22px;
+  --r-full: 9999px;
+  --r-pill: 9999px;
 
-  /* ---------------- §2.4 ELEVATION ---------------- */
-  --e1: 0 1px 2px 0 rgb(16 19 25 / 0.06), 0 1px 3px 0 rgb(16 19 25 / 0.07);
-  --e2: 0 2px 4px -1px rgb(16 19 25 / 0.07), 0 4px 12px -2px rgb(16 19 25 / 0.09);
-  --e3: 0 8px 24px -4px rgb(16 19 25 / 0.14), 0 2px 8px -2px rgb(16 19 25 / 0.07);
-  --e4: 0 24px 48px -12px rgb(16 19 25 / 0.2);
+  /* ---------------- §12 SHADOW SYSTEM (Light) ---------------- */
+  --shadow-0: none;
+  --shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06), 0 0 0 1px var(--border-subtle);
+  --shadow-2: 0 2px 4px rgba(16, 24, 40, 0.06), 0 6px 12px -4px rgba(16, 24, 40, 0.08);
+  --shadow-3: 0 4px 12px -2px rgba(16, 24, 40, 0.08), 0 12px 24px -8px rgba(16, 24, 40, 0.12);
+  --shadow-4: 0 8px 24px -4px rgba(16, 24, 40, 0.10), 0 24px 48px -12px rgba(16, 24, 40, 0.14);
+  --glow-accent: 0 0 0 4px var(--accent-subtle);
+  --e1: var(--shadow-1);
+  --e2: var(--shadow-2);
+  --e3: var(--shadow-3);
+  --e4: var(--shadow-4);
 
-  /* ---------------- §2.7 MOTION TOKENS ---------------- */
-  --d-micro: 120ms;
-  --d-standard: 200ms;
-  --d-emphasis: 320ms;
-  --d-hero: 480ms;
-  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+  /* ---------------- §13 MOTION SYSTEM ---------------- */
+  --dur-micro: 90ms;
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --dur-emph: 360ms;
+  --dur-slow: 600ms;
+  --dur-ambient: 10s;
+  --d-micro: var(--dur-micro);
+  --d-standard: var(--dur-base);
+  --d-emphasis: var(--dur-emph);
+  --d-hero: var(--dur-slow);
 
-  /* =================================================================
-     LIQUID DISPLAY LAYER — light theme
-     Purely additive tokens for glass surfaces, depth and ambient light.
-     Every value here is derived from the §6 palette above (accent-500 /
-     ai-teal-500 / neutral scale) so the material reads as "Confluence",
-     never a generic glassmorphism preset.
-     ================================================================= */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-enter: var(--ease-emphasized);
 
-  /* Glass surfaces: translucent, tinted by the surface it sits above so
-     it never looks like a flat white/grey pane. */
-  --glass-bg: color-mix(in oklab, var(--bg-surface) 72%, transparent);
-  --glass-bg-strong: color-mix(in oklab, var(--bg-surface) 88%, transparent);
-  --glass-bg-subtle: color-mix(in oklab, var(--bg-surface) 55%, transparent);
-  --glass-border: color-mix(in oklab, var(--neutral-0) 70%, var(--border-strong) 30%);
-  --glass-border-strong: color-mix(in oklab, var(--neutral-0) 40%, var(--accent-500) 20%);
-  --glass-blur: 18px;
-  --glass-blur-sm: 10px;
-  --glass-blur-lg: 28px;
-  --glass-highlight: rgb(255 255 255 / 0.55);
-  --glass-shadow: 0 1px 1px 0 rgb(16 19 25 / 0.04), 0 12px 32px -8px rgb(16 19 25 / 0.12),
-    inset 0 1px 0 0 var(--glass-highlight);
+  /* Backward Compatibility Aliases */
+  --background: var(--bg-page);
+  --bg-app: var(--bg-page);
+  --bg-surface: var(--surface);
+  --bg-surface-raised: var(--surface-elevated);
+  --bg-subtle: var(--surface-hover);
+  --bg-hover: var(--surface-hover);
+  --bg-active: var(--surface-active);
+  --foreground: var(--text-primary);
+  --foreground-muted: var(--text-secondary);
+  --fg: var(--text-primary);
+  --fg-muted: var(--text-secondary);
+  --fg-subtle: var(--text-muted);
+  --brand: var(--accent);
+  --brand-hover: var(--accent-hover);
+  --ai-accent: var(--ai);
 
-  /* Ambient field: two soft, slow-moving light sources behind the app
-     shell. Kept at very low opacity — this is atmosphere, not wallpaper. */
-  --ambient-1: radial-gradient(
-    ellipse 60% 45% at 15% -8%,
-    color-mix(in oklab, var(--accent-500) 16%, transparent),
-    transparent 65%
-  );
-  --ambient-2: radial-gradient(
-    ellipse 55% 40% at 100% 10%,
-    color-mix(in oklab, var(--ai-teal-500) 14%, transparent),
-    transparent 65%
-  );
-  --ambient-grain-opacity: 0.02;
-
-  /* Gradient border material (double-background technique) */
-  --gradient-border-from: color-mix(in oklab, var(--accent-500) 55%, transparent);
-  --gradient-border-to: color-mix(in oklab, var(--ai-teal-500) 55%, transparent);
-
-  /* Glow rings — used sparingly, only on the active/focused/primary element */
-  --glow-accent: 0 0 0 1px color-mix(in oklab, var(--accent-500) 35%, transparent),
-    0 0 24px -4px color-mix(in oklab, var(--accent-500) 45%, transparent);
-  --glow-ai: 0 0 0 1px color-mix(in oklab, var(--ai-teal-500) 35%, transparent),
-    0 0 24px -4px color-mix(in oklab, var(--ai-teal-500) 45%, transparent);
-
-  /* Fluid easing for hover/press — slightly springier than --ease-enter,
-     reserved for small interactive surfaces (buttons, avatars, cards). */
-  --ease-fluid: cubic-bezier(0.22, 1, 0.36, 1);
-  --d-fluid: 260ms;
+  --bubble-user-bg: var(--accent);
+  --bubble-user-fg: #FFFFFF;
+  --bubble-other-bg: var(--surface-hover);
+  --bubble-other-fg: var(--text-primary);
+  --bubble-ai-bg: var(--ai-subtle);
+  --bubble-ai-fg: var(--text-primary);
+  --bubble-ai-ring: var(--ai);
 }
 
 .dark {
-  /* ---------------- §6 SEMANTIC TOKENS (dark) ---------------- */
-  --background: #080a0c;
-  --surface: #11171a;
-  --surface-elevated: #161e22;
-  --bg-app: var(--background);
-  --bg-surface: #11171a;
-  --bg-surface-raised: #161e22;
-  --bg-subtle: #0d1114;
-  --bg-hover: #161e22;
-  --bg-active: #1d2627;
-  --border-default: #243036;
-  --border-strong: #3a4650;
-  --border: var(--border-default);
-  --bg: var(--bg-app);
-  --surface: var(--bg-surface);
-  --surface-raised: var(--bg-surface-raised);
-  --ai-bubble: var(--bubble-ai-bg);
-  --neutral-500: #849091;
-  --foreground: #f4f7f7;
-  --foreground-muted: #849091;
-  --text-primary: var(--foreground);
-  --text-secondary: #aab8ba;
-  --fg: var(--foreground);
-  --fg-muted: #849091;
-  --fg-subtle: #7c8a8b;
-  --fg-inverse: #080a0c;
+  /* ---------------- §6.1 DARK THEME PALETTE ---------------- */
+  --bg-page: #06070A;
+  --bg-elevated: #0A0C10;
+  --surface: #0E1116;
+  --surface-elevated: #13171D;
+  --surface-hover: #171C23;
+  --surface-active: #1C222B;
+  --surface-input: #0B0E12;
+  --surface-modal: #12161C;
 
-  --brand: #5555ee;
-  --brand-hover: #6d6df8;
-  --accent: var(--brand);
-  --accent-hover: var(--brand-hover);
-  --accent-active: #8383fa;
-  --accent-subtle: #1b1b56;
-  --accent-foreground: #ffffff;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-default: var(--border);
+
+  --text-primary: #F3F5F8;
+  --text-secondary: #B4BBC6;
+  --text-muted: #7C8593;
+  --text-disabled: #4F5762;
+
+  --accent: #5457EC;
+  --accent-hover: #6467F2;
+  --accent-active: #4649D6;
+  --accent-text: #A5A8FF;
+  --accent-subtle: #17183B;
+  --accent-foreground: #FFFFFF;
   --accent-fg: var(--accent-foreground);
-  --accent-text: #9b9bff;
 
-  --success: #18c77a;
-  --success-subtle: #0c2e1e;
-  --warning: #f5b942;
-  --warning-subtle: #33260e;
-  --danger: #ef5b62;
-  --danger-subtle: #3e1917;
-  --danger-hover: #f58e8b;
-  --info: #5ba7ff;
-  --info-subtle: #102a4d;
+  --ai: #A78BFA;
+  --ai-subtle: #17142A;
+  --ai-live: #22D3EE;
+  --ai-foreground: #06070A;
 
-  /* §6 AI identity */
-  --ai-teal-500: #0fb8a6;
-  --ai-teal-100: #123f3a;
-  --ai-teal-900: #0b3733;
-  --ai-strong: #078f82;
-  --ai-foreground: #06211e;
-  --ai: var(--bubble-ai-ring);
-  --ai-accent: var(--bubble-ai-ring);
+  --success: #34D399;
+  --success-subtle: #08291E;
+  --warning: #FBBF24;
+  --warning-subtle: #2B2006;
+  --error: #F87171;
+  --error-subtle: #2D1314;
+  --danger: var(--error);
+  --danger-hover: #F58E8B;
+  --danger-subtle: var(--error-subtle);
+  --info: #60A5FA;
+  --info-subtle: #11223E;
 
-  --bubble-user-bg: var(--accent-500);
-  --bubble-user-fg: #ffffff;
-  --bubble-other-bg: #1a2021;
-  --bubble-other-fg: var(--foreground);
-  --bubble-ai-bg: var(--ai-teal-900);
-  --bubble-ai-fg: var(--foreground);
-  --bubble-ai-ring: var(--ai-teal-500);
+  --focus-ring: #8B8EFF;
+  --focus: var(--focus-ring);
 
-  --focus: var(--accent-500);
+  /* ---------------- §12 SHADOW SYSTEM (Dark) ---------------- */
+  --shadow-0: none;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.30), 0 0 0 1px var(--border-subtle);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.28), 0 8px 16px -8px rgba(0, 0, 0, 0.35);
+  --shadow-3: 0 4px 12px rgba(0, 0, 0, 0.32), 0 16px 32px -12px rgba(0, 0, 0, 0.45);
+  --shadow-4: 0 8px 24px rgba(0, 0, 0, 0.40), 0 32px 64px -16px rgba(0, 0, 0, 0.55);
+  --glow-accent: 0 0 0 4px var(--accent-subtle);
+  --e1: var(--shadow-1);
+  --e2: var(--shadow-2);
+  --e3: var(--shadow-3);
+  --e4: var(--shadow-4);
 
-  --e1: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-  --e2: 0 2px 8px -2px rgb(0 0 0 / 0.5);
-  --e3: 0 8px 24px -4px rgb(0 0 0 / 0.6);
-  --e4: 0 24px 48px -12px rgb(0 0 0 / 0.7);
+  /* Backward Compatibility Aliases */
+  --background: var(--bg-page);
+  --bg-app: var(--bg-page);
+  --bg-surface: var(--surface);
+  --bg-surface-raised: var(--surface-elevated);
+  --bg-subtle: var(--surface-hover);
+  --bg-hover: var(--surface-hover);
+  --bg-active: var(--surface-active);
+  --foreground: var(--text-primary);
+  --foreground-muted: var(--text-secondary);
+  --fg: var(--text-primary);
+  --fg-muted: var(--text-secondary);
+  --fg-subtle: var(--text-muted);
+  --brand: var(--accent);
+  --brand-hover: var(--accent-hover);
+  --ai-accent: var(--ai);
 
-  /* =================================================================
-     LIQUID DISPLAY LAYER — dark theme
-     Dark glass reads very differently from light glass: instead of a
-     bright highlight, the "wet" quality comes from a faint top edge of
-     light and a deeper, cooler shadow. Ambient glow is slightly stronger
-     here since dark surfaces need more signal to read as lit from within.
-     ================================================================= */
-
-  --glass-bg: color-mix(in oklab, var(--bg-surface) 66%, transparent);
-  --glass-bg-strong: color-mix(in oklab, var(--bg-surface) 84%, transparent);
-  --glass-bg-subtle: color-mix(in oklab, var(--bg-surface) 46%, transparent);
-  --glass-border: color-mix(in oklab, var(--neutral-0) 10%, var(--border-strong) 90%);
-  --glass-border-strong: color-mix(in oklab, var(--neutral-0) 14%, var(--accent-500) 30%);
-  --glass-blur: 18px;
-  --glass-blur-sm: 10px;
-  --glass-blur-lg: 28px;
-  --glass-highlight: rgb(255 255 255 / 0.06);
-  --glass-shadow: 0 1px 0 0 rgb(255 255 255 / 0.04), 0 16px 40px -10px rgb(0 0 0 / 0.55),
-    inset 0 1px 0 0 var(--glass-highlight);
-
-  --ambient-1: radial-gradient(
-    ellipse 60% 45% at 15% -8%,
-    color-mix(in oklab, var(--accent-500) 22%, transparent),
-    transparent 65%
-  );
-  --ambient-2: radial-gradient(
-    ellipse 55% 40% at 100% 10%,
-    color-mix(in oklab, var(--ai-teal-500) 20%, transparent),
-    transparent 65%
-  );
-  --ambient-grain-opacity: 0.035;
-
-  --gradient-border-from: color-mix(in oklab, var(--accent-500) 65%, transparent);
-  --gradient-border-to: color-mix(in oklab, var(--ai-teal-500) 65%, transparent);
-
-  --glow-accent: 0 0 0 1px color-mix(in oklab, var(--accent-500) 45%, transparent),
-    0 0 28px -4px color-mix(in oklab, var(--accent-500) 60%, transparent);
-  --glow-ai: 0 0 0 1px color-mix(in oklab, var(--ai-teal-500) 45%, transparent),
-    0 0 28px -4px color-mix(in oklab, var(--ai-teal-500) 60%, transparent);
-
-  --ease-fluid: cubic-bezier(0.22, 1, 0.36, 1);
-  --d-fluid: 260ms;
+  --bubble-user-bg: var(--accent);
+  --bubble-user-fg: #FFFFFF;
+  --bubble-other-bg: var(--surface-elevated);
+  --bubble-other-fg: var(--text-primary);
+  --bubble-ai-bg: var(--ai-subtle);
+  --bubble-ai-fg: var(--text-primary);
+  --bubble-ai-ring: var(--ai);
 }
 
 @theme inline {
-  /* §6 spec-named utilities */
-  --color-background: var(--background);
+  --color-bg-page: var(--bg-page);
+  --color-bg-elevated: var(--bg-elevated);
   --color-surface: var(--surface);
   --color-surface-elevated: var(--surface-elevated);
-  --color-foreground: var(--foreground);
-  --color-foreground-muted: var(--foreground-muted);
-  --color-border: var(--border-default);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-ai: var(--ai);
-  --color-ai-foreground: var(--ai-foreground);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-danger: var(--danger);
-  --color-info: var(--info);
-  --color-bubble-ai: var(--bubble-ai-bg);
-  --color-bubble-user: var(--bubble-user-bg);
-  --color-focus: var(--focus);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-surface-input: var(--surface-input);
+  --color-surface-modal: var(--surface-modal);
 
-  /* existing spec-named / legacy utilities */
-  --color-bg-app: var(--bg-app);
-  --color-bg-surface: var(--bg-surface);
-  --color-bg-surface-raised: var(--bg-surface-raised);
-  --color-border-default: var(--border-default);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-brand: var(--brand);
-  --color-brand-hover: var(--brand-hover);
-  --color-bubble-user: var(--bubble-user-bg);
-  --color-bubble-other: var(--bubble-other-bg);
-  --color-bubble-ai: var(--bubble-ai-bg);
-  --color-bubble-ai-ring: var(--bubble-ai-ring);
-
-  --color-bg: var(--bg);
-  --color-bg-subtle: var(--bg-subtle);
-  --color-bg-hover: var(--bg-hover);
-  --color-bg-active: var(--bg-active);
-  --color-surface: var(--surface);
-  --color-surface-raised: var(--bg-surface-raised);
+  --color-border-subtle: var(--border-subtle);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
-  --color-fg: var(--fg);
-  --color-fg-muted: var(--fg-muted);
-  --color-fg-subtle: var(--fg-subtle);
-  --color-fg-inverse: var(--fg-inverse);
+  --color-border-default: var(--border-default);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-disabled: var(--text-disabled);
+
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-active: var(--accent-active);
-  --color-accent-subtle: var(--accent-subtle);
-  --color-accent-border: var(--accent-border);
-  --color-accent-fg: var(--accent-fg);
   --color-accent-text: var(--accent-text);
-  --color-success: var(--success);
-  --color-success-subtle: var(--success-subtle);
-  --color-warning: var(--warning);
-  --color-warning-subtle: var(--warning-subtle);
-  --color-danger: var(--danger);
-  --color-danger-hover: var(--danger-hover);
-  --color-danger-subtle: var(--danger-subtle);
-  --color-ai-bubble: var(--ai-bubble);
-  --color-ai-accent: var(--ai-accent);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-fg: var(--accent-fg);
 
+  --color-ai: var(--ai);
+  --color-ai-subtle: var(--ai-subtle);
+  --color-ai-live: var(--ai-live);
+  --color-ai-accent: var(--ai);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-focus: var(--focus-ring);
+
+  /* Legacy aliases */
+  --color-bg-app: var(--bg-page);
+  --color-bg-surface: var(--surface);
+  --color-bg-surface-raised: var(--surface-elevated);
+  --color-bg-subtle: var(--surface-hover);
+  --color-bg-hover: var(--surface-hover);
+  --color-bg-active: var(--surface-active);
+  --color-fg: var(--text-primary);
+  --color-fg-muted: var(--text-secondary);
+  --color-fg-subtle: var(--text-muted);
+
+  --radius-xs: var(--r-xs);
   --radius-sm: var(--r-sm);
   --radius-md: var(--r-md);
   --radius-lg: var(--r-lg);
   --radius-xl: var(--r-xl);
-
-  --shadow-e1: var(--e1);
-  --shadow-e2: var(--e2);
-  --shadow-e3: var(--e3);
-  --shadow-e4: var(--e4);
+  --radius-2xl: var(--r-2xl);
+  --radius-pill: var(--r-pill);
 }
 
 * {
-  border-color: var(--border-default);
+  border-color: var(--border-subtle);
 }
 
 html {
@@ -400,52 +299,21 @@ html.dark {
 }
 
 body {
-  /* §2.3 typography — self-hosted in src/app/fonts (see src/app/layout.tsx).
-     Declared on `body`, not `:root`: next/font attaches the --font-inter /
-     --font-jetbrains-mono variables to <body>, and custom properties are
-     substituted at the element where they are declared — on :root the font
-     variables do not exist yet, so the stack would collapse to the fallback.
-     The Latin-Extended family sits after the Latin one so it is only
-     requested when a glyph needs it; the generic stacks remain the last
-     resort. */
   --font-sans: var(--font-inter), var(--font-inter-ext), ui-sans-serif, system-ui,
     -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas,
     "Liberation Mono", monospace;
 
-  background: var(--bg-app);
+  background-color: var(--bg-page);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 14px; /* §2.3 body-sm default */
+  font-size: 14px;
   line-height: 20px;
   -webkit-font-smoothing: antialiased;
-  /* §2.7: 200ms surface crossfade — theme switch never hard-flashes */
-  transition: background-color var(--d-standard) var(--ease-enter),
-    color var(--d-standard) var(--ease-enter);
+  transition: background-color var(--dur-base) var(--ease-standard),
+    color var(--dur-base) var(--ease-standard);
   position: relative;
   min-height: 100vh;
-}
-
-/* Ambient field lives behind everything, fixed to the viewport so it never
-   scrolls with content and never repaints on scroll. Two soft radial
-   gradients only — no animated background, no noise loop. Disabled
-   entirely on touch/small screens (see responsive section) to protect
-   paint cost on constrained GPUs. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: var(--ambient-1), var(--ambient-2);
-  background-repeat: no-repeat;
-}
-
-#__next,
-body > div:first-child,
-main {
-  position: relative;
-  z-index: 1;
 }
 
 ::selection {
@@ -453,494 +321,99 @@ main {
   color: var(--text-primary);
 }
 
-/* §2.6 focus ring: 2px accent-500, 2px offset, identical everywhere.
-   The base outline is untouched (this is the accessibility contract);
-   we layer an additional soft glow so the ring reads as "lit" rather
-   than a flat CSS default, without changing its size or offset. */
 :focus-visible {
-  outline: 2px solid var(--accent-500);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
-  box-shadow: 0 0 0 5px color-mix(in oklab, var(--accent-500) 16%, transparent);
-  transition: box-shadow var(--d-micro) var(--ease-enter);
+  box-shadow: var(--glow-accent);
+  transition: box-shadow var(--dur-fast) var(--ease-standard);
 }
 
-/* Scrollbars */
+/* Custom Slim Scrollbars */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 *::-webkit-scrollbar-thumb {
   background: var(--border-strong);
   border-radius: var(--r-pill);
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   background-clip: content-box;
-  transition: background-color var(--d-standard) var(--ease-enter);
+  transition: background-color var(--dur-fast) var(--ease-standard);
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in oklab, var(--border-strong) 60%, var(--accent-500) 40%);
+  background: var(--accent);
 }
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 
-/* --- Skeleton shimmer (~1.5s sweep) --- */
+/* Skeleton Shimmer */
 @keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: var(--bg-hover);
-  border-radius: var(--r-lg);
+  background-color: var(--surface-hover);
 }
 .skeleton::after {
   content: "";
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(
+  background-image: linear-gradient(
     90deg,
-    transparent,
-    color-mix(in oklab, var(--text-primary) 7%, transparent),
-    transparent
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 100%
   );
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 1.6s infinite linear;
 }
 
-/* --- §2.5 typing indicator: staggered scale pulse, ai-teal-500 --- */
-@keyframes dotPulse {
-  0%,
-  60%,
-  100% {
-    transform: scale(0.7);
-    opacity: 0.45;
-  }
-  30% {
-    transform: scale(1);
-    opacity: 1;
-  }
+/* Streaming caret pulse */
+@keyframes caret-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
-.typing-dot {
-  background: var(--ai-teal-500);
-  animation: dotPulse 1.2s infinite var(--ease-enter);
-}
-
-/* --- Destructive confirm shake (visual tell for debounce) --- */
-@keyframes shake {
-  10%,
-  90% {
-    transform: translateX(-1px);
-  }
-  20%,
-  80% {
-    transform: translateX(2px);
-  }
-  30%,
-  50%,
-  70% {
-    transform: translateX(-4px);
-  }
-  40%,
-  60% {
-    transform: translateX(4px);
-  }
-}
-.shake {
-  animation: shake 400ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-
-/* --- Toast auto-dismiss progress bar --- */
-@keyframes toastProgress {
-  from {
-    transform: scaleX(1);
-  }
-  to {
-    transform: scaleX(0);
-  }
-}
-
-/* --- Landing hero aurora --- */
-@keyframes auroraFloat {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(2%, -3%, 0) scale(1.08);
-  }
-}
-.aurora {
-  animation: auroraFloat 14s ease-in-out infinite;
-  will-change: transform;
-}
-
-/* --- Streaming caret (§2.5: teal, no layout shift) --- */
-@keyframes caretBlink {
-  0%,
-  49% {
-    opacity: 1;
-  }
-  50%,
-  100% {
-    opacity: 0;
-  }
-}
-.stream-caret {
+.streaming-caret {
   display: inline-block;
-  width: 0.5ch;
+  width: 2px;
   height: 1em;
-  margin-left: 1px;
-  vertical-align: text-bottom;
-  background: var(--ai-teal-500);
-  border-radius: 1px;
-  animation: caretBlink 1s steps(1) infinite;
+  vertical-align: -0.15em;
+  background-color: var(--ai-live);
+  animation: caret-pulse 1s infinite ease-in-out;
 }
 
-/* --- Prose (markdown rendering) --- */
-.prose-chat {
-  line-height: 1.6;
-  word-break: break-word;
+/* AI rule breathe */
+@keyframes ai-rule-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
-.prose-chat > * + * {
-  margin-top: 0.7em;
-}
-.prose-chat h1,
-.prose-chat h2,
-.prose-chat h3 {
-  font-weight: 600;
-  line-height: 1.3;
-  margin-top: 1.2em;
-}
-.prose-chat h1 {
-  font-size: 1.25em;
-}
-.prose-chat h2 {
-  font-size: 1.15em;
-}
-.prose-chat h3 {
-  font-size: 1.05em;
-}
-.prose-chat ul,
-.prose-chat ol {
-  padding-left: 1.35em;
-}
-.prose-chat ul {
-  list-style: disc;
-}
-.prose-chat ol {
-  list-style: decimal;
-}
-.prose-chat li + li {
-  margin-top: 0.25em;
-}
-.prose-chat a {
-  /* --accent-text is the theme-aware "accent as text" token — it clears AA on
-     every chat surface in both themes (--brand alone fails in dark). */
-  color: var(--accent-text);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-/* Inside a sender bubble the link inherits the bubble's own (AA-validated)
-   text color — a purple link on the purple own-message bubble would vanish. */
-.bubble .prose-chat a {
-  color: inherit;
-}
-.prose-chat code {
-  font-family: var(--font-mono);
-  font-size: 0.875em;
-  background: color-mix(in oklab, var(--text-primary) 8%, transparent);
-  padding: 0.15em 0.38em;
-  border-radius: var(--r-sm);
-}
-.prose-chat pre {
-  background: color-mix(in oklab, var(--text-primary) 7%, transparent);
-  border: 1px solid color-mix(in oklab, var(--text-primary) 10%, transparent);
-  border-radius: var(--r-lg);
-  padding: 0.85em 1em;
-  overflow-x: auto;
-}
-.prose-chat pre code {
-  background: transparent;
-  padding: 0;
-  font-size: 0.85em;
-}
-.prose-chat blockquote {
-  border-left: 3px solid color-mix(in oklab, var(--text-primary) 18%, transparent);
-  padding-left: 0.9em;
-  opacity: 0.85;
-}
-.prose-chat table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9em;
-}
-.prose-chat th,
-.prose-chat td {
-  border: 1px solid color-mix(in oklab, var(--text-primary) 14%, transparent);
-  padding: 0.4em 0.6em;
-  text-align: left;
-}
-.prose-chat hr {
-  border-top: 1px solid color-mix(in oklab, var(--text-primary) 14%, transparent);
+.ai-streaming-rule {
+  animation: ai-rule-breathe 2s infinite ease-in-out;
 }
 
-/* =====================================================================
-   LIQUID DISPLAY LAYER — utility classes
-   New, additive classes only. Nothing above this line was changed in
-   meaning. Components can opt into these incrementally in a later pass;
-   none are required for the app to keep working today.
-   ===================================================================== */
-
-/* --- Glass surfaces ---------------------------------------------------
-   Three weights (subtle/default/strong) for sidebar rails, popovers and
-   modals respectively. Each carries its own soft top highlight + shadow
-   so it reads as a pane of material, not a flat translucent rectangle.
-   backdrop-filter is isolated to its own declaration so it degrades
-   gracefully (falls back to the solid --glass-bg tint) on browsers/
-   devices without support. */
-.glass,
-.glass-subtle,
-.glass-strong {
-  background: var(--glass-bg);
-  box-shadow: var(--glass-shadow);
-  border: 1px solid var(--glass-border);
-}
-.glass {
-  backdrop-filter: blur(var(--glass-blur)) saturate(1.15);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.15);
-}
-.glass-subtle {
-  background: var(--glass-bg-subtle);
-  backdrop-filter: blur(var(--glass-blur-sm)) saturate(1.1);
-  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(1.1);
-}
-.glass-strong {
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(var(--glass-blur-lg)) saturate(1.2);
-  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(1.2);
-}
-
-/* --- Gradient border ----------------------------------------------------
-   Double-background technique: a padding-box fill plus a border-box
-   gradient. One px only — a hairline of color at the seam, not a glowing
-   frame. Use on the single most important surface in a view (e.g. the
-   active/selected conversation card, the primary CTA), never everywhere. */
-.gradient-border {
-  position: relative;
-  background:
-    linear-gradient(var(--surface), var(--surface)) padding-box,
-    linear-gradient(135deg, var(--gradient-border-from), var(--gradient-border-to)) border-box;
-  border: 1px solid transparent;
-}
-
-/* --- Elevated card ------------------------------------------------------
-   A resting surface that lifts fluidly on hover/focus. transform + box-
-   shadow only (no layout properties animate), so it stays cheap even on
-   long lists of cards. */
-.surface-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--r-lg);
-  box-shadow: var(--e1);
-  transition: transform var(--d-fluid) var(--ease-fluid),
-    box-shadow var(--d-fluid) var(--ease-fluid), border-color var(--d-standard) var(--ease-enter);
-}
-.surface-card:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--e3);
-  border-color: var(--border-strong);
-}
-.surface-card:active {
-  transform: translateY(0);
-  box-shadow: var(--e1);
-  transition-duration: var(--d-micro);
-}
-
-/* --- Ambient glow ring ---------------------------------------------------
-   Reserved for the one actively-streaming/selected element on screen
-   (e.g. the AI message currently generating, the active room in the
-   sidebar). Do not stack more than one glow per viewport. */
-.glow-accent {
-  box-shadow: var(--glow-accent);
-}
-.glow-ai {
-  box-shadow: var(--glow-ai);
-}
-
-/* --- Fluid hover illumination --------------------------------------------
-   A soft radial highlight that appears under the cursor's resting point
-   (center-anchored, since most interactive targets are small — full
-   pointer-tracking is reserved for hero/marketing surfaces only). */
-.hover-illuminate {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-}
-.hover-illuminate::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  opacity: 0;
-  background: radial-gradient(
-    circle at 50% 0%,
-    color-mix(in oklab, var(--accent-500) 16%, transparent),
-    transparent 70%
-  );
-  transition: opacity var(--d-standard) var(--ease-enter);
-}
-.hover-illuminate:hover::before {
-  opacity: 1;
-}
-
-/* --- Fluid press feedback -------------------------------------------------
-   A restrained scale-down for tappable surfaces (buttons, icon buttons,
-   message actions) so interaction feels physical without a bounce. */
-.press-fluid {
-  transition: transform var(--d-micro) var(--ease-fluid);
-}
-.press-fluid:active {
-  transform: scale(0.97);
-}
-
-/* --- Divider with gradient fade ------------------------------------------
-   Replaces a flat 1px border where a section boundary should feel soft
-   rather than ruled (e.g. between message groups, above the composer). */
-.divider-fade {
-  height: 1px;
-  border: none;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--border-strong) 20%,
-    var(--border-strong) 80%,
-    transparent
-  );
-}
-
-/* --- Composer / input glass shell ----------------------------------------
-   The message composer and modal panels are the two surfaces users stare
-   at longest — this variant tightens the blur radius (cheaper, sharper)
-   and pairs it with an inset top highlight for a "raised glass tray"
-   read rather than a floating pane. */
-.glass-tray {
-  background: var(--glass-bg-strong);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--r-xl);
-  box-shadow: var(--e2), inset 0 1px 0 0 var(--glass-highlight);
-  backdrop-filter: blur(var(--glass-blur-sm));
-  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
-  transition: box-shadow var(--d-standard) var(--ease-enter),
-    border-color var(--d-standard) var(--ease-enter);
-}
-.glass-tray:focus-within {
-  border-color: color-mix(in oklab, var(--accent-500) 45%, var(--glass-border));
-  box-shadow: var(--e2), var(--glow-accent), inset 0 1px 0 0 var(--glass-highlight);
-}
-
-/* --- Modal / dialog entrance ---------------------------------------------
-   Named animation (not a utility class) so existing dialog components
-   can opt in via `animation: modal-enter ...` without new markup. */
-@keyframes modal-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-@keyframes modal-backdrop-enter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-.modal-surface {
-  animation: modal-enter var(--d-emphasis) var(--ease-enter) both;
-}
-.modal-backdrop {
-  animation: modal-backdrop-enter var(--d-standard) var(--ease-enter) both;
-  background: color-mix(in oklab, var(--background) 55%, transparent);
-  backdrop-filter: blur(var(--glass-blur-sm));
-  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
-}
-
-/* --- Ambient breathing glow ------------------------------------------
-   For the single "AI is thinking" surface only — an extremely slow,
-   low-amplitude pulse on box-shadow (never on blur or size, both of
-   which are expensive to animate). */
-@keyframes glowBreathe {
-  0%,
-  100% {
-    box-shadow: var(--glow-ai);
-  }
-  50% {
-    box-shadow: 0 0 0 1px color-mix(in oklab, var(--ai-teal-500) 50%, transparent),
-      0 0 32px -2px color-mix(in oklab, var(--ai-teal-500) 60%, transparent);
-  }
-}
-.glow-breathe {
-  animation: glowBreathe 2.4s ease-in-out infinite;
-}
-
-/* =====================================================================
-   RESPONSIVE — protect paint cost on smaller / lower-power devices.
-   Backdrop blur is the single most expensive property in this system;
-   it is progressively cut back rather than toggled all-or-nothing, so
-   large panels stay legible while cheap ones keep their full effect.
-   ===================================================================== */
-@media (max-width: 768px) {
-  :root,
-  .dark {
-    --glass-blur: 10px;
-    --glass-blur-lg: 14px;
-  }
-  /* The fixed ambient field is the largest painted area in the app and
-     the least noticeable when missing on a small, close-up viewport —
-     drop it first. */
-  body::before {
-    display: none;
-  }
-  .glow-breathe {
-    animation: none;
-    box-shadow: var(--glow-ai);
-  }
-}
-
-/* =====================================================================
-   §2.7 REDUCED MOTION — every animation degrades to an INSTANT CUT,
-   not a slower version.
-   ===================================================================== */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
   .skeleton::after {
     display: none;
   }
-  .surface-card:hover,
-  .surface-card:active {
-    transform: none;
+  .streaming-caret {
+    animation: none;
+    opacity: 1;
   }
-  .press-fluid:active {
-    transform: none;
+  .ai-streaming-rule {
+    animation: none;
+    opacity: 1;
   }
 }
