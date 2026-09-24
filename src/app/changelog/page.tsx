@@ -6,7 +6,7 @@ import { Logo } from "@/components/logo";
 import { VERSION, VERSION_LABEL, RELEASE_NAME, RELEASE_DATE } from "@/lib/version";
 
 export const metadata: Metadata = {
-  title: "Changelog · Confluence",
+  title: "Changelog",
   description: "Product updates, release notes, and improvements shipped to Confluence.",
 };
 
