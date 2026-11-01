@@ -53,3 +53,13 @@ supabase/.temp/
 
 e2e-serial.log
 .agents/
+
+# kilo code agent
+.kilo/
+
+# python cache
+__pycache__/
+*.py[cod]
+
+# OS metadata
+Thumbs.db
